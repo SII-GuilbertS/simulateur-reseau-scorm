@@ -1,0 +1,563 @@
+{
+  "version": 1,
+  "createdAt": "2026-05-11T12:05:45.103468",
+  "teacherPwd": "prof",
+  "network": {
+    "nid": 25,
+    "devs": {
+      "d1": {
+        "id": "d1",
+        "type": "pc",
+        "name": "PC Elève 1",
+        "x": 60,
+        "y": 100,
+        "mac": "AA:BB:CC:00:00:01",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.11",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.254",
+            "dns": "192.168.1.53"
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "192.168.1.100",
+          "end": "192.168.1.200",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d2": {
+        "id": "d2",
+        "type": "pc",
+        "name": "PC Elève 2",
+        "x": 60,
+        "y": 230,
+        "mac": "AA:BB:CC:00:00:02",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.12",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.254",
+            "dns": "192.168.1.53"
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "192.168.1.100",
+          "end": "192.168.1.200",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d3": {
+        "id": "d3",
+        "type": "pc",
+        "name": "PC Elève 3",
+        "x": 60,
+        "y": 360,
+        "mac": "AA:BB:CC:00:00:03",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "",
+            "mask": "255.255.255.0",
+            "gateway": "",
+            "dns": ""
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "192.168.1.100",
+          "end": "192.168.1.200",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d4": {
+        "id": "d4",
+        "type": "switch",
+        "name": "Switch Salle",
+        "x": 240,
+        "y": 250,
+        "mac": "AA:BB:CC:00:00:04",
+        "ifaces": [],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "192.168.1.100",
+          "end": "192.168.1.200",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d5": {
+        "id": "d5",
+        "type": "server",
+        "name": "Serveur Intranet",
+        "x": 60,
+        "y": 490,
+        "mac": "AA:BB:CC:00:00:05",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.100",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.254",
+            "dns": "192.168.1.53"
+          }
+        ],
+        "http": {
+          "on": true,
+          "title": "Intranet — Lycée Pasteur",
+          "htmlMode": true,
+          "content": "<h2>🏫 Bienvenue sur l'Intranet du Lycée Pasteur</h2><p>Portail interne réservé aux élèves et au personnel.</p><hr><h3>📌 Informations</h3><ul><li>📅 Prochain conseil de classe : <strong>lundi 20 mai</strong></li><li>🎓 Résultats baccalauréat blanc disponibles dans l'ENT</li><li>📚 Réservation salle informatique via <code>admin.lycee.local</code></li></ul><p><em>Serveur accessible sur : 192.168.1.100 | intranet.lycee.local</em></p>"
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": true,
+          "start": "192.168.1.150",
+          "end": "192.168.1.200",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.254",
+          "dns": "192.168.1.53"
+        },
+        "serverFiles": {
+          "reglement.txt": "Règlement intérieur du lycée Pasteur.\n\nArticle 1 : ...",
+          "planning.pdf": "Planning semaine 20 (simulé)"
+        },
+        "staticRoutes": []
+      },
+      "d6": {
+        "id": "d6",
+        "type": "server",
+        "name": "Serveur DNS",
+        "x": 60,
+        "y": 620,
+        "mac": "AA:BB:CC:00:00:06",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.53",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.254",
+            "dns": ""
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": true,
+          "records": {
+            "intranet.lycee.local": "192.168.1.100",
+            "dns.lycee.local": "192.168.1.53",
+            "www.lycee.local": "192.168.2.80",
+            "lycee.local": "192.168.2.80",
+            "admin.lycee.local": "192.168.2.10"
+          }
+        },
+        "dhcp": {
+          "on": false,
+          "start": "192.168.1.100",
+          "end": "192.168.1.200",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d7": {
+        "id": "d7",
+        "type": "router",
+        "name": "Routeur Central",
+        "x": 460,
+        "y": 330,
+        "mac": "AA:BB:CC:00:00:07",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.254",
+            "mask": "255.255.255.0"
+          },
+          {
+            "name": "eth1",
+            "ip": "192.168.2.254",
+            "mask": "255.255.255.0"
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "",
+          "end": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": [],
+        "autoRouteEnabled": true
+      },
+      "d8": {
+        "id": "d8",
+        "type": "switch",
+        "name": "Switch Admin",
+        "x": 660,
+        "y": 330,
+        "mac": "AA:BB:CC:00:00:08",
+        "ifaces": [],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "",
+          "end": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d9": {
+        "id": "d9",
+        "type": "pc",
+        "name": "PC Admin",
+        "x": 860,
+        "y": 200,
+        "mac": "AA:BB:CC:00:00:09",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.2.10",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.2.254",
+            "dns": "192.168.1.53"
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "",
+          "end": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d10": {
+        "id": "d10",
+        "type": "pc",
+        "name": "PC Direction",
+        "x": 860,
+        "y": 350,
+        "mac": "AA:BB:CC:00:00:0A",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.2.20",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.2.254",
+            "dns": "192.168.1.53"
+          }
+        ],
+        "http": {
+          "on": false,
+          "title": "",
+          "content": "",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "",
+          "end": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {},
+        "staticRoutes": []
+      },
+      "d11": {
+        "id": "d11",
+        "type": "server",
+        "name": "Serveur Web",
+        "x": 860,
+        "y": 490,
+        "mac": "AA:BB:CC:00:00:0B",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.2.80",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.2.254",
+            "dns": "192.168.1.53"
+          }
+        ],
+        "http": {
+          "on": true,
+          "title": "Lycée Pasteur — Site Officiel",
+          "htmlMode": true,
+          "content": "<h2>🏫 Lycée Pasteur</h2><p>Site officiel — <em>www.lycee.local</em></p><hr><h3>🎓 Formations</h3><ul><li>Baccalauréat Général (1ère et Terminale)</li><li>BTS SIO — Services Informatiques aux Organisations</li><li>BTS CIEL — Cybersécurité, Informatique et réseaux</li></ul><p>📧 Contact : <code>admin.lycee.local</code></p>"
+        },
+        "dns": {
+          "on": false,
+          "records": {}
+        },
+        "dhcp": {
+          "on": false,
+          "start": "",
+          "end": "",
+          "mask": "",
+          "gateway": "",
+          "dns": ""
+        },
+        "serverFiles": {
+          "index.html": "Page web du lycée",
+          "about.txt": "À propos du lycée Pasteur"
+        },
+        "staticRoutes": []
+      }
+    },
+    "links": {
+      "l1": {
+        "id": "l1",
+        "from": "d1",
+        "to": "d4"
+      },
+      "l2": {
+        "id": "l2",
+        "from": "d2",
+        "to": "d4"
+      },
+      "l4": {
+        "id": "l4",
+        "from": "d5",
+        "to": "d4"
+      },
+      "l5": {
+        "id": "l5",
+        "from": "d6",
+        "to": "d4"
+      },
+      "l6": {
+        "id": "l6",
+        "from": "d4",
+        "to": "d7"
+      },
+      "l7": {
+        "id": "l7",
+        "from": "d7",
+        "to": "d8"
+      },
+      "l8": {
+        "id": "l8",
+        "from": "d9",
+        "to": "d8"
+      },
+      "l9": {
+        "id": "l9",
+        "from": "d10",
+        "to": "d8"
+      },
+      "l10": {
+        "id": "l10",
+        "from": "d11",
+        "to": "d8"
+      }
+    }
+  },
+  "activity": {
+    "title": "Réseau du Lycée Pasteur",
+    "level": "Seconde / BTS SIO",
+    "instructions": "Dans cette activité, vous allez configurer et tester le réseau informatique du Lycée Pasteur. Le réseau comporte deux sous-réseaux : la salle informatique (192.168.1.0/24) et le réseau administratif (192.168.2.0/24), reliés par un routeur central.\n\n👉 Commencez par câbler et configurer PC Elève 3, puis testez les communications inter-réseaux.",
+    "masteryscore": 60,
+    "displayMode": "full",
+    "objectives": [
+      {
+        "id": "obj1",
+        "label": "Câbler PC Elève 3 au Switch Salle",
+        "points": 10,
+        "params": {
+          "devA": "PC Elève 3",
+          "devB": "Switch Salle"
+        },
+        "check": "cable_exists"
+      },
+      {
+        "id": "obj2",
+        "label": "Vérifier que le service DHCP du Serveur Intranet est actif",
+        "points": 5,
+        "params": {
+          "dev": "Serveur Intranet",
+          "service": "dhcp"
+        },
+        "check": "service_active"
+      },
+      {
+        "id": "obj3",
+        "label": "PC Elève 3 obtient une adresse IP via DHCP",
+        "points": 15,
+        "params": {
+          "from": "PC Elève 3"
+        },
+        "check": "dhcp_success"
+      },
+      {
+        "id": "obj4",
+        "label": "PC Elève 3 a une IP dans la plage 192.168.1.150-200",
+        "points": 5,
+        "params": {
+          "dev": "PC Elève 3",
+          "ip": "192.168.1.150",
+          "mask": "255.255.255.0"
+        },
+        "check": "ip_configured"
+      },
+      {
+        "id": "obj5",
+        "label": "Ping de PC Elève 1 vers le Serveur Intranet",
+        "points": 10,
+        "params": {
+          "from": "PC Elève 1",
+          "to": "192.168.1.100"
+        },
+        "check": "ping_success"
+      },
+      {
+        "id": "obj6",
+        "label": "Accès HTTP au Serveur Intranet depuis PC Elève 1",
+        "points": 15,
+        "params": {
+          "from": "PC Elève 1",
+          "url": "http://192.168.1.100"
+        },
+        "check": "http_success"
+      },
+      {
+        "id": "obj7",
+        "label": "Résolution DNS de intranet.lycee.local depuis PC Elève 1",
+        "points": 10,
+        "params": {
+          "from": "PC Elève 1",
+          "domain": "intranet.lycee.local"
+        },
+        "check": "dns_success"
+      },
+      {
+        "id": "obj8",
+        "label": "Ping de PC Elève 1 vers PC Admin (inter-réseau)",
+        "points": 15,
+        "params": {
+          "from": "PC Elève 1",
+          "to": "192.168.2.10"
+        },
+        "check": "ping_success"
+      },
+      {
+        "id": "obj9",
+        "label": "Accès au Site Web du Lycée depuis PC Elève 1 (www.lycee.local)",
+        "points": 15,
+        "params": {
+          "from": "PC Elève 1",
+          "url": "http://www.lycee.local"
+        },
+        "check": "http_success"
+      }
+    ]
+  }
+}
