@@ -1,0 +1,483 @@
+{
+  "version": 1,
+  "devs": {
+    "d1": {
+      "id": "d1",
+      "type": "pc",
+      "name": "PC Elève 1",
+      "x": 60,
+      "y": 100,
+      "mac": "AA:BB:CC:00:00:01",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.1.11",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.254",
+          "dns": "192.168.1.53"
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "192.168.1.100",
+        "end": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d2": {
+      "id": "d2",
+      "type": "pc",
+      "name": "PC Elève 2",
+      "x": 60,
+      "y": 230,
+      "mac": "AA:BB:CC:00:00:02",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.1.12",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.254",
+          "dns": "192.168.1.53"
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "192.168.1.100",
+        "end": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d3": {
+      "id": "d3",
+      "type": "pc",
+      "name": "PC Elève 3",
+      "x": 60,
+      "y": 360,
+      "mac": "AA:BB:CC:00:00:03",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "",
+          "mask": "255.255.255.0",
+          "gateway": "",
+          "dns": ""
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "192.168.1.100",
+        "end": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d4": {
+      "id": "d4",
+      "type": "switch",
+      "name": "Switch Salle",
+      "x": 240,
+      "y": 250,
+      "mac": "AA:BB:CC:00:00:04",
+      "ifaces": [],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "192.168.1.100",
+        "end": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d5": {
+      "id": "d5",
+      "type": "server",
+      "name": "Serveur Intranet",
+      "x": 60,
+      "y": 490,
+      "mac": "AA:BB:CC:00:00:05",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.1.100",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.254",
+          "dns": "192.168.1.53"
+        }
+      ],
+      "http": {
+        "on": true,
+        "title": "Intranet — Lycée Pasteur",
+        "htmlMode": true,
+        "content": "<h2>🏫 Bienvenue sur l'Intranet du Lycée Pasteur</h2><p>Portail interne réservé aux élèves et au personnel.</p><hr><h3>📌 Informations</h3><ul><li>📅 Prochain conseil de classe : <strong>lundi 20 mai</strong></li><li>🎓 Résultats baccalauréat blanc disponibles dans l'ENT</li><li>📚 Réservation salle informatique via <code>admin.lycee.local</code></li></ul><p><em>Serveur accessible sur : 192.168.1.100 | intranet.lycee.local</em></p>"
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": true,
+        "start": "192.168.1.150",
+        "end": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.254",
+        "dns": "192.168.1.53"
+      },
+      "serverFiles": {
+        "reglement.txt": "Règlement intérieur du lycée Pasteur.\n\nArticle 1 : ...",
+        "planning.pdf": "Planning semaine 20 (simulé)"
+      },
+      "staticRoutes": []
+    },
+    "d6": {
+      "id": "d6",
+      "type": "server",
+      "name": "Serveur DNS",
+      "x": 248,
+      "y": 483,
+      "mac": "AA:BB:CC:00:00:06",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.1.53",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.1.254",
+          "dns": ""
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": true,
+        "records": {
+          "intranet.lycee.local": "192.168.1.100",
+          "dns.lycee.local": "192.168.1.53",
+          "www.lycee.local": "192.168.2.80",
+          "lycee.local": "192.168.2.80",
+          "admin.lycee.local": "192.168.2.10"
+        }
+      },
+      "dhcp": {
+        "on": false,
+        "start": "192.168.1.100",
+        "end": "192.168.1.200",
+        "mask": "255.255.255.0",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d7": {
+      "id": "d7",
+      "type": "router",
+      "name": "Routeur Central",
+      "x": 447,
+      "y": 249,
+      "mac": "AA:BB:CC:00:00:07",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.1.254",
+          "mask": "255.255.255.0"
+        },
+        {
+          "name": "eth1",
+          "ip": "192.168.2.254",
+          "mask": "255.255.255.0"
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "",
+        "end": "192.168.1.200",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": [],
+      "autoRouteEnabled": true
+    },
+    "d8": {
+      "id": "d8",
+      "type": "switch",
+      "name": "Switch Admin",
+      "x": 640,
+      "y": 250,
+      "mac": "AA:BB:CC:00:00:08",
+      "ifaces": [],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "",
+        "end": "192.168.1.200",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d9": {
+      "id": "d9",
+      "type": "pc",
+      "name": "PC Admin",
+      "x": 764,
+      "y": 78,
+      "mac": "AA:BB:CC:00:00:09",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.2.10",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.2.254",
+          "dns": "192.168.1.53"
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "",
+        "end": "192.168.1.200",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d10": {
+      "id": "d10",
+      "type": "pc",
+      "name": "PC Direction",
+      "x": 835,
+      "y": 244,
+      "mac": "AA:BB:CC:00:00:0A",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.2.20",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.2.254",
+          "dns": "192.168.1.53"
+        }
+      ],
+      "http": {
+        "on": false,
+        "title": "",
+        "content": "",
+        "htmlMode": false
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "",
+        "end": "192.168.1.200",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {},
+      "staticRoutes": []
+    },
+    "d11": {
+      "id": "d11",
+      "type": "server",
+      "name": "Serveur Web",
+      "x": 642,
+      "y": 475,
+      "mac": "AA:BB:CC:00:00:0B",
+      "ifaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.2.80",
+          "mask": "255.255.255.0",
+          "gateway": "192.168.2.254",
+          "dns": "192.168.1.53"
+        }
+      ],
+      "http": {
+        "on": true,
+        "title": "Lycée Pasteur — Site Officiel",
+        "htmlMode": true,
+        "content": "<h2>🏫 Lycée Pasteur</h2><p>Site officiel — <em>www.lycee.local</em></p><hr><h3>🎓 Formations</h3><ul><li>Baccalauréat Général (1ère et Terminale)</li><li>BTS SIO — Services Informatiques aux Organisations</li><li>BTS CIEL — Cybersécurité, Informatique et réseaux</li></ul><p>📧 Contact : <code>admin.lycee.local</code></p>"
+      },
+      "dns": {
+        "on": false,
+        "records": {}
+      },
+      "dhcp": {
+        "on": false,
+        "start": "",
+        "end": "192.168.1.200",
+        "mask": "",
+        "gateway": "",
+        "dns": ""
+      },
+      "serverFiles": {
+        "index.html": "Page web du lycée",
+        "about.txt": "À propos du lycée Pasteur"
+      },
+      "staticRoutes": []
+    }
+  },
+  "links": {
+    "l1": {
+      "id": "l1",
+      "from": "d1",
+      "to": "d4"
+    },
+    "l2": {
+      "id": "l2",
+      "from": "d2",
+      "to": "d4"
+    },
+    "l4": {
+      "id": "l4",
+      "from": "d5",
+      "to": "d4"
+    },
+    "l5": {
+      "id": "l5",
+      "from": "d6",
+      "to": "d4"
+    },
+    "l6": {
+      "id": "l6",
+      "from": "d4",
+      "to": "d7"
+    },
+    "l7": {
+      "id": "l7",
+      "from": "d7",
+      "to": "d8"
+    },
+    "l8": {
+      "id": "l8",
+      "from": "d9",
+      "to": "d8"
+    },
+    "l9": {
+      "id": "l9",
+      "from": "d10",
+      "to": "d8"
+    },
+    "l10": {
+      "id": "l10",
+      "from": "d11",
+      "to": "d8"
+    }
+  },
+  "nid": 27,
+  "frames": {
+    "f25": {
+      "id": "f25",
+      "x": 4,
+      "y": 4,
+      "w": 511,
+      "h": 586,
+      "label": "Réseau élèves",
+      "bg": "#eff6ff",
+      "border": "#2563eb"
+    },
+    "f26": {
+      "id": "f26",
+      "x": 520,
+      "y": 2,
+      "w": 460,
+      "h": 594,
+      "label": "Réseau direction",
+      "bg": "#fdf4ff",
+      "border": "#9333ea"
+    }
+  },
+  "texts": {}
+}
