@@ -1004,6 +1004,11 @@ function devByIP(ip){
     return d.ifaces&&d.ifaces.some(function(f){return f.ip&&f.ip.trim()===ip.trim();});
   })||null;
 }
+function devByName(name){
+  if(!name)return null;
+  var n=name.trim().toLowerCase();
+  return Object.values(S.devs).find(function(d){return d.name&&d.name.trim().toLowerCase()===n;})||null;
+}
 function mainIface(d){return d.ifaces&&d.ifaces[0]?d.ifaces[0]:null;}
 
 /* ─────────────────────────────────────────────────────
