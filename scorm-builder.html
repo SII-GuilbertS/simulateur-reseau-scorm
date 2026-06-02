@@ -2972,7 +2972,6 @@ var EvalModule = (function() {
     _config.objectives.forEach(function(o){ total += o.points||0; });
     var el = document.getElementById('ev-total-pts');
     if(el) el.innerHTML = 'Total : <strong>'+total+' point(s)</strong> sur '+((_config.objectives.length)||0)+' objectif(s)';
-    if(typeof checkAllObjectives==='function')checkAllObjectives();
   }
 
   function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -3240,6 +3239,8 @@ function showBuilderTab(n) {
   [evalOvl, genOvl].forEach(function(el){ if(el) el.style.top = navH + 'px'; });
   // When switching to gen tab, refresh summary
   if(n===3) GenModule.updateSummary();
+  // Quitter l'onglet Évaluation → recalculer le score sur le réseau courant
+  if(n!==2) checkAllObjectives();
 }
 
 /* ── Init Builder ── */
