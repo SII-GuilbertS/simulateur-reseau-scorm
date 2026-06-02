@@ -2786,6 +2786,11 @@ var EvalModule = (function() {
       displayMode:  cfg.displayMode  || 'full',
       objectives:   Array.isArray(cfg.objectives) ? cfg.objectives : []
     };
+    // S'assurer que _nextId dépasse tous les ids existants pour éviter les doublons
+    _config.objectives.forEach(function(o){
+      var m = o.id && o.id.match(/^obj_(\d+)$/);
+      if(m) _nextId = Math.max(_nextId, parseInt(m[1]) + 1);
+    });
     var ti = document.getElementById('ev-title');
     var lv = document.getElementById('ev-level');
     var ins = document.getElementById('ev-instructions');
