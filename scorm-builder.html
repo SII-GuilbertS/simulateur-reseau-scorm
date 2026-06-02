@@ -1280,7 +1280,7 @@ function cwDrop(e){
     S.sel=id;render();showProps(id);return;
   }
   var id=mkDev(type,Math.max(4,x-DW/2),Math.max(4,y-DH/2));
-  S.sel=id;render();showProps(id);checkBadges();
+  S.sel=id;render();showProps(id);checkBadges();checkAllObjectives();
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1300,7 +1300,7 @@ function devMD(e,id){
   if(S.tool==='delete'){delDev(id);render();noSel();return;}
   if(S.tool==='link'){
     if(!S.cableFrom){S.cableFrom=id;render();}
-    else{if(S.cableFrom!==id){addLink(S.cableFrom,id);checkBadges();}S.cableFrom=null;hidePrev();render();}
+    else{if(S.cableFrom!==id){addLink(S.cableFrom,id);checkBadges();checkAllObjectives();}S.cableFrom=null;hidePrev();render();}
     return;
   }
   var pt=svgPt(e);
@@ -1715,7 +1715,7 @@ function toggleDHCPMode(devId, enabled){
   var d=S.devs[devId];if(!d||!d.ifaces[0])return;
   d.ifaces[0].dhcpMode=enabled;
   if(enabled){d.ifaces[0].ip='';d.ifaces[0].mask='';d.ifaces[0].gateway='';d.ifaces[0].dns='';}
-  render();showProps(devId);checkBadges();
+  render();showProps(devId);checkBadges();checkAllObjectives();
 }
 function setIface(devId,idx,field,val){
   if(!S.devs[devId]||!S.devs[devId].ifaces[idx])return;
@@ -1732,7 +1732,7 @@ function setIface(devId,idx,field,val){
     autoRoute();
     if(S.sel===devId)showProps(devId);
   }
-  render();checkBadges();
+  render();checkBadges();checkAllObjectives();
 }
 
 function setDHCP(devId,field,val){
@@ -2061,13 +2061,125 @@ function unlock(id){
   renderBadges();
   addLog('🏅 Badge obtenu : '+b.title,'ok');
 }
-/* stub — l'évaluation dynamique des objectifs se fait dans le template élève */
-function checkDynamicObjective(type,context){}
+/* ── Évaluation par objectifs ────────────────────────────── */
+var ACTIVITY_RESULTS={};  // {objId: true/false}
 
-function updScore(){document.getElementById('hdr-score').textContent='🏅 Score : '+S.score+' / 100';}
+function ipMatchesPattern(ip,pattern){
+  if(!pattern||!ip)return !pattern;
+  if(pattern.indexOf('*')<0)return ip===pattern;
+  var pp=pattern.split('.'),ip4=ip.split('.');
+  if(pp.length!==4||ip4.length!==4)return false;
+  return pp.every(function(seg,i){return seg==='*'||seg===ip4[i];});
+}
+
+function checkObjectiveStatic(obj){
+  var p=obj.params||{};
+  var type=obj.check;
+  var fi,nd,src,dst;
+  switch(type){
+    case 'ip_configured':{
+      nd=p.dev?devByName(p.dev):null;if(!nd)return false;
+      fi=mainIface(nd);if(!fi)return false;
+      if(p.ip&&!ipMatchesPattern(fi.ip,p.ip))return false;
+      if(p.mask&&fi.mask!==p.mask)return false;
+      return true;}
+    case 'gateway_configured':{
+      nd=p.dev?devByName(p.dev):null;if(!nd)return false;
+      fi=mainIface(nd);if(!fi)return false;
+      if(p.gateway&&!ipMatchesPattern(fi.gateway||'',p.gateway))return false;
+      return true;}
+    case 'cable_exists':{
+      src=p.devA?devByName(p.devA):null;dst=p.devB?devByName(p.devB):null;
+      if(!src||!dst)return false;
+      return Object.values(S.links).some(function(l){
+        return (l.a===src.id&&l.b===dst.id)||(l.a===dst.id&&l.b===src.id);
+      });}
+    case 'device_added':{
+      nd=p.newdev?devByName(p.newdev):null;
+      if(!nd&&p.ip&&p.ip.indexOf('*')<0)nd=devByIP(p.ip);
+      if(!nd&&p.ip&&p.ip.indexOf('*')>=0){
+        nd=Object.values(S.devs).find(function(dv){
+          var _f=mainIface(dv);return _f&&ipMatchesPattern(_f.ip,p.ip);
+        })||null;
+      }
+      if(!nd)return false;
+      fi=mainIface(nd);
+      if(p.ip&&!ipMatchesPattern(fi?fi.ip:'',p.ip))return false;
+      if(p.mask&&(!fi||fi.mask!==p.mask))return false;
+      if(p.gateway&&(!fi||fi.gateway!==p.gateway))return false;
+      if(p.type&&nd.type!==p.type)return false;
+      return true;}
+    default: return false;
+  }
+}
+
+var STATIC_TYPES=['ip_configured','gateway_configured','cable_exists','device_added'];
+
+function checkAllObjectives(){
+  var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
+  if(!cfg||!cfg.objectives||!cfg.objectives.length)return;
+  cfg.objectives.forEach(function(obj){
+    if(STATIC_TYPES.indexOf(obj.check)>=0){
+      ACTIVITY_RESULTS[obj.id]=checkObjectiveStatic(obj);
+    }
+    // dynamic objectives (ping, dns, http, dhcp) keep their current result
+    if(ACTIVITY_RESULTS[obj.id]===undefined)ACTIVITY_RESULTS[obj.id]=false;
+  });
+  updateActivityScore();
+}
+
+function checkDynamicObjective(type,context){
+  var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
+  if(!cfg||!cfg.objectives||!cfg.objectives.length)return;
+  cfg.objectives.forEach(function(obj){
+    if(obj.check!==type)return;
+    var p=obj.params||{};
+    var ok=false;
+    if(type==='ping_success'){
+      var _pto=p.to;
+      if(_pto&&!(/^\d+\.\d+\.\d+\.\d+$/.test(_pto))){
+        var _pd=devByName(_pto);
+        if(_pd){var _pf=mainIface(_pd);if(_pf&&_pf.ip)_pto=_pf.ip;}
+      }
+      ok=(!p.from||p.from===context.from)&&(!p.to||_pto===context.to);
+    } else if(type==='dns_success'){
+      ok=(!p.from||p.from===context.from)&&(!p.domain||p.domain===context.domain);
+    } else if(type==='http_success'){
+      ok=(!p.from||p.from===context.from)&&(!p.url||p.url===context.url);
+    } else if(type==='dhcp_success'){
+      ok=(!p.from||p.from===context.from);
+    }
+    if(ok&&!ACTIVITY_RESULTS[obj.id]){
+      ACTIVITY_RESULTS[obj.id]=true;
+      updateActivityScore();
+    }
+  });
+}
+
+function updateActivityScore(){
+  var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
+  if(!cfg||!cfg.objectives||!cfg.objectives.length){S.score=0;updScore();return;}
+  var total=cfg.objectives.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
+  var earned=cfg.objectives.reduce(function(s,o){return s+(ACTIVITY_RESULTS[o.id]?(parseInt(o.points)||0):0);},0);
+  S.score=total>0?Math.round(earned/total*100):0;
+  updScore();
+}
+
+function updScore(){
+  var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
+  var hasObj=cfg&&cfg.objectives&&cfg.objectives.length>0;
+  if(hasObj){
+    var total=cfg.objectives.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
+    var earned=cfg.objectives.reduce(function(s,o){return s+(ACTIVITY_RESULTS[o.id]?(parseInt(o.points)||0):0);},0);
+    document.getElementById('hdr-score').textContent='📊 Score : '+earned+' / '+total+' pts';
+  } else {
+    document.getElementById('hdr-score').textContent='🏅 Score : '+S.score+' / 100';
+  }
+}
 
 function resetScore(){
-  S.score=0;S.badges={};
+  S.score=0;S.badges={};ACTIVITY_RESULTS={};
+  checkAllObjectives();
   updScore();renderBadges();
   notif('🔄 Score remis à zéro','info');
 }
@@ -2075,16 +2187,32 @@ function resetScore(){
 function renderScoreDetails(){
   var panel=document.getElementById('score-details');
   if(!panel)return;
-  var total=BADGES.reduce(function(s,b){return s+b.pts;},0);
-  var earned=BADGES.reduce(function(s,b){return s+(S.badges[b.id]?b.pts:0);},0);
+  var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
+  var objs=cfg&&cfg.objectives&&cfg.objectives.length?cfg.objectives:null;
   var h='<div class="sd-title">📊 Détail des objectifs</div>';
-  BADGES.forEach(function(b){
-    var done=!!S.badges[b.id];
-    h+='<div class="sd-obj"><span>'+(done?'✅':'⭕')+'</span>'+
-      '<span class="sd-label">'+b.icon+' '+esc(b.title)+'<br><em style="color:#a0aec0;font-size:.9em">'+esc(b.desc)+'</em></span>'+
-      '<span class="sd-pts">'+b.pts+' pt</span></div>';
-  });
-  h+='<div class="sd-total">'+earned+' / '+total+' pts</div>';
+  if(objs){
+    var total=objs.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
+    var earned=objs.reduce(function(s,o){return s+(ACTIVITY_RESULTS[o.id]?(parseInt(o.points)||0):0);},0);
+    objs.forEach(function(o){
+      var done=!!ACTIVITY_RESULTS[o.id];
+      var isDynamic=STATIC_TYPES.indexOf(o.check)<0;
+      var statusTitle=isDynamic&&!done?'(à tester en simulation)':'';
+      h+='<div class="sd-obj"><span title="'+statusTitle+'">'+(done?'✅':'⭕')+'</span>'+
+        '<span class="sd-label">'+esc(o.label||o.check)+(isDynamic&&!done?'<br><em style="color:#a0aec0;font-size:.85em">à tester en simulation</em>':'')+'</span>'+
+        '<span class="sd-pts">'+(parseInt(o.points)||0)+' pt</span></div>';
+    });
+    h+='<div class="sd-total">'+earned+' / '+total+' pts</div>';
+  } else {
+    var btotal=BADGES.reduce(function(s,b){return s+b.pts;},0);
+    var bearned=BADGES.reduce(function(s,b){return s+(S.badges[b.id]?b.pts:0);},0);
+    BADGES.forEach(function(b){
+      var done=!!S.badges[b.id];
+      h+='<div class="sd-obj"><span>'+(done?'✅':'⭕')+'</span>'+
+        '<span class="sd-label">'+b.icon+' '+esc(b.title)+'<br><em style="color:#a0aec0;font-size:.9em">'+esc(b.desc)+'</em></span>'+
+        '<span class="sd-pts">'+b.pts+' pt</span></div>';
+    });
+    h+='<div class="sd-total">'+bearned+' / '+btotal+' pts</div>';
+  }
   panel.innerHTML=h;
 }
 function toggleScoreDetails(){
@@ -2183,7 +2311,7 @@ function doDHCP(devId){
     tpr('Configuration IP appliquée automatiquement.','ok');
     addLog('DHCP '+d.name+' → '+res.ip+' (via '+res.server+')','ok');
     addPacket('DHCP','0.0.0.0',res.ip,'Adresse attribuée par '+res.server,true);
-    render();if(S.sel===devId)showProps(devId);checkBadges();
+    render();if(S.sel===devId)showProps(devId);checkBadges();checkAllObjectives();
   } else {
     tpr('DHCP Request échoué : '+res.reason,'err');
     addLog('DHCP '+d.name+' ÉCHEC : '+res.reason,'err');
@@ -2895,6 +3023,7 @@ var EvalModule = (function() {
     _config.objectives.forEach(function(o){ total += o.points||0; });
     var el = document.getElementById('ev-total-pts');
     if(el) el.innerHTML = 'Total : <strong>'+total+' point(s)</strong> sur '+((_config.objectives.length)||0)+' objectif(s)';
+    if(typeof checkAllObjectives==='function')checkAllObjectives();
   }
 
   function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
