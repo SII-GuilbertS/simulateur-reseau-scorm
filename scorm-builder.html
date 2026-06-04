@@ -338,6 +338,7 @@ body{padding-top:0}/* nav is flex child */
       <span class="bld-tab-num">3</span>Générer SCORM
     </button>
   </div>
+  <button onclick="GenModule.previewAsStudent()" title="Ouvrir la vue élève dans un nouvel onglet" style="margin-left:auto;margin-right:10px;padding:5px 13px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap">👁️ Tester comme élève</button>
   <div class="bld-hint">Ctrl+1 / Ctrl+2 / Ctrl+3 pour naviguer</div>
 </div>
 
@@ -3330,7 +3331,61 @@ var GenModule = (function() {
     ev.target.value = '';
   }
 
-  return { generate: generate, generateHtml: generateHtml, exportScenario: exportScenario, importScenario: importScenario, updateSummary: updateSummary };
+  function previewAsStudent() {
+    if(typeof STUDENT_TEMPLATE==='undefined'||!STUDENT_TEMPLATE){
+      bldNotif('❌ Template élève manquant','err');return;
+    }
+    var net=SimModule.getState();
+    var cfg=EvalModule.getConfig();
+    var starterJson=Object.keys(net.devs||{}).length>0
+      ?JSON.stringify({devs:net.devs,links:net.links,nid:net.nid}):'null';
+    var actJson=(cfg.objectives||[]).length>0?JSON.stringify(cfg):'null';
+    var previewKey='sim_preview_'+Date.now();
+    var pwd=(document.getElementById('gen-pwd')||{}).value||'prof';
+
+    var html=STUDENT_TEMPLATE
+      .replace(/var STARTER_NETWORK = null; \/\* __STARTER__ \*\//,
+               'var STARTER_NETWORK = '+starterJson+'; /* __STARTER__ */')
+      .replace(/var ACTIVITY_CONFIG = null; \/\* __ACTIVITY__ \*\//,
+               'var ACTIVITY_CONFIG = '+actJson+'; /* __ACTIVITY__ */')
+      .replace(/var TEACHER_PWD = '[^']*'; \/\* __TEACHER_PWD__ \*\//,
+               'var TEACHER_PWD = \''+pwd.replace(/'/g,"\\'")+'\'; /* __TEACHER_PWD__ */')
+      .replace("SESSION_KEY='sim_reseau_v2'","SESSION_KEY='"+previewKey+"'");
+
+    // Injection de sécurité
+    var inject='\n<script id="sim-preview-inject">\n'+
+      'STARTER_NETWORK='+starterJson+';\n'+
+      'ACTIVITY_CONFIG='+actJson+';\n'+
+      'TEACHER_PWD=\''+pwd.replace(/'/g,"\\'")+'\''+';\n'+
+      'SESSION_KEY=\''+previewKey+'\';\n'+
+      '</scr'+'ipt>\n';
+    html=html.replace('</body>',inject+'</body>');
+
+    // Bandeau aperçu
+    var banner='<div id="preview-banner" style="position:fixed;top:0;left:0;right:0;'+
+      'background:#e94560;color:#fff;text-align:center;padding:5px 8px;font-weight:700;'+
+      'font-size:.82em;z-index:99999;box-shadow:0 2px 6px rgba(0,0,0,.4);letter-spacing:.02em">'+
+      '👁️ APERÇU ÉLÈVE — données du builder injectées en temps réel'+
+      '<button onclick="document.getElementById(\'preview-banner\').remove()" '+
+      'style="margin-left:14px;background:rgba(255,255,255,.25);border:none;color:#fff;'+
+      'border-radius:4px;padding:1px 8px;cursor:pointer;font-weight:700">✕</button></div>'+
+      '<style>body{padding-top:30px!important}</style>';
+    html=html.replace('<body>','<body>'+banner).replace('<body ','<body data-preview="1" ');
+    // Cas où body a des attributs
+    html=html.replace(/(<body(?:[^>](?!data-preview))*>)/,'$1'+banner);
+
+    var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var win=window.open(url,'_blank');
+    if(!win){
+      bldNotif('⚠️ Popup bloquée — autorisez les popups pour ce fichier','err');
+      URL.revokeObjectURL(url);return;
+    }
+    setTimeout(function(){URL.revokeObjectURL(url);},15000);
+    bldNotif('👁️ Aperçu élève ouvert dans un nouvel onglet','ok');
+  }
+
+  return { generate: generate, generateHtml: generateHtml, previewAsStudent: previewAsStudent, exportScenario: exportScenario, importScenario: importScenario, updateSummary: updateSummary };
 })();
 
 
