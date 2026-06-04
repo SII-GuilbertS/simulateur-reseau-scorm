@@ -436,6 +436,7 @@ body{padding-top:0}/* nav is flex child */
       <g id="layer-links"></g>
       <g id="layer-devs"></g>
       <g id="layer-texts"></g>
+      <rect id="sel-rect" display="none" fill="rgba(66,153,225,.1)" stroke="#4299e1" stroke-width="1.5" stroke-dasharray="5,3" pointer-events="none"/>
       <line id="prev-line" stroke="#4299e1" stroke-width="2" stroke-dasharray="7,4" display="none" pointer-events="none"/>
       <text id="cv-hint" x="50%" y="44%" text-anchor="middle" fill="#c8d0da" font-size="14" font-family="Segoe UI,Arial" pointer-events="none">← Glissez un appareil depuis la palette pour démarrer</text>
     </svg>
@@ -813,6 +814,7 @@ var S={
   devs:{},links:{},frames:{},texts:{},nid:1,
   tool:'select',mode:'config',
   sel:null,cableFrom:null,drag:null,
+  multiSel:new Set(),rectSel:null,
   termDev:null,
   score:0,
   activeLinks:new Set(),  // câbles animés
@@ -1251,6 +1253,15 @@ function renderDevs(){
       (isCF?'<circle cx="'+(d.x+DW/2)+'" cy="'+(d.y+DH/2)+'" r="28" fill="none" stroke="#fbd38d" stroke-width="2.5" stroke-dasharray="5,3" opacity=".6"/>':'')+
       '</g>';
   });
+  // Overlays de multi-sélection
+  if(S.multiSel&&S.multiSel.size>0){
+    S.multiSel.forEach(function(mid){
+      var md=S.devs[mid];if(!md)return;
+      h+='<rect x="'+(md.x-3)+'" y="'+(md.y-3)+'" width="'+(DW+6)+'" height="'+(DH+6)+'"'+
+        ' rx="8" fill="none" stroke="#4299e1" stroke-width="2.5" stroke-dasharray="5,3"'+
+        ' pointer-events="none" opacity=".9"/>';
+    });
+  }
   document.getElementById('layer-devs').innerHTML=h;
 }
 
@@ -1299,7 +1310,29 @@ function devMD(e,id){
     return;
   }
   var pt=svgPt(e);
+  if(e.shiftKey&&S.tool==='select'){
+    if(S.multiSel.has(id))S.multiSel.delete(id);else{S.multiSel.add(id);S.sel=null;}
+    renderDevs();
+    if(S.multiSel.size>0){
+      var panel=document.getElementById('props-body');
+      if(panel)panel.innerHTML='<div class="nosel"><div class="ico">📦</div>'+
+        S.multiSel.size+' appareils sélectionnés<br><em style="font-size:.85em;color:#a0aec0">'+
+        'Faites glisser pour déplacer le groupe<br>Échap pour désélectionner</em></div>';
+    } else noSel();
+    return;
+  }
+  if(S.multiSel.has(id)&&S.multiSel.size>1&&S.tool==='select'){
+    // Déplacement de groupe
+    snapHistory();
+    var devs={};
+    S.multiSel.forEach(function(did){
+      var dd=S.devs[did];if(dd)devs[did]={ox:pt.x-dd.x,oy:pt.y-dd.y};
+    });
+    S.drag={type:'group',devs:devs};
+    return;
+  }
   snapHistory();
+  S.multiSel=new Set();
   S.sel=id;S.drag={id:id,ox:pt.x-S.devs[id].x,oy:pt.y-S.devs[id].y};render();showProps(id);
   if(!_propsVisible)toggleProps();
 }
@@ -1320,13 +1353,24 @@ function cvMD(e){
   var t=e.target;
   var inG=t.closest&&t.closest('g[id^="gd"]');
   var isCable=(t.tagName==='line'&&S.links[t.id]);
-  if(S.tool==='select'&&!inG&&!isCable){S.sel=null;render();noSel();}
+  if(S.tool==='select'&&!inG&&!isCable){
+    if(!e.shiftKey){S.sel=null;S.multiSel=new Set();noSel();}
+    var pt=svgPt(e);
+    S.rectSel={x0:pt.x,y0:pt.y,x1:pt.x,y1:pt.y};
+  }
 }
 
 function cvMM(e){
   var pt=svgPt(e);
   if(S.drag&&S.tool==='select'){
-    if(S.drag.type==='frame'){
+    if(S.drag.type==='group'){
+      Object.keys(S.drag.devs).forEach(function(id){
+        var d=S.devs[id];if(!d)return;
+        d.x=Math.max(4,pt.x-S.drag.devs[id].ox);
+        d.y=Math.max(4,pt.y-S.drag.devs[id].oy);
+      });
+      renderLinks();renderDevs();
+    } else if(S.drag.type==='frame'){
       var f=S.frames[S.drag.id];if(f){f.x=Math.max(0,pt.x-S.drag.ox);f.y=Math.max(0,pt.y-S.drag.oy);renderFrames();}
     } else if(S.drag.type==='frame-resize'){
       var f=S.frames[S.drag.id];if(f){f.w=Math.max(80,S.drag.sw+(pt.x-S.drag.sx));f.h=Math.max(50,S.drag.sh+(pt.y-S.drag.sy));renderFrames();}
@@ -1336,6 +1380,17 @@ function cvMM(e){
       S.devs[S.drag.id].x=Math.max(4,pt.x-S.drag.ox);S.devs[S.drag.id].y=Math.max(4,pt.y-S.drag.oy);renderLinks();renderDevs();
     }
   }
+  if(S.rectSel){
+    S.rectSel.x1=pt.x;S.rectSel.y1=pt.y;
+    var r=document.getElementById('sel-rect');
+    if(r){
+      var rx=Math.min(S.rectSel.x0,pt.x),ry=Math.min(S.rectSel.y0,pt.y);
+      var rw=Math.abs(pt.x-S.rectSel.x0),rh=Math.abs(pt.y-S.rectSel.y0);
+      r.setAttribute('x',rx);r.setAttribute('y',ry);
+      r.setAttribute('width',rw);r.setAttribute('height',rh);
+      r.setAttribute('display','block');
+    }
+  }
   if(S.tool==='link'&&S.cableFrom){
     var f=S.devs[S.cableFrom];if(!f)return;
     var pl=document.getElementById('prev-line');
@@ -1343,7 +1398,30 @@ function cvMM(e){
     pl.setAttribute('x2',pt.x);pl.setAttribute('y2',pt.y);pl.setAttribute('display','block');
   }
 }
-function cvMU(){S.drag=null;}
+function cvMU(){
+  S.drag=null;
+  if(S.rectSel){
+    var rs=S.rectSel;S.rectSel=null;
+    var r=document.getElementById('sel-rect');if(r)r.setAttribute('display','none');
+    var minX=Math.min(rs.x0,rs.x1),maxX=Math.max(rs.x0,rs.x1);
+    var minY=Math.min(rs.y0,rs.y1),maxY=Math.max(rs.y0,rs.y1);
+    var DW2=DW/2,DH2=DH/2;
+    if(maxX-minX>4||maxY-minY>4){
+      Object.values(S.devs).forEach(function(d){
+        var cx=d.x+DW2,cy=d.y+DH2;
+        if(cx>=minX&&cx<=maxX&&cy>=minY&&cy<=maxY)S.multiSel.add(d.id);
+      });
+      if(S.multiSel.size>0){
+        S.sel=null;
+        renderDevs();
+        var panel=document.getElementById('props-body');
+        if(panel)panel.innerHTML='<div class="nosel"><div class="ico">📦</div>'+
+          S.multiSel.size+' appareils sélectionnés<br><em style="font-size:.85em;color:#a0aec0">'+
+          'Faites glisser pour déplacer le groupe<br>Échap pour désélectionner</em></div>';
+      }
+    }
+  }
+}
 function hidePrev(){var pl=document.getElementById('prev-line');pl.setAttribute('display','none');}
 
 function selLink(id){
@@ -1422,6 +1500,7 @@ function clearAll(){
    PROPERTIES PANEL
 ───────────────────────────────────────────────────── */
 function noSel(){
+  S.multiSel=new Set();
   var msg=S.mode==='simulation'
     ?'<div class="nosel"><div class="ico">🖱️</div>Cliquez sur un appareil<br>pour voir ses propriétés</div>'
     :'<div class="nosel"><div class="ico">🖱️</div>Cliquez sur un appareil<br>pour configurer</div>';
@@ -2134,6 +2213,12 @@ document.addEventListener('keydown',function(e){
   }
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){
     e.preventDefault();pasteDev();
+  }
+  if(e.key==='Escape'){
+    S.multiSel=new Set();S.rectSel=null;
+    var r=document.getElementById('sel-rect');if(r)r.setAttribute('display','none');
+    if(S.sel){S.sel=null;noSel();}
+    renderDevs();
   }
 });
 
