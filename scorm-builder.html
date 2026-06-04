@@ -1312,8 +1312,10 @@ function linkRC(e,id){
 
 function cvMD(e){
   if(S.tool==='link'&&S.cableFrom){S.cableFrom=null;hidePrev();render();}
-  var t=e.target;var inG=t.closest&&t.closest('g[id^="gd"]');
-  if(S.tool==='select'&&!inG){S.sel=null;render();noSel();}
+  var t=e.target;
+  var inG=t.closest&&t.closest('g[id^="gd"]');
+  var isCable=(t.tagName==='line'&&S.links[t.id]);
+  if(S.tool==='select'&&!inG&&!isCable){S.sel=null;render();noSel();}
 }
 
 function cvMM(e){
