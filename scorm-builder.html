@@ -354,6 +354,8 @@ body{padding-top:0}/* nav is flex child */
 
   <div class="hdr-tools" id="hdr-tools">
     <button class="tbtn icon-only" id="t-clear"  onclick="clearAll()" title="Reset — Effacer tout le réseau">♻</button>
+    <button class="tbtn icon-only" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled>↩</button>
+    <button class="tbtn icon-only" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled>↪</button>
     <button class="tbtn icon-only" id="t-save" onclick="manualSave()" title="Sauvegarder dans la session (reprise possible)">💾</button>
     <button class="tbtn icon-only" onclick="saveTopology()" title="Exporter le réseau en fichier JSON">📤</button>
     <button class="tbtn icon-only" onclick="document.getElementById('load-inp').click()" title="Importer un réseau depuis un fichier JSON">📂</button>
@@ -1262,6 +1264,7 @@ function cwDrop(e){
   var type=e.dataTransfer.getData('dvtype');if(!type)return;
   var r=document.getElementById('canvas').getBoundingClientRect();
   var x=e.clientX-r.left,y=e.clientY-r.top;
+  snapHistory();
   if(type==='frame'){
     var id=mkFrame(Math.max(4,x-150),Math.max(4,y-80));
     S.sel=id;render();showProps(id);return;
@@ -1288,13 +1291,14 @@ function devMD(e,id){
     if(!_propsVisible)toggleProps();
     return;
   }
-  if(S.tool==='delete'){delDev(id);render();noSel();return;}
+  if(S.tool==='delete'){snapHistory();delDev(id);render();noSel();return;}
   if(S.tool==='link'){
     if(!S.cableFrom){S.cableFrom=id;render();}
-    else{if(S.cableFrom!==id){addLink(S.cableFrom,id);checkAllObjectives();}S.cableFrom=null;hidePrev();render();}
+    else{if(S.cableFrom!==id){snapHistory();addLink(S.cableFrom,id);checkAllObjectives();}S.cableFrom=null;hidePrev();render();}
     return;
   }
   var pt=svgPt(e);
+  snapHistory();
   S.sel=id;S.drag={id:id,ox:pt.x-S.devs[id].x,oy:pt.y-S.devs[id].y};render();showProps(id);
   if(!_propsVisible)toggleProps();
 }
@@ -1342,7 +1346,7 @@ function cvMU(){S.drag=null;}
 function hidePrev(){var pl=document.getElementById('prev-line');pl.setAttribute('display','none');}
 
 function selLink(id){
-  if(S.tool==='delete'){delete S.links[id];render();noSel();return;}
+  if(S.tool==='delete'){snapHistory();delete S.links[id];render();noSel();return;}
   S.sel=id;render();
   var l=S.links[id];if(!l){noSel();return;}
   var a=S.devs[l.from],b=S.devs[l.to];
@@ -1350,7 +1354,7 @@ function selLink(id){
     '<div class="psection">Câble réseau</div>'+
     '<div class="pr"><label>De</label><div class="mono">'+esc(a?a.name:'?')+'</div></div>'+
     '<div class="pr"><label>Vers</label><div class="mono">'+esc(b?b.name:'?')+'</div></div>'+
-    '<button class="pb pb-red" onclick="delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer ce câble</button>';
+    '<button class="pb pb-red" onclick="snapHistory();delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer ce câble</button>';
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1551,7 +1555,7 @@ function showProps(id){
 
   // Nom
   h+='<div class="psection">Identification</div>';
-  h+='<div class="pr"><label>Nom</label><input value="'+esc(d.name)+'" onchange="S.devs[\''+id+'\'].name=this.value;render();showProps(\''+id+'\')"/></div>';
+  h+='<div class="pr"><label>Nom</label><input value="'+esc(d.name)+'" onchange="snapHistory();S.devs[\''+id+'\'].name=this.value;render();showProps(\''+id+'\')"/></div>';
   if(d.mac)h+='<div class="pr"><label>Adresse MAC</label><div class="mono">'+esc(d.mac)+'</div></div>';
 
   // Interfaces réseau
@@ -1691,7 +1695,7 @@ function showProps(id){
   }
 
   h+='<div class="psection"></div>';
-  h+='<button class="pb pb-red" onclick="delDev(\''+id+'\');render();noSel()">🗑️ Supprimer cet appareil</button>';
+  h+='<button class="pb pb-red" onclick="snapHistory();delDev(\''+id+'\');render();noSel()">🗑️ Supprimer cet appareil</button>';
   document.getElementById('props-body').innerHTML=h;
 }
 
@@ -1719,6 +1723,7 @@ function setIface(devId,idx,field,val){
   if(field==='mask'&&!isValidUserMask(v)){
     notif('⚠️ Masque invalide : "'+v+'"','err');showProps(devId);return;
   }
+  snapHistory();
   S.devs[devId].ifaces[idx][field]=v;
   // Recalcul automatique si c'est un routeur/internet avec la case cochée
   if(isRouter(S.devs[devId])&&S.devs[devId].autoRouteEnabled!==false){
@@ -1737,6 +1742,7 @@ function setDHCP(devId,field,val){
   if(field==='mask'&&!isValidUserMask(v)){
     notif('⚠️ Masque invalide : "'+v+'"','err');showProps(devId);return;
   }
+  snapHistory();
   S.devs[devId].dhcp[field]=v;
 }
 
@@ -2037,6 +2043,61 @@ function addLog(msg,cls){
   o.appendChild(d);o.scrollTop=o.scrollHeight;
 }
 
+
+/* ── Undo / Redo ─────────────────────────────────────────── */
+var _undoStack=[];
+var _redoStack=[];
+var _MAX_HIST=40;
+
+function snapHistory(){
+  _undoStack.push(JSON.stringify({
+    devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid
+  }));
+  if(_undoStack.length>_MAX_HIST)_undoStack.shift();
+  _redoStack=[];
+  _updUndoUI();
+}
+
+function _applySnap(snapStr){
+  var snap=JSON.parse(snapStr);
+  S.devs=snap.devs;S.links=snap.links;
+  S.frames=snap.frames;S.texts=snap.texts;S.nid=snap.nid;
+  S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
+  render();noSel();checkAllObjectives();updScore();
+  _updUndoUI();
+}
+
+function undo(){
+  if(!_undoStack.length)return;
+  _redoStack.push(JSON.stringify({
+    devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid
+  }));
+  _applySnap(_undoStack.pop());
+  notif('↩ Annulé','info');
+}
+
+function redo(){
+  if(!_redoStack.length)return;
+  _undoStack.push(JSON.stringify({
+    devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid
+  }));
+  _applySnap(_redoStack.pop());
+  notif('↪ Rétabli','info');
+}
+
+function _updUndoUI(){
+  var u=document.getElementById('btn-undo');
+  var r=document.getElementById('btn-redo');
+  if(u)u.disabled=!_undoStack.length;
+  if(r)r.disabled=!_redoStack.length;
+}
+
+document.addEventListener('keydown',function(e){
+  var isTyping=e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.isContentEditable;
+  if(isTyping)return;
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
+  if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();redo();}
+});
 
 /* ── Évaluation par objectifs ────────────────────────────── */
 var ACTIVITY_RESULTS={};
@@ -2501,7 +2562,7 @@ function renderTexts(){
 function frameMD(e,id){
   e.stopPropagation();
   if(S.mode==='simulation')return;
-  if(S.tool==='delete'){delete S.frames[id];if(S.sel===id)S.sel=null;renderFrames();noSel();return;}
+  if(S.tool==='delete'){snapHistory();delete S.frames[id];if(S.sel===id)S.sel=null;renderFrames();noSel();return;}
   S.sel=id;
   var pt=svgPt(e);
   S.drag={id:id,type:'frame',ox:pt.x-S.frames[id].x,oy:pt.y-S.frames[id].y};
@@ -2516,7 +2577,7 @@ function frameResizeMD(e,id){
 function textMD(e,id){
   e.stopPropagation();
   if(S.mode==='simulation')return;
-  if(S.tool==='delete'){delete S.texts[id];if(S.sel===id)S.sel=null;renderTexts();noSel();return;}
+  if(S.tool==='delete'){snapHistory();delete S.texts[id];if(S.sel===id)S.sel=null;renderTexts();noSel();return;}
   S.sel=id;
   var pt=svgPt(e);var t=S.texts[id];if(!t)return;
   S.drag={id:id,type:'anntext',ox:pt.x-t.x,oy:pt.y-t.y};
@@ -2542,7 +2603,7 @@ function showFrameProps(id){
   h+='<div class="pr"><label>Hauteur (px)</label><input type="number" min="50" value="'+(f.h||200)+'"'+
     ' onchange="S.frames[\''+id+'\'].h=Math.max(50,parseInt(this.value)||200);renderFrames()"/></div>';
   h+='<div class="psection"></div>';
-  h+='<button class="pb pb-red" onclick="delete S.frames[\''+id+'\'];S.sel=null;renderFrames();noSel()">🗑️ Supprimer ce cadre</button>';
+  h+='<button class="pb pb-red" onclick="snapHistory();delete S.frames[\''+id+'\'];S.sel=null;renderFrames();noSel()">🗑️ Supprimer ce cadre</button>';
   document.getElementById('props-body').innerHTML=h;
 }
 
@@ -2558,7 +2619,7 @@ function showTextProps(id){
   h+='<div class="pr"><label>Couleur</label><input type="color" value="'+colorToHex(t.color||'#1e293b')+'"'+
     ' onchange="S.texts[\''+id+'\'].color=this.value;renderTexts()"/></div>';
   h+='<div class="psection"></div>';
-  h+='<button class="pb pb-red" onclick="delete S.texts[\''+id+'\'];S.sel=null;renderTexts();noSel()">🗑️ Supprimer ce texte</button>';
+  h+='<button class="pb pb-red" onclick="snapHistory();delete S.texts[\''+id+'\'];S.sel=null;renderTexts();noSel()">🗑️ Supprimer ce texte</button>';
   document.getElementById('props-body').innerHTML=h;
 }
 
