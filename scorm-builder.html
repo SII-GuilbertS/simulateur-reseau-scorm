@@ -1695,6 +1695,7 @@ function showProps(id){
   }
 
   h+='<div class="psection"></div>';
+  h+='<button class="pb" onclick="copyDev(\''+id+'\');pasteDev()" style="margin-right:6px">📋 Dupliquer</button>';
   h+='<button class="pb pb-red" onclick="snapHistory();delDev(\''+id+'\');render();noSel()">🗑️ Supprimer cet appareil</button>';
   document.getElementById('props-body').innerHTML=h;
 }
@@ -2092,11 +2093,47 @@ function _updUndoUI(){
   if(r)r.disabled=!_redoStack.length;
 }
 
+/* ── Copier / Coller ─────────────────────────────────────── */
+var _clipboard=null;
+
+function copyDev(id){
+  var d=S.devs[id];if(!d||d.type==='switch'&&false)return; // tous types OK
+  _clipboard=JSON.parse(JSON.stringify(d));
+  notif('📋 '+d.name+' copié — Ctrl+V pour coller','info');
+}
+
+function pasteDev(){
+  if(!_clipboard)return;
+  snapHistory();
+  var src=_clipboard;
+  var id='dev'+(S.nid++);
+  var newDev=JSON.parse(JSON.stringify(src));
+  newDev.id=id;
+  newDev.x=Math.min((src.x||80)+40,1400);
+  newDev.y=Math.min((src.y||80)+40,900);
+  newDev.mac=macOf(id);
+  // Incrémenter le nom : "PC 1" → "PC 2", "Switch" → "Switch 2"
+  var nm=src.name||'';
+  var mN=nm.match(/^([\s\S]*?)(\d+)$/);
+  newDev.name=mN?(mN[1]+(parseInt(mN[2])+1)):(nm+' 2');
+  S.devs[id]=newDev;
+  // Décaler le prochain coller
+  _clipboard=JSON.parse(JSON.stringify(newDev));
+  S.sel=id;render();showProps(id);checkAllObjectives();
+  notif('📋 '+newDev.name+' collé','ok');
+}
+
 document.addEventListener('keydown',function(e){
   var isTyping=e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.isContentEditable;
   if(isTyping)return;
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
   if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();redo();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){
+    if(S.sel&&S.devs[S.sel])copyDev(S.sel);
+  }
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){
+    e.preventDefault();pasteDev();
+  }
 });
 
 /* ── Évaluation par objectifs ────────────────────────────── */
