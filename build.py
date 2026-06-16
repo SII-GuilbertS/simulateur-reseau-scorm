@@ -156,10 +156,11 @@ CHECKS = [
         "}"
     ),
 
-    # ── dns_configured : logique correcte (patch_coherence Bug4) ─────────────
+    # ── dns_configured : logique correcte (patch_coherence Bug4 + complément) ──
+    # Règle : si fi.dns vide → false ; si p.dns spécifié et différent → false
     (
         "checkObjectiveStatic dns_configured : logique correcte (non-strict)",
-        "if(p.dns&&fi.dns!==p.dns)return false;",
+        "if(!fi.dns)return false;\n      if(p.dns&&fi.dns!==p.dns)return false;",
         "case 'dns_configured':\n"
         "      d=devByName(p.dev);if(!d)return false;\n"
         "      fi=mainIface(d);if(!fi)return false;\n"
@@ -167,6 +168,7 @@ CHECKS = [
         "case 'dns_configured':\n"
         "      d=devByName(p.dev);if(!d)return false;\n"
         "      fi=mainIface(d);if(!fi)return false;\n"
+        "      if(!fi.dns)return false;\n"
         "      if(p.dns&&fi.dns!==p.dns)return false;\n"
         "      return true;"
     ),
