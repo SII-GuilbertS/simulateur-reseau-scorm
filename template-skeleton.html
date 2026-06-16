@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>Simulateur Réseau IPv4 — Filius JS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+
+/* ─── HEADER ─────────────────────────────────────────── */
+.hdr{background:linear-gradient(135deg,#1a365d 0%,#2b6cb0 100%);color:#fff;padding:7px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.hdr-title{font-size:1.05em;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.hdr-tools{display:flex;gap:5px;margin-left:6px;flex-wrap:nowrap}
+.tbtn{padding:4px 10px;border:1.5px solid rgba(255,255,255,.3);border-radius:6px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:.78em;font-weight:600;transition:all .15s;white-space:nowrap}
+.tbtn:hover{background:rgba(255,255,255,.22)}
+.tbtn.active{background:rgba(255,255,255,.28);border-color:#fff}
+.tbtn.disabled{opacity:.4;cursor:not-allowed}
+.tbtn.icon-only,.wbtn.icon-only{padding:4px 8px;font-size:1em;min-width:30px;text-align:center}
+.hdr-mode{display:flex;background:rgba(0,0,0,.2);border-radius:7px;overflow:hidden;flex-shrink:0}
+.mbtn{padding:4px 13px;border:none;background:transparent;color:rgba(255,255,255,.65);cursor:pointer;font-size:.78em;font-weight:700;transition:all .2s}
+.mbtn.active{background:rgba(255,255,255,.25);color:#fff}
+.hdr-r{display:flex;align-items:center;gap:8px;margin-left:auto}
+.score-badge{background:rgba(255,255,255,.15);border-radius:20px;padding:3px 11px;font-size:.78em;font-weight:700;white-space:nowrap;border:1px solid rgba(255,255,255,.2)}
+.wbtn{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3);padding:4px 9px;border-radius:6px;cursor:pointer;font-size:.78em;font-weight:600;transition:all .2s;white-space:nowrap}
+.wbtn:hover{background:rgba(255,255,255,.28)}
+.fbtn{background:#48bb78;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:.78em;font-weight:700;white-space:nowrap}
+.fbtn:hover{background:#38a169}
+
+/* ─── WORKSPACE ──────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:82px 1fr 275px;flex:1;min-height:0}
+
+/* ─── PALETTE ────────────────────────────────────────── */
+.pal{background:#fff;border-right:1px solid #e2e8f0;padding:6px 5px;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
+.psep{font-size:.68em;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:.4px;padding:5px 3px 2px;text-align:center}
+.pi{display:flex;flex-direction:column;align-items:center;padding:6px 3px;border-radius:7px;cursor:grab;border:1.5px solid transparent;transition:all .15s;font-size:.7em;color:#4a5568;gap:2px}
+.pi:hover{background:#eef2f7;border-color:#cbd5e0}
+.pi.active{background:#ebf8ff;border-color:#4299e1;color:#2b6cb0}
+.pi.disabled{opacity:.38;cursor:not-allowed;pointer-events:none}
+.pi-icon{font-size:1.55em;line-height:1}
+
+/* ─── CANVAS ─────────────────────────────────────────── */
+.cw{position:relative;overflow:auto;background:#f7f9fc;background-image:radial-gradient(#d1d9e6 1px,transparent 1px);background-size:22px 22px}
+#canvas{width:100%;height:100%;min-width:2000px;min-height:1400px;cursor:default;display:block}
+
+/* Cable animations ─── */
+@keyframes dataForward{from{stroke-dashoffset:28}to{stroke-dashoffset:0}}
+@keyframes dataReturn{from{stroke-dashoffset:0}to{stroke-dashoffset:28}}
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(72,187,120,.6))}50%{filter:drop-shadow(0 0 10px rgba(72,187,120,1))}}
+.cable-fwd{
+  stroke:#48bb78 !important;stroke-width:5 !important;
+  stroke-dasharray:12,6;
+  animation:dataForward .45s linear infinite,pulseGlow .9s ease-in-out infinite;
+}
+.cable-ret{
+  stroke:#63b3ed !important;stroke-width:5 !important;
+  stroke-dasharray:12,6;
+  animation:dataReturn .45s linear infinite;
+  filter:drop-shadow(0 0 8px rgba(99,179,237,.9)) !important;
+}
+.cable-sel{stroke:#fc8181 !important;stroke-width:4.5 !important}
+
+/* ─── PROPS PANEL ────────────────────────────────────── */
+.props{background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;overflow:hidden}
+.props-hdr{padding:8px 12px;font-weight:700;font-size:.87em;background:#f7fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.props-body{padding:10px 12px;flex:1;overflow-y:auto}
+.nosel{text-align:center;color:#a0aec0;padding:28px 10px;font-size:.83em}
+.nosel .ico{font-size:2em;margin-bottom:7px}
+.psection{font-size:.72em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;margin:12px 0 5px;border-top:1px solid #edf2f7;padding-top:9px}
+.psection:first-child{margin-top:0;border-top:none;padding-top:0}
+.pr{margin-bottom:7px}
+.pr label{display:block;font-size:.76em;font-weight:600;color:#4a5568;margin-bottom:3px}
+.pr input,.pr textarea,.pr select{width:100%;padding:4px 7px;border:1.5px solid #e2e8f0;border-radius:5px;font-size:.83em;font-family:inherit;resize:vertical}
+.pr input:focus,.pr textarea:focus{outline:none;border-color:#4299e1}
+.pr textarea{min-height:55px;font-family:'Courier New',monospace;font-size:.78em}
+.pr .mono{font-family:'Courier New',monospace;font-size:.78em;color:#718096;padding:3px 0}
+.pr.ck{display:flex;align-items:center;gap:5px}.pr.ck label{margin-bottom:0;cursor:pointer}
+.pr.ck input[type=checkbox]{width:auto}
+.devbadge{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:7px;font-weight:700;font-size:.87em;margin-bottom:8px}
+.pb{width:100%;padding:6px;border:none;border-radius:6px;cursor:pointer;font-size:.8em;font-weight:700;margin-top:4px}
+.pb-blue{background:#4299e1;color:#fff}.pb-blue:hover{background:#3182ce}
+.pb-red{background:#e53e3e;color:#fff}.pb-red:hover{background:#c53030}
+.pb-green{background:#48bb78;color:#fff}.pb-green:hover{background:#38a169}
+.pb-gray{background:#718096;color:#fff}.pb-gray:hover{background:#4a5568}
+.iface-box{border:1.5px solid #e2e8f0;border-radius:7px;padding:8px 10px;margin-bottom:8px;background:#f7fafc;position:relative}
+.iface-title{font-size:.78em;font-weight:700;color:#553c9a;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.del-iface{background:none;border:none;cursor:pointer;color:#fc8181;font-size:.9em;padding:0}
+
+/* ─── BOTTOM PANEL ───────────────────────────────────── */
+.bot{background:#1a202c;color:#e2e8f0;flex-shrink:0;display:flex;flex-direction:column;height:215px}
+.rsz-h{height:6px;background:#2d3748;cursor:ns-resize;flex-shrink:0;position:relative;transition:background .15s}
+.rsz-h::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:36px;height:2px;background:rgba(255,255,255,.18);border-radius:2px;pointer-events:none}
+.rsz-h:hover,.rsz-h.dragging{background:#4299e1}
+.rsz-v{width:5px;background:#e2e8f0;cursor:ew-resize;flex-shrink:0;transition:background .15s;position:relative}
+.rsz-v:hover,.rsz-v.dragging{background:#4299e1}
+.btabs{display:flex;background:#2d3748;flex-shrink:0}
+.bt{padding:6px 14px;border:none;background:transparent;color:#a0aec0;cursor:pointer;font-size:.78em;font-weight:600;border-bottom:2px solid transparent;transition:all .2s}
+.bt:hover{color:#e2e8f0}.bt.active{color:#68d391;border-bottom-color:#68d391}
+.tp{display:none;flex:1;min-height:0}.tp.active{display:flex;flex-direction:column}
+
+/* Terminal */
+.tterm{padding:4px 8px;display:flex;align-items:center;gap:7px;background:#2d3748;flex-shrink:0;font-size:.78em}
+.tterm select{background:#4a5568;color:#e2e8f0;border:none;padding:2px 5px;border-radius:4px;font-size:.92em}
+.tout{flex:1;overflow-y:auto;padding:5px 10px;font-family:'Courier New',monospace;font-size:.79em;line-height:1.55}
+.tl{padding:0}.tl.ok{color:#68d391}.tl.err{color:#fc8181}.tl.warn{color:#fbd38d}.tl.info{color:#63b3ed}.tl.cmd{color:#fff;font-weight:700}
+.tin{display:flex;align-items:center;padding:4px 8px;background:#2d3748;flex-shrink:0;gap:5px}
+.tprompt{color:#68d391;font-family:'Courier New',monospace;font-size:.8em;white-space:nowrap}
+.tinput{flex:1;background:transparent;border:none;color:#e2e8f0;font-family:'Courier New',monospace;font-size:.8em;outline:none}
+
+/* Browser */
+.bbar{display:flex;align-items:center;gap:6px;padding:5px 9px;background:#2d3748;flex-shrink:0;font-size:.79em}
+.bbar select,.bbar input{background:#4a5568;color:#e2e8f0;border:none;padding:3px 7px;border-radius:4px;font-size:.92em}
+.bbar input{flex:1}
+.bbar button{background:#4299e1;color:#fff;border:none;padding:3px 9px;border-radius:4px;cursor:pointer;font-size:.88em;font-weight:700}
+.bcont{flex:1;overflow-y:auto;padding:8px 12px}
+.bpage{background:#fff;border-radius:5px;padding:14px;color:#2d3748;max-width:560px}
+.bpage h1{font-size:1.1em;margin-bottom:6px;color:#2b6cb0}
+.bpage p{font-size:.86em;line-height:1.6;color:#4a5568}
+.bpage .bmeta{font-size:.72em;color:#a0aec0;margin-bottom:8px}
+.bpage .bhtml{font-size:.86em;line-height:1.6;color:#2d3748}
+.bpage .bhtml img{max-width:100%;height:auto;border-radius:4px;margin:4px 0}
+/* ─── Fichiers serveur ──── */
+.flist{margin:5px 0}
+.fitem{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:5px;background:#f7fafc;border:1px solid #e2e8f0;margin-bottom:3px}
+.fitem-name{flex:1;font-family:'Courier New',monospace;font-size:.75em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#2d3748}
+.fitem-size{color:#a0aec0;font-size:.72em;white-space:nowrap}
+.fitem-ins{background:#4299e1;color:#fff;border:none;cursor:pointer;font-size:.7em;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.fitem-ins:hover{background:#3182ce}
+.fitem-del{background:none;border:none;cursor:pointer;color:#fc8181;font-size:.9em;padding:0 2px;line-height:1}
+.berr{background:#2d3748;border:1px solid #fc8181;border-radius:5px;padding:10px;color:#fc8181;font-size:.8em;font-family:'Courier New',monospace}
+.bph{color:#718096;font-size:.83em;padding:16px 0}
+
+/* Sniffer paquets */
+.sout{flex:1;overflow-y:auto}
+.pkt-table{width:100%;border-collapse:collapse;font-size:.72em;font-family:'Courier New',monospace}
+.pkt-table th{background:#2d3748;color:#a0aec0;padding:3px 8px;text-align:left;font-weight:600;position:sticky;top:0;z-index:1}
+.pkt-table td{padding:2px 8px;border-bottom:1px solid #232a36}
+.pkt-table tr.pok td{color:#68d391}
+.pkt-table tr.perr td{color:#fc8181}
+.pkt-table tr.pinfo td{color:#63b3ed}
+
+/* Activité personnalisée */
+.activ-pane{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.activ-header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;border-radius:8px;padding:10px 14px}
+.activ-title{font-size:1em;font-weight:700;margin-bottom:3px}
+.activ-instr{font-size:.82em;opacity:.85;line-height:1.4;margin-top:4px}
+.activ-obj{background:#fff;border:1.5px solid #e2e8f0;border-radius:7px;padding:8px 12px;display:flex;align-items:flex-start;gap:10px;transition:all .2s}
+.activ-obj.done{border-color:#48bb78;background:#f0fff4}
+.activ-obj.done .ao-icon{color:#48bb78}
+.ao-icon{font-size:1.1em;flex-shrink:0;margin-top:1px;color:#a0aec0}
+.ao-label{font-size:.83em;font-weight:600;color:#2d3748}
+.ao-pts{font-size:.78em;color:#718096;flex-shrink:0;margin-top:2px;white-space:nowrap}
+.ao-hint{font-size:.75em;color:#a0aec0;margin-top:3px}
+.activ-score-bar{background:#edf2f7;border-radius:20px;height:10px;overflow:hidden;flex:1}
+.activ-score-fill{height:100%;background:linear-gradient(90deg,#4299e1,#48bb78);transition:width .4s;border-radius:20px}
+.activ-footer{display:flex;align-items:center;gap:10px;padding:4px 0;margin-top:4px}
+.activ-score-txt{font-weight:700;font-size:.88em;color:#2d3748;white-space:nowrap}
+.score-badge{cursor:pointer;user-select:none;}
+.score-badge:hover{background:rgba(255,255,255,.25)!important;}
+#score-details{position:fixed;top:44px;right:8px;background:#fff;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.18);padding:12px 14px;min-width:250px;max-width:320px;z-index:9999;display:none;max-height:80vh;overflow-y:auto;}
+#score-details.open{display:block;}
+.sd-title{font-weight:700;font-size:.82em;color:#2d3748;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;}
+.sd-obj{display:flex;align-items:flex-start;gap:7px;padding:5px 0;border-bottom:1px solid #f0f4f8;font-size:.78em;}
+.sd-obj:last-child{border-bottom:none;}
+.sd-label{flex:1;color:#4a5568;line-height:1.3;}
+.sd-pts{font-weight:700;color:#718096;white-space:nowrap;}
+.sd-total{text-align:right;margin-top:8px;font-size:.72em;color:#718096;font-weight:600;}
+
+/* Log */
+.lout{flex:1;overflow-y:auto;padding:5px 10px;font-family:'Courier New',monospace;font-size:.77em;line-height:1.55}
+.ll{padding:0}.ll.ok{color:#68d391}.ll.err{color:#fc8181}.ll.info{color:#63b3ed}
+
+/* Badges */
+.bpts{font-weight:700;margin-left:3px;font-size:.9em}
+
+/* ─── Color pickers dans props ─── */
+.pr input[type=color]{width:48px;height:28px;padding:1px;cursor:pointer;border-radius:4px}
+
+/* ─── Barre Professeur ─── */
+.tbar{background:linear-gradient(135deg,#744210,#c05621);color:#fff;padding:5px 14px;display:none;align-items:center;gap:10px;flex-shrink:0;font-size:.79em;flex-wrap:wrap}
+.tbar-title{font-weight:700;white-space:nowrap}
+.tbar-hint{color:rgba(255,255,255,.7);font-style:italic;margin-left:auto;font-size:.92em}
+.tbar .wbtn{background:rgba(255,255,255,.2);font-size:.85em;padding:3px 10px}
+.tbar .wbtn:hover{background:rgba(255,255,255,.35)}
+.tbar-sep{width:1px;height:18px;background:rgba(255,255,255,.3)}
+
+/* Notifications */
+.notif{position:fixed;top:16px;right:16px;padding:10px 15px;border-radius:9px;font-weight:700;font-size:.84em;color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.35);z-index:9999;animation:sIn .3s ease;max-width:280px;line-height:1.4;pointer-events:none}
+.nok{background:#2f855a}.nerr{background:#c53030}.ninfo{background:#2b6cb0}
+@keyframes sIn{from{transform:translateX(120px);opacity:0}to{transform:none;opacity:1}}
+
+/* Popup overlay message */
+.popup-msg{background:rgba(26,32,44,.7);position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:8888;display:none}
+.popup-card{background:#fff;border-radius:12px;padding:28px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4);max-width:380px}
+.popup-card h2{font-size:1.1em;margin-bottom:8px;color:#2b6cb0}
+.popup-card p{font-size:.88em;color:#4a5568;margin-bottom:16px;line-height:1.5}
+.popup-card .big{font-size:3em;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════ -->
+<div class="hdr">
+  <div class="hdr-title">🖥️ Simulateur Réseau IPv4</div>
+
+  <div class="hdr-tools" id="hdr-tools">
+    <button class="tbtn icon-only active" id="t-select" onclick="setTool('select')" title="Outil Sélection">🖱</button>
+    <button class="tbtn icon-only"        id="t-link"   onclick="setTool('link')"   title="Outil Câble">🔗</button>
+    <button class="tbtn icon-only"        id="t-delete" onclick="setTool('delete')" title="Outil Suppression">🗑</button>
+    <button class="tbtn icon-only"        id="t-clear"  onclick="clearAll()"        title="Reset — Recharger le réseau de départ">♻</button>
+    <button class="tbtn icon-only" id="t-save" onclick="manualSave()"               title="Sauvegarder dans la session (reprise possible)">💾</button>
+    <button class="tbtn icon-only" onclick="saveTopology()"                         title="Exporter le réseau en fichier JSON">📤</button>
+    <button class="tbtn icon-only" onclick="document.getElementById('load-inp').click()" title="Importer un réseau depuis un fichier JSON">📂</button>
+    <button class="tbtn icon-only active" id="t-toggleprops" onclick="toggleProps()" title="Afficher / Masquer le panneau de configuration">📋</button>
+    <input type="file" id="load-inp" accept=".json" style="display:none" onchange="loadTopology(event)"/>
+  </div>
+
+  <div class="hdr-mode">
+    <button class="mbtn active" id="btn-cfg" onclick="setMode('config')">⚙️ Configuration</button>
+    <button class="mbtn"        id="btn-sim" onclick="setMode('simulation')">▶ Simulation</button>
+  </div>
+
+  <div class="hdr-r">
+    <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs">🏅 Score : 0 / 100</div>
+    <div id="score-details"></div>
+    <button class="wbtn icon-only" id="btn-fs" onclick="toggleFullscreen()" title="Plein écran">⤢</button>
+    <button class="fbtn" onclick="finishActivity()">🏁 Terminer</button>
+    <button class="wbtn" onclick="toggleTeacherMode()" title="Mode Professeur" style="background:rgba(192,86,33,.5);border-color:rgba(192,86,33,.8)">🎓</button>
+  </div>
+</div>
+
+<!-- ══ BARRE PROFESSEUR ════════════════════════════════ -->
+<div class="tbar" id="teacher-bar">
+  <span class="tbar-title">🎓 Mode Professeur</span>
+  <span class="tbar-sep"></span>
+  <span style="color:rgba(255,255,255,.85)">Construisez le réseau de départ, puis générez le SCORM :</span>
+  <button class="wbtn" onclick="generateScorm()">📦 Générer le SCORM pour les élèves</button>
+  <button class="wbtn" onclick="changeTeacherPwd()">🔑 Changer le mot de passe</button>
+  <button class="wbtn" onclick="clearStarterAndGenerate()">🗑️ Générer sans réseau de départ</button>
+  <span class="tbar-hint">Le réseau actuel sera intégré dans le fichier SCORM</span>
+</div>
+
+<!-- ══ WORKSPACE ══════════════════════════════════════ -->
+<div class="workspace">
+
+  <!-- ── Palette ──────────────────────────────────── -->
+  <div class="pal" id="palette">
+    <div class="psep">Appareils</div>
+    <div class="pi" id="pi-pc"     draggable="true" ondragstart="palDS(event,'pc')"     title="PC">        <div class="pi-icon">🖥️</div><span>PC</span></div>
+    <div class="pi" id="pi-server" draggable="true" ondragstart="palDS(event,'server')" title="Serveur">   <div class="pi-icon">🖧</div><span>Serveur</span></div>
+    <div class="pi" id="pi-switch" draggable="true" ondragstart="palDS(event,'switch')" title="Switch">    <div class="pi-icon">🔀</div><span>Switch</span></div>
+    <div class="pi" id="pi-router"   draggable="true" ondragstart="palDS(event,'router')"   title="Routeur">  <div class="pi-icon">📡</div><span>Routeur</span></div>
+    <div class="pi" id="pi-internet" draggable="true" ondragstart="palDS(event,'internet')" title="Internet"><div class="pi-icon">🌐</div><span>Internet</span></div>
+    <div class="psep" style="margin-top:6px">Annotations</div>
+    <div class="pi" id="pi-frame"    draggable="true" ondragstart="palDS(event,'frame')"    title="Cadre">    <div class="pi-icon">▭</div><span>Cadre</span></div>
+    <div class="pi" id="pi-anntext"  draggable="true" ondragstart="palDS(event,'anntext')"  title="Texte">   <div class="pi-icon">𝐓</div><span>Texte</span></div>
+    <div class="psep" style="margin-top:6px">Outils</div>
+    <div class="pi" id="pi-sel"    onclick="setTool('select')" title="Sélectionner">    <div class="pi-icon">🖱️</div><span>Sélect.</span></div>
+    <div class="pi" id="pi-link"   onclick="setTool('link')"   title="Câble">           <div class="pi-icon">🔗</div><span>Câble</span></div>
+    <div class="pi" id="pi-del"    onclick="setTool('delete')" title="Supprimer">       <div class="pi-icon">🗑️</div><span>Suppr.</span></div>
+  </div>
+
+  <!-- ── Canvas ───────────────────────────────────── -->
+  <div class="cw" id="cw"
+       ondragover="event.preventDefault()"
+       ondrop="cwDrop(event)">
+    <svg id="canvas"
+         onmousedown="cvMD(event)"
+         onmousemove="cvMM(event)"
+         onmouseup="cvMU(event)"
+         onmouseleave="cvMU(event)"
+         oncontextmenu="if(S.mode==='config')event.preventDefault()">
+      <defs>
+        <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="1" dy="2" stdDeviation="2.5" flood-opacity=".13"/>
+        </filter>
+        <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#48bb78" flood-opacity=".9"/>
+        </filter>
+        <filter id="glow-blue" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#63b3ed" flood-opacity=".9"/>
+        </filter>
+      </defs>
+      <g id="layer-frames"></g>
+      <g id="layer-links"></g>
+      <g id="layer-devs"></g>
+      <g id="layer-texts"></g>
+      <line id="prev-line" stroke="#4299e1" stroke-width="2" stroke-dasharray="7,4" display="none" pointer-events="none"/>
+      <text id="cv-hint" x="50%" y="44%" text-anchor="middle" fill="#c8d0da" font-size="14" font-family="Segoe UI,Arial" pointer-events="none">← Glissez un appareil depuis la palette pour démarrer</text>
+    </svg>
+  </div>
+
+  <!-- ── Properties ───────────────────────────────── -->
+  <div class="props">
+    <div class="rsz-v" id="rsz-props"></div>
+    <div class="props-hdr">⚙️ Propriétés</div>
+    <div class="props-body" id="props-body">
+      <div class="nosel"><div class="ico">🖱️</div>Cliquez sur un appareil<br>pour configurer</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BOTTOM ══════════════════════════════════════════ -->
+<div class="bot">
+  <div class="rsz-h" id="rsz-bot"></div>
+  <div class="btabs">
+    <button class="bt active" onclick="showTab('term')">📟 Terminal</button>
+    <button class="bt"        onclick="showTab('brow')">🌐 Navigateur</button>
+    <button class="bt"        onclick="showTab('log')">📋 Journal</button>
+    <button class="bt"        onclick="showTab('bdg')">🏅 Badges</button>
+    <button class="bt"        onclick="showTab('pkt')">🔍 Paquets</button>
+    <button class="bt" id="btn-activ-tab" style="display:none" onclick="showTab('activ')">📋 Activité</button>
+  </div>
+
+  <!-- Terminal -->
+  <div class="tp active" id="tp-term">
+    <div class="tterm">
+      <span style="color:#a0aec0;font-size:.85em">Appareil :</span>
+      <select id="td-sel" onchange="setTermDev(this.value)"><option value="">— Choisir —</option></select>
+      <span id="td-ip" style="color:#68d391;margin-left:2px;font-family:'Courier New',monospace"></span>
+      <button onclick="termClr()" style="margin-left:auto;background:#4a5568;color:#e2e8f0;border:none;padding:1px 7px;border-radius:4px;cursor:pointer;font-size:.76em">Effacer</button>
+    </div>
+    <div class="tout" id="tout"></div>
+    <div class="tin">
+      <span class="tprompt" id="tprompt">&gt;&nbsp;</span>
+      <input class="tinput" id="tinput" type="text"
+             placeholder="ping 192.168.1.20 | ping intranet.local | ipconfig | nslookup www.site.fr | traceroute | arp | help"
+             onkeydown="termKey(event)"/>
+    </div>
+  </div>
+
+  <!-- Browser -->
+  <div class="tp" id="tp-brow">
+    <div class="bbar">
+      <span style="color:#a0aec0">Depuis :</span>
+      <select id="bd-sel"><option value="">— Choisir un PC —</option></select>
+      <span style="color:#a0aec0">URL :</span>
+      <input id="burl" type="text" placeholder="http://www.monserveur.fr  ou  192.168.1.100"/>
+      <button onclick="browGo()">→ Aller</button>
+    </div>
+    <div class="bcont" id="bcont"><div class="bph">Entrez une URL puis cliquez "Aller"…</div></div>
+  </div>
+
+  <!-- Log -->
+  <div class="tp" id="tp-log">
+    <div class="lout" id="lout"><div class="ll info">[ Journal réseau prêt ]</div></div>
+  </div>
+
+  <!-- Badges -->
+  <div class="tp" id="tp-bdg">
+  </div>
+
+  <!-- Sniffer paquets -->
+  <div class="tp" id="tp-pkt">
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 10px;background:#2d3748;flex-shrink:0;font-size:.76em">
+      <span style="color:#a0aec0">📡 Capture de paquets réseau</span>
+      <button onclick="S.packets=[];renderPackets()" style="margin-left:auto;background:#4a5568;color:#e2e8f0;border:none;padding:1px 8px;border-radius:4px;cursor:pointer;font-size:.85em">Effacer</button>
+    </div>
+    <div class="sout" id="sout">
+      <table class="pkt-table">
+        <thead><tr><th>#</th><th>Heure</th><th>Type</th><th>Source</th><th>Destination</th><th>Info</th><th>Statut</th></tr></thead>
+        <tbody id="pkt-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Activité personnalisée -->
+  <div class="tp" id="tp-activ">
+    <div class="activ-pane" id="activ-pane">
+      <div style="color:#a0aec0;font-size:.85em;padding:20px;text-align:center">Aucune activité configurée.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPT ══════════════════════════════════════════ -->
+<script>
+/* __JS__ */
+</script>
+</body>
+</html>

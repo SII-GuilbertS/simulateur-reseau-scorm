@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
 """
-build.py — Pipeline de vérification et réparation du STUDENT_TEMPLATE
-=======================================================================
+build.py — Pipeline de build et vérification
+=============================================
 
-Ce script est la source de vérité pour l'état attendu du STUDENT_TEMPLATE
-encodé en base64 dans scorm-builder.html.
+ARCHITECTURE (depuis la restructuration point 1) :
+  src/sim-engine.js       moteur partagé builder+template (114 fonctions)
+  src/template-extra.js   surcharges spécifiques au template élève (17 fonctions + init)
+  src/template-skeleton.html  squelette HTML du template (sans JS)
+
+  scorm-builder.html (généré) contient :
+    ① le JS builder :
+       - stubs SCORM + saveToSession/loadFromSession (spécifiques builder)
+       - bloc SIM-ENGINE-START/END → contenu de sim-engine.js
+       - surcharges builder (checkAllObjectives/EvalModule, showProps builder, etc.)
+       - undo/redo/snapHistory réels, copier/coller, etc.
+    ② var STUDENT_TEMPLATE = base64(skeleton.html + sim-engine.js + template-extra.js)
+    ③ SimModule + EvalModule + GenModule (builder)
 
 Usage :
-    python3 build.py           — vérifie uniquement (mode dry-run)
-    python3 build.py --fix     — vérifie et tente de réparer les checks KO
-
-Chaque CHECK définit :
-  - description  : ce que le check garantit
-  - verify       : pattern qui DOIT être présent dans le template
-  - old          : (optionnel) pattern à remplacer si verify est absent
-  - new          : (optionnel) remplacement à appliquer
-
-Historique des patches :
-  patch_wifi.py          — wifi_router : isRouter, DT, mkDev, renderDevs, renderLinks, showProps, simPing, addLink
-  patch_dhcp_wifi.py     — simDHCP : wifi_router reconnu comme serveur DHCP
-  patch_wifi_bridge.py   — simPing : pont WiFi (deux clients sur même wifi_router)
-  patch_coherence.py     — 7 bugs de cohérence builder↔template
-  inline Python (session précédente) — animPath, doTrace, doPing, dns_success
-  patch_format_v2.py     — loadTopology : migration format v2 (builder) → v1
+    python3 build.py              — vérifie uniquement (dry-run)
+    python3 build.py --fix        — répare les checks KO
+    python3 build.py --rebuild    — régénère depuis sim-engine.js + template-extra.js
+    python3 build.py --rebuild --fix  — régénère + répare si nécessaire
 """
-import sys, base64, re, textwrap
+import sys, base64, re, os
 
-SRC = "/sessions/intelligent-dreamy-mccarthy/mnt/simulation réseau/scorm-builder.html"
-FIX_MODE = "--fix" in sys.argv
+DIR = os.path.dirname(os.path.abspath(__file__))
+SRC       = os.path.join(DIR, "scorm-builder.html")
+ENGINE_JS = os.path.join(DIR, "sim-engine.js")
+EXTRA_JS  = os.path.join(DIR, "template-extra.js")
+SKEL_HTML = os.path.join(DIR, "template-skeleton.html")
+
+FIX_MODE     = "--fix" in sys.argv
+REBUILD_MODE = "--rebuild" in sys.argv
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Chargement
@@ -45,17 +50,66 @@ if not b64_match:
 tpl = base64.b64decode(b64_match.group(1)).decode('utf-8')
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Mode REBUILD : régénérer le STUDENT_TEMPLATE et le bloc SIM-ENGINE du builder
+# ─────────────────────────────────────────────────────────────────────────────
+if REBUILD_MODE:
+    print("── Mode REBUILD ──────────────────────────────────────────────────────")
+    for path in [ENGINE_JS, EXTRA_JS, SKEL_HTML]:
+        if not os.path.exists(path):
+            print(f"FATAL: fichier source manquant: {path}"); sys.exit(1)
+
+    engine = open(ENGINE_JS, encoding='utf-8').read()
+    extra  = open(EXTRA_JS,  encoding='utf-8').read()
+    skel   = open(SKEL_HTML, encoding='utf-8').read()
+
+    # ── Générer le STUDENT_TEMPLATE
+    combined_js = engine + '\n\n' + extra
+    # Le squelette a un placeholder /* __JS__ */ dans son <script>
+    if '/* __JS__ */' in skel:
+        tpl_html = skel.replace('/* __JS__ */', combined_js)
+    else:
+        # Fallback : injecter entre <script> et </script>
+        idx_s = skel.index('<script>') + len('<script>')
+        idx_e = skel.rindex('</script>')
+        tpl_html = skel[:idx_s] + '\n' + combined_js + '\n' + skel[idx_e:]
+
+    new_b64 = base64.b64encode(tpl_html.encode('utf-8')).decode('ascii')
+    assert '\n' not in new_b64
+    html_out = html[:b64_match.start(1)] + new_b64 + html[b64_match.end(1):]
+
+    # ── Mettre à jour le bloc SIM-ENGINE du builder
+    SIM_START = '/* ════════════════════════════════════════════════════════════\n   SIM-ENGINE-START'
+    SIM_END   = 'SIM-ENGINE-END\n════════════════════════════════════════════════════════════ */'
+    idx_s = html_out.find(SIM_START)
+    idx_e = html_out.find(SIM_END)
+    if idx_s != -1 and idx_e != -1:
+        idx_s_end = html_out.index('\n', idx_s + len(SIM_START)) + 1
+        # Remplacer le contenu entre les marqueurs
+        new_engine_block = SIM_START + ' — généré par build.py — NE PAS MODIFIER\n════════════════════════════════════════════════════════════ */\n' + engine + '\n/* '
+        html_out = html_out[:idx_s] + new_engine_block + SIM_END + html_out[idx_e + len(SIM_END):]
+        print(f"  ✓  Bloc SIM-ENGINE builder mis à jour ({len(engine)} chars)")
+    else:
+        print("  ⚠  Marqueurs SIM-ENGINE non trouvés dans le builder — bloc builder non mis à jour")
+
+    with open(SRC, 'w', encoding='utf-8') as f:
+        f.write(html_out)
+    print(f"  ✓  scorm-builder.html régénéré ({len(html_out)} chars)")
+
+    # Recharger pour les vérifications
+    html = html_out
+    tpl = tpl_html
+    print()
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Définition des checks
 # ─────────────────────────────────────────────────────────────────────────────
-# Chaque check : (description, verify_pattern, old_pattern_or_None, new_pattern_or_None)
-# Si old/new sont None, le check est read-only (aucune réparation automatique possible).
 CHECKS = [
 
-    # ── WiFi router : fonctionnalités de base (patch_wifi.py) ────────────────
+    # ── WiFi router : fonctionnalités de base ────────────────────────────────
     (
         "isRouter() reconnaît wifi_router",
         "d.type==='wifi_router'",
-        None, None  # trop de contexte, correction manuelle si absent
+        None, None
     ),
     (
         "DT contient l'entrée wifi_router",
@@ -78,7 +132,7 @@ CHECKS = [
         None, None
     ),
 
-    # ── simDHCP : DHCP sur wifi_router (patch_dhcp_wifi.py) ─────────────────
+    # ── simDHCP : DHCP sur wifi_router ───────────────────────────────────────
     (
         "simDHCP reconnaît wifi_router comme serveur DHCP",
         "(d.type==='server'||d.type==='wifi_router')&&d.dhcp&&d.dhcp.on",
@@ -86,14 +140,14 @@ CHECKS = [
         "if(d&&(d.type==='server'||d.type==='wifi_router')&&d.dhcp&&d.dhcp.on)dhcpSrv=d;"
     ),
 
-    # ── simPing : pont WiFi (patch_wifi_bridge.py) ───────────────────────────
+    # ── simPing : pont WiFi ──────────────────────────────────────────────────
     (
         "simPing : pont WiFi entre deux clients du même wifi_router",
         "var sharedWifi=null;",
         None, None
     ),
 
-    # ── simPing : chemin internet utilise des IDs (patch_coherence Bug2) ─────
+    # ── simPing : chemin internet utilise des IDs ─────────────────────────────
     (
         "simPing internet : path contient des IDs (pas des noms)",
         "path:[src.id,_ir.router.id,_ir.inet.id]",
@@ -101,7 +155,7 @@ CHECKS = [
         "path:[src.id,_ir.router.id,_ir.inet.id],lat:32,internet:true}"
     ),
 
-    # ── animPath : déclenché aussi pour les pings WiFi ────────────────────────
+    # ── animPath : ping WiFi ──────────────────────────────────────────────────
     (
         "animPath déclenché pour res.wifi (ping WiFi) et res.router",
         "if(res.router||res.wifi)",
@@ -109,28 +163,28 @@ CHECKS = [
         "if(res.router||res.wifi)\nanimPath(res.path);"
     ),
 
-    # ── doPing : chemin affiché avec noms (pas IDs) ──────────────────────────
+    # ── doPing : chemin affiché avec noms ────────────────────────────────────
     (
         "doPing : pathNames resolves IDs → noms d'appareils",
         "res.path.map(function(id){return S.devs[id]?S.devs[id].name:id;})",
         None, None
     ),
 
-    # ── doPing : dns_success déclenché après résolution DNS ─────────────────
+    # ── doPing : dns_success ─────────────────────────────────────────────────
     (
         "doPing : checkDynamicObjective dns_success appelé",
         "checkDynamicObjective('dns_success'",
         None, None
     ),
 
-    # ── doTrace : utilise les IDs (pas les noms) ─────────────────────────────
+    # ── doTrace : IDs ────────────────────────────────────────────────────────
     (
         "doTrace : résout les IDs en noms d'appareils",
         "var dv=S.devs[id];",
         None, None
     ),
 
-    # ── loadTopology : migration format v2 builder → template ────────────────
+    # ── loadTopology : migration format v2 ───────────────────────────────────
     (
         "loadTopology : détecte et migre le format v2 exporté par le builder",
         "data.version===2&&data.network",
@@ -142,7 +196,7 @@ CHECKS = [
         "      if(!data.devs||!data.links)throw new Error('Format invalide — fichier JSON incompatible');"
     ),
 
-    # ── devByName : normalisation casse/espaces (patch_coherence Bug3) ───────
+    # ── devByName : normalisation ─────────────────────────────────────────────
     (
         "devByName : comparaison normalisée (toLowerCase + trim)",
         "name.trim().toLowerCase()",
@@ -156,8 +210,7 @@ CHECKS = [
         "}"
     ),
 
-    # ── dns_configured : logique correcte (patch_coherence Bug4 + complément) ──
-    # Règle : si fi.dns vide → false ; si p.dns spécifié et différent → false
+    # ── dns_configured : logique correcte ────────────────────────────────────
     (
         "checkObjectiveStatic dns_configured : logique correcte (non-strict)",
         "if(!fi.dns)return false;\n      if(p.dns&&fi.dns!==p.dns)return false;",
@@ -173,7 +226,7 @@ CHECKS = [
         "      return true;"
     ),
 
-    # ── cwDrop : checkAllObjectives après dépôt (patch_coherence Bug5) ───────
+    # ── cwDrop : checkAllObjectives ───────────────────────────────────────────
     (
         "cwDrop : checkAllObjectives() déclenché après dépôt d'un appareil",
         "checkAllObjectives();},50);",
@@ -186,7 +239,7 @@ CHECKS = [
         "}"
     ),
 
-    # ── toggleDHCPMode : checkAllObjectives (patch_coherence Bug6) ───────────
+    # ── toggleDHCPMode : checkAllObjectives ──────────────────────────────────
     (
         "toggleDHCPMode : checkAllObjectives() déclenché après changement DHCP",
         "render();showProps(devId);\n  setTimeout(function(){checkAllObjectives();",
@@ -205,7 +258,7 @@ CHECKS = [
         "}"
     ),
 
-    # ── setMode : wifi_router désactivé en simulation (patch_coherence Bug7) ─
+    # ── setMode : wifi_router désactivé en simulation ─────────────────────────
     (
         "setMode : wifi_router désactivé dans la palette en mode simulation",
         "'wifi_router','internet','frame','anntext'",
@@ -213,13 +266,11 @@ CHECKS = [
         "['pc','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){"
     ),
 
-    # ── Bug1 : double-quote corrigée dans showProps HTTP ─────────────────────
-    # Pattern attendu après fix (bytes 2b 27 5c 27 5d 2e 68 74 74 70 2e 74 69 74 6c 65)
-    # = +'\''].http.title  (une seule \' avant ] — pas deux)
+    # ── Bug1 : pas de double-quote dans showProps HTTP ────────────────────────
     (
         "showProps HTTP : pas de double-quote dans les handlers onchange",
         "+'\\'].http.title",
-        None, None  # fix byte-level — voir patch_coherence.py Bug1a
+        None, None
     ),
 ]
 
@@ -240,28 +291,26 @@ for desc, verify_pat, old_pat, new_pat in CHECKS:
         results.append(("OK", desc))
         print(f"  ✓  {desc}")
     else:
-        # Essayer de réparer
         if FIX_MODE and old_pat and new_pat:
             count_old = tpl_modified.count(old_pat)
             if count_old == 1:
                 tpl_modified = tpl_modified.replace(old_pat, new_pat, 1)
-                # Vérifier que le patch a bien introduit le pattern attendu
                 if verify_pat in tpl_modified:
                     results.append(("FIXED", desc))
                     print(f"  🔧  {desc}  [RÉPARÉ]")
                 else:
                     results.append(("ERR", desc))
-                    print(f"  ✗  {desc}  [RÉPARATION ÉCHOUÉE : verify_pat absent après remplacement]")
+                    print(f"  ✗  {desc}  [RÉPARATION ÉCHOUÉE]")
             elif count_old == 0:
                 results.append(("ERR", desc))
-                print(f"  ✗  {desc}  [NI old NI new pattern trouvé — intervention manuelle requise]")
+                print(f"  ✗  {desc}  [NI old NI new trouvé — intervention manuelle requise]")
             else:
                 results.append(("ERR", desc))
-                print(f"  ✗  {desc}  [old_pat ambigu ({count_old} occurrences) — intervention manuelle requise]")
+                print(f"  ✗  {desc}  [old_pat ambigu ({count_old} occurrences)]")
         else:
             results.append(("KO", desc))
             if FIX_MODE and not old_pat:
-                print(f"  ✗  {desc}  [MANQUANT — pas de réparation automatique disponible]")
+                print(f"  ✗  {desc}  [MANQUANT — pas de réparation automatique]")
             else:
                 print(f"  ✗  {desc}  [MANQUANT]")
 
@@ -280,6 +329,7 @@ if ko_count > 0:
     print(f"\n  ⚠  {ko_count} check(s) KO.")
     if not FIX_MODE:
         print("     Relancez avec --fix pour tenter une réparation automatique.")
+        print("     Ou relancez avec --rebuild pour régénérer depuis les sources.")
     print()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -287,7 +337,7 @@ if ko_count > 0:
 # ─────────────────────────────────────────────────────────────────────────────
 if fixed_count > 0:
     new_b64 = base64.b64encode(tpl_modified.encode('utf-8')).decode('ascii')
-    assert '\n' not in new_b64, "b64 re-encodé contient des newlines"
+    assert '\n' not in new_b64
     html_out = html[:b64_match.start(1)] + new_b64 + html[b64_match.end(1):]
     with open(SRC, 'w', encoding='utf-8') as f:
         f.write(html_out)
