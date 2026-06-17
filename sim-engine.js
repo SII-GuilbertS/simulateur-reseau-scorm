@@ -904,14 +904,14 @@ function termExec(){
   var parts=raw.split(/\s+/),cmd=parts[0].toLowerCase();
   switch(cmd){
     case 'ping':
-      if(!parts[1]){tpr('Usage : ping <IP_ou_nom_de_domaine>','err');break;}
+      if(!parts[1]){tpr('Usage : ping <IP ou domaine>','err');break;}
       doPing(S.termDev,parts[1]);break;
     case 'ipconfig':case 'ifconfig':doIPCfg(S.termDev);break;
     case 'nslookup':
       if(!parts[1]){tpr('Usage : nslookup <domaine>','err');break;}
       doNSL(S.termDev,parts[1]);break;
     case 'traceroute':case 'tracert':
-      if(!parts[1]){tpr('Usage : traceroute <adresse_ip>','err');break;}
+      if(!parts[1]){tpr('Usage : traceroute <IP ou domaine>','err');break;}
       doTrace(S.termDev,parts[1]);break;
     case 'arp':doARP(S.termDev);break;
     case 'netstat':doNetstat(S.termDev);break;
@@ -972,19 +972,26 @@ function doPing(devId,target){
 function doIPCfg(devId){
   var d=S.devs[devId];tpr('');tpr('Configuration IP de '+d.name+' :','info');
   if(isRouter(d)){
-    d.ifaces.forEach(function(fi,i){
-      tpr(fi.name+' :','info');
-      tpr('   IP    : '+(fi.ip||'non configurée'),fi.ip?'ok':'warn');
-      tpr('   Masque: '+(fi.mask||'—'),'');
+    if(d.type==='wifi_router'&&d.ssid)tpr('Réseau WiFi : '+d.ssid+(d.wifiPass?' (protégé)':' (ouvert)'),'info');
+    d.ifaces.forEach(function(fi){
+      tpr('Interface '+fi.name+' :','info');
+      tpr('   Adresse IP : '+(fi.ip||'non configurée'),fi.ip?'ok':'warn');
+      tpr('   Masque     : '+(fi.mask||'—'),'');
     });
+    if(d.type==='wifi_router'&&d.dhcp&&d.dhcp.on)
+      tpr('Service DHCP : actif ('+d.dhcp.start+' — '+d.dhcp.end+')','ok');
   } else {
     var fi=mainIface(d)||{};
+    if(fi.dhcpMode)tpr('Mode        : DHCP automatique','info');
     tpr('Adresse IP  : '+(fi.ip||'non configurée'),fi.ip?'ok':'warn');
     tpr('Masque      : '+(fi.mask||'—'),'');
     tpr('Passerelle  : '+(fi.gateway||'—'),'');
     tpr('Serveur DNS : '+(fi.dns||'—'),'');
     tpr('Adresse MAC : '+(d.mac||'—'),'');
-    if(d.type==='server')tpr('Services    : '+(d.http.on?'HTTP ':'')+( d.dns.on?'DNS ':'(aucun)'),'info');
+    if(d.type==='server'){
+      var svcs=[d.http&&d.http.on?'HTTP':null,d.dns&&d.dns.on?'DNS':null,d.dhcp&&d.dhcp.on?'DHCP':null].filter(Boolean);
+      tpr('Services    : '+(svcs.length?svcs.join(', '):'(aucun)'),'info');
+    }
   }
 }
 
@@ -993,7 +1000,7 @@ function doNSL(devId,domain){
   var srcDNS=(mainIface(S.devs[devId])||{}).dns||'?';
   if(res.ok){
     tpr('Serveur DNS : '+res.server,'info');
-    tpr('Nom    : '+domain,'');tpr('Adresse: '+res.ip,'ok');
+    tpr('Nom     : '+domain,'');tpr('Adresse : '+res.ip,'ok');
     addLog('DNS '+domain+' → '+res.ip,'ok');
     addPacket('DNS Query',srcDNS,(mainIface(S.devs[devId])||{}).ip||'?',domain+' → '+res.ip,true);
     checkDynamicObjective('dns_success',{from:S.devs[devId].name,domain:domain});
@@ -1033,21 +1040,27 @@ function doARP(devId){
 }
 
 function doNetstat(devId){
-  var d=S.devs[devId];tpr('');tpr('Connexions actives de '+d.name+' :','info');
-  if(d.type!=='server'){tpr('  (aucune connexion active)','warn');return;}
-  if(d.http&&d.http.on)tpr('  TCP  0.0.0.0:80    LISTENING   HTTP/1.1','ok');
-  if(d.dns&&d.dns.on) tpr('  UDP  0.0.0.0:53    LISTENING   DNS','ok');
-  if(!d.http.on&&!d.dns.on)tpr('  (aucun service actif)','warn');
+  var d=S.devs[devId];tpr('');tpr('Services réseau actifs de '+d.name+' :','info');
+  var hasSvc=false;
+  if(d.http&&d.http.on){tpr('  TCP  0.0.0.0:80    LISTENING   HTTP','ok');hasSvc=true;}
+  if(d.dns&&d.dns.on) {tpr('  UDP  0.0.0.0:53    LISTENING   DNS','ok');hasSvc=true;}
+  if(d.dhcp&&d.dhcp.on){tpr('  UDP  0.0.0.0:67    LISTENING   DHCP','ok');hasSvc=true;}
+  if(!hasSvc)tpr('  (aucun service actif)','warn');
 }
 
 function doHelp(){
   tpr('');tpr('Commandes disponibles :','info');
-  [['ping <IP|domaine>','Tester la connectivité (+ DNS)'],['ipconfig','Afficher la config réseau'],
-   ['nslookup <dom>','Résolution DNS'],['traceroute <IP>','Tracer le chemin'],
-   ['arp','Table ARP (résolution MAC)'],['netstat','Services réseau actifs'],
-   ['dhcp','Demander une IP au serveur DHCP'],['route','Afficher la table de routage'],
-   ['clear','Effacer le terminal'],['help','Cette aide']].forEach(function(c){
-    tpr('  '+c[0].padEnd(26)+c[1],'');
+  [['ping <IP ou domaine>',   'Tester la connectivité (+ résolution DNS)'],
+   ['ipconfig',               'Afficher la configuration réseau'],
+   ['nslookup <domaine>',     'Résoudre un nom de domaine (DNS)'],
+   ['traceroute <IP ou domaine>','Tracer le chemin vers une destination'],
+   ['arp',                    'Afficher la table ARP (adresses MAC)'],
+   ['netstat',                'Afficher les services réseau actifs'],
+   ['dhcp',                   'Demander une adresse IP au serveur DHCP'],
+   ['route',                  'Afficher la table de routage'],
+   ['clear',                  'Effacer le terminal'],
+   ['help',                   'Afficher cette aide']].forEach(function(c){
+    tpr('  '+c[0].padEnd(28)+c[1],'');
   });
 }
 
