@@ -46,6 +46,35 @@ function checkObjectiveStatic(obj){
       if(p.gateway&&(!fi||fi.gateway!==p.gateway))return false;
       if(p.type&&nd.type!==p.type)return false;
       return true;}
+    case 'wifi_link':{
+      var wA=devByName(p.devA),wB=devByName(p.devB);
+      if(!wA||!wB)return false;
+      return !!Object.values(S.links).find(function(l){
+        return l.type==='wifi'&&
+          ((l.from===wA.id&&l.to===wB.id)||(l.from===wB.id&&l.to===wA.id));
+      });}
+    case 'route_exists':{
+      d=devByName(p.dev);if(!d)return false;
+      var rt=getRoutingTable(d.id);
+      if(!p.dest)return rt.length>0;
+      return !!rt.find(function(r){
+        if(p.dest&&r.dest!==p.dest)return false;
+        if(p.mask&&r.mask!==p.mask)return false;
+        return true;
+      });}
+    case 'dns_record':{
+      d=devByName(p.dev);if(!d||!d.dns||!d.dns.on)return false;
+      if(!p.domain)return Object.keys(d.dns.records||{}).length>0;
+      var dom=(p.domain||'').toLowerCase().trim();
+      var rec=(d.dns.records||{})[dom];
+      if(!rec)return false;
+      if(p.ip&&rec!==p.ip)return false;
+      return true;}
+    case 'ssid_configured':{
+      d=devByName(p.dev);if(!d||d.type!=='wifi_router')return false;
+      if(!d.ssid)return false;
+      if(p.ssid&&d.ssid!==p.ssid)return false;
+      return true;}
     default:
       return false;
   }
@@ -54,7 +83,7 @@ function checkObjectiveStatic(obj){
 function checkAllObjectives(){
   if(!ACTIVITY_CONFIG)return;
   var changed=false;
-  var staticTypes=['cable_exists','ip_configured','gateway_configured','dns_configured','service_active','device_added'];
+  var staticTypes=['cable_exists','ip_configured','gateway_configured','dns_configured','service_active','device_added','wifi_link','route_exists','dns_record','ssid_configured'];
   ACTIVITY_CONFIG.objectives.forEach(function(obj){
     if(ACTIVITY_RESULTS[obj.id])return;
     if(staticTypes.indexOf(obj.check)>=0&&checkObjectiveStatic(obj)){

@@ -913,6 +913,145 @@ test('isRouter reconnaît le wifi_router créé par mkDev', function() {
   ok(isRouter(S.devs[id]), 'isRouter doit retourner true pour un wifi_router');
 });
 
+/* ── checkObjectiveStatic — nouveaux types (point 7) ── */
+suite('checkObjectiveStatic — wifi_link');
+
+test('wifi_link : lien WiFi présent → validé', function() {
+  resetNet();
+  var wr = mkWifiRouter('192.168.0.1','255.255.255.0','','TestSSID');
+  var d = S.devs[wr]; d.name = 'BoxWiFi';
+  var pc = mkPC('192.168.0.10','255.255.255.0','192.168.0.1','','MonPC');
+  wifiLink(pc, wr);
+  ok(checkObjectiveStatic({check:'wifi_link', params:{devA:'BoxWiFi', devB:'MonPC'}}),
+    'wifi_link doit être validé quand le lien WiFi existe');
+});
+
+test('wifi_link : lien WiFi absent → non validé', function() {
+  resetNet();
+  var wr = mkWifiRouter('192.168.0.1','255.255.255.0','','TestSSID');
+  var d = S.devs[wr]; d.name = 'BoxWiFi';
+  mkPC('192.168.0.10','255.255.255.0','192.168.0.1','','MonPC');
+  notOk(checkObjectiveStatic({check:'wifi_link', params:{devA:'BoxWiFi', devB:'MonPC'}}),
+    'wifi_link doit échouer sans lien WiFi');
+});
+
+test('wifi_link : câble filaire ne compte pas', function() {
+  resetNet();
+  var wr = mkWifiRouter('192.168.0.1','255.255.255.0','','TestSSID');
+  var d = S.devs[wr]; d.name = 'BoxWiFi';
+  var pc = mkPC('192.168.0.10','255.255.255.0','192.168.0.1','','MonPC');
+  link(pc, wr); // lien filaire (pas wifi)
+  notOk(checkObjectiveStatic({check:'wifi_link', params:{devA:'BoxWiFi', devB:'MonPC'}}),
+    'wifi_link doit échouer pour un câble ordinaire');
+});
+
+suite('checkObjectiveStatic — route_exists');
+
+test('route_exists : route directe présente → validé', function() {
+  resetNet();
+  var r = mkRouter('192.168.1.1','255.255.255.0','192.168.2.1','255.255.255.0');
+  var d = S.devs[r]; d.name = 'R1';
+  ok(checkObjectiveStatic({check:'route_exists', params:{dev:'R1', dest:'192.168.1.0'}}),
+    'route_exists doit trouver une route directe sur 192.168.1.0');
+});
+
+test('route_exists : réseau inexistant → non validé', function() {
+  resetNet();
+  var r = mkRouter('192.168.1.1','255.255.255.0','192.168.2.1','255.255.255.0');
+  var d = S.devs[r]; d.name = 'R1';
+  notOk(checkObjectiveStatic({check:'route_exists', params:{dev:'R1', dest:'10.0.0.0'}}),
+    'route_exists doit échouer pour un réseau non configuré');
+});
+
+test('route_exists : router sans IP → non validé', function() {
+  resetNet();
+  var r = mkDev('router', 10, 10);
+  S.devs[r].name = 'R1';
+  notOk(checkObjectiveStatic({check:'route_exists', params:{dev:'R1', dest:'192.168.1.0'}}));
+});
+
+suite('checkObjectiveStatic — dns_record');
+
+test('dns_record : enregistrement correct → validé', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1');
+  var d = S.devs[srv]; d.name = 'DNSSrv';
+  d.dns.on = true;
+  d.dns.records = {'www.lycee.fr': '192.168.1.10'};
+  ok(checkObjectiveStatic({check:'dns_record', params:{dev:'DNSSrv', domain:'www.lycee.fr', ip:'192.168.1.10'}}),
+    'dns_record doit valider quand domaine et IP correspondent');
+});
+
+test('dns_record : domaine absent → non validé', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1');
+  var d = S.devs[srv]; d.name = 'DNSSrv';
+  d.dns.on = true;
+  d.dns.records = {};
+  notOk(checkObjectiveStatic({check:'dns_record', params:{dev:'DNSSrv', domain:'www.lycee.fr'}}));
+});
+
+test('dns_record : mauvaise IP → non validé', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1');
+  var d = S.devs[srv]; d.name = 'DNSSrv';
+  d.dns.on = true;
+  d.dns.records = {'www.lycee.fr': '192.168.1.99'};
+  notOk(checkObjectiveStatic({check:'dns_record', params:{dev:'DNSSrv', domain:'www.lycee.fr', ip:'192.168.1.10'}}),
+    'dns_record doit échouer si IP ne correspond pas');
+});
+
+test('dns_record : DNS inactif → non validé', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1');
+  var d = S.devs[srv]; d.name = 'DNSSrv';
+  d.dns.on = false;
+  d.dns.records = {'www.lycee.fr': '192.168.1.10'};
+  notOk(checkObjectiveStatic({check:'dns_record', params:{dev:'DNSSrv', domain:'www.lycee.fr'}}),
+    'dns_record doit échouer si le service DNS est inactif');
+});
+
+suite('checkObjectiveStatic — ssid_configured');
+
+test('ssid_configured : SSID attendu présent → validé', function() {
+  resetNet();
+  var wr = mkWifiRouter('','','','WiFi-Lycee');
+  var d = S.devs[wr]; d.name = 'BoxWiFi';
+  ok(checkObjectiveStatic({check:'ssid_configured', params:{dev:'BoxWiFi', ssid:'WiFi-Lycee'}}),
+    'ssid_configured doit valider quand le SSID correspond');
+});
+
+test('ssid_configured : SSID différent → non validé', function() {
+  resetNet();
+  var wr = mkWifiRouter('','','','MonWiFi');
+  var d = S.devs[wr]; d.name = 'BoxWiFi';
+  notOk(checkObjectiveStatic({check:'ssid_configured', params:{dev:'BoxWiFi', ssid:'AutreSSID'}}),
+    'ssid_configured doit échouer si le SSID ne correspond pas');
+});
+
+test('ssid_configured : sans SSID → valide si un SSID quelconque est défini', function() {
+  resetNet();
+  var wr = mkWifiRouter('','','','MonWiFi');
+  var d = S.devs[wr]; d.name = 'BoxWiFi';
+  ok(checkObjectiveStatic({check:'ssid_configured', params:{dev:'BoxWiFi'}}),
+    'ssid_configured sans param ssid doit valider si SSID non vide');
+});
+
+test('ssid_configured : SSID vide → non validé', function() {
+  resetNet();
+  var wr = mkWifiRouter('','','','');
+  var d = S.devs[wr]; d.name = 'BoxWiFi'; d.ssid = '';
+  notOk(checkObjectiveStatic({check:'ssid_configured', params:{dev:'BoxWiFi'}}),
+    'ssid_configured doit échouer si le SSID est vide');
+});
+
+test('ssid_configured : appareil non-wifi_router → non validé', function() {
+  resetNet();
+  var pc = mkPC('192.168.1.1','255.255.255.0','','','MonPC');
+  notOk(checkObjectiveStatic({check:'ssid_configured', params:{dev:'MonPC'}}),
+    'ssid_configured doit échouer sur un PC');
+});
+
 /* ─────────────────────────────────────────────────────
    6. BILAN
 ───────────────────────────────────────────────────── */
