@@ -290,6 +290,55 @@ function showPropsSimu(id){
     });
     h+='</table>';
   }
+  if(d.type==='wifi_router'){
+    h+='<div class="psection">Réseau WiFi</div>';
+    h+=row('SSID (nom du réseau)',d.ssid,true);
+    h+=row('Mot de passe',d.wifiPass||'(aucun)');
+    h+='<div class="psection">Interfaces réseau</div>';
+    d.ifaces.forEach(function(fi){
+      h+='<div class="iface-box"><div class="iface-title"><span>'+(fi.name==='WiFi'?'📶':'🔌')+' '+esc(fi.name)+'</span></div>'
+        +'<div style="font-family:monospace;font-size:.8em;color:#2d3748;padding:2px 4px">'
+        +esc(fi.ip||'—')+' / '+esc(fi.mask||'—')+'</div></div>';
+    });
+    var wifiClients=Object.values(S.links)
+      .filter(function(l){return (l.from===id||l.to===id)&&l.type==='wifi';})
+      .map(function(l){return S.devs[l.from===id?l.to:l.from];})
+      .filter(Boolean);
+    h+='<div class="psection">Appareils connectés en WiFi</div>';
+    if(!wifiClients.length){
+      h+='<div style="font-size:.8em;color:#a0aec0;padding:3px 0">Aucun appareil connecté</div>';
+    } else {
+      wifiClients.forEach(function(c){
+        var ci=mainIface(c)||{};
+        h+='<div class="iface-box"><div class="iface-title"><span>💻 '+esc(c.name)+'</span></div>'
+          +'<div style="font-family:monospace;font-size:.8em;color:#2d3748;padding:2px 4px">'
+          +esc(ci.ip||'—')+'</div></div>';
+      });
+    }
+    if(d.dhcp&&d.dhcp.on){
+      h+='<div class="psection">Service DHCP</div>';
+      h+=row('Plage d\'adresses',(d.dhcp.start||'?')+' → '+(d.dhcp.end||'?'));
+      if(d.dhcp.gateway)h+=row('Passerelle distribuée',d.dhcp.gateway,true);
+      if(d.dhcp.dns)h+=row('DNS distribué',d.dhcp.dns,true);
+    }
+    h+='<div class="psection">Table de routage</div>';
+    var rtw=getRoutingTable(id);
+    h+='<table style="width:100%;font-size:.71em;border-collapse:collapse;margin-bottom:6px">';
+    h+='<tr style="background:#edf2f7"><th style="padding:2px 5px;text-align:left">Réseau</th>'
+      +'<th style="padding:2px 5px;text-align:left">Masque</th>'
+      +'<th style="padding:2px 5px;text-align:left">Via</th>'
+      +'<th style="padding:2px 5px;text-align:left">If.</th></tr>';
+    if(!rtw.length){
+      h+='<tr><td colspan="4" style="padding:4px 5px;color:#a0aec0;font-style:italic">Aucune route</td></tr>';
+    }
+    rtw.forEach(function(r){
+      h+='<tr><td style="padding:2px 5px;font-family:monospace">'+esc(r.dest)+'</td>'
+        +'<td style="padding:2px 5px;font-family:monospace">'+esc(r.mask)+'</td>'
+        +'<td style="padding:2px 5px;font-family:monospace;color:'+(r.gw?'#553c9a':'#718096')+'">'+esc(r.gw||'direct')+'</td>'
+        +'<td style="padding:2px 5px">'+esc(r.iface)+'</td></tr>';
+    });
+    h+='</table>';
+  }
   if(d.type==='switch'){
     h+='<div class="psection">Informations</div>';
     h+='<div style="font-size:.8em;color:#718096;padding:3px 0">Commutateur couche 2<br>Pas d\'adresse IP</div>';
@@ -390,6 +439,41 @@ function showProps(id){
     h+='<button class="pb pb-gray" onclick="addIface(\''+id+'\')">+ Ajouter une interface (eth'+d.ifaces.length+')</button>';
   }
 
+  // Box WiFi : SSID + interfaces WAN/WiFi + DHCP
+  if(d.type==='wifi_router'){
+    h+='<div class="psection">Configuration WiFi</div>';
+    h+='<div class="pr"><label>SSID (nom du réseau)</label><input value="'+esc(d.ssid||'')+'" placeholder="MonWiFi"'+
+      ' onchange="S.devs[\''+id+'\'].ssid=this.value;render();showProps(\''+id+'\')"/></div>';
+    h+='<div class="pr"><label>Mot de passe WiFi</label><input value="'+esc(d.wifiPass||'')+'" placeholder="(laisser vide = réseau ouvert)"'+
+      ' onchange="S.devs[\''+id+'\'].wifiPass=this.value"/></div>';
+    h+='<div class="psection">Interfaces réseau</div>';
+    d.ifaces.forEach(function(fi,i){
+      h+='<div class="iface-box">'+
+        '<div class="iface-title"><span>'+(fi.name==='WiFi'?'📶':'🔌')+' '+esc(fi.name)+'</span></div>'+
+        '<div class="pr"><label>Adresse IP</label><input value="'+esc(fi.ip||'')+'" placeholder="192.168.'+(i===0?'0':'1')+'.1"'+
+          ' oninput="chkIP(this)" onchange="setIface(\''+id+'\','+i+',\'ip\',this.value)"/></div>'+
+        '<div class="pr"><label>Masque</label><input value="'+esc(fi.mask||'')+'" placeholder="255.255.255.0"'+
+          ' oninput="chkMask(this)" onchange="setIface(\''+id+'\','+i+',\'mask\',this.value)"/></div>'+
+        '</div>';
+    });
+    var dhw=d.dhcp||{};
+    h+='<div class="psection">Service DHCP</div>';
+    h+='<div class="pr ck"><input type="checkbox" id="dhon" '+(dhw.on?'checked':'')+
+      ' onchange="S.devs[\''+id+'\'].dhcp.on=this.checked;render();showProps(\''+id+'\')"/><label for="dhon">Activer le serveur DHCP</label></div>';
+    if(dhw.on){
+      h+='<div class="pr"><label>IP de départ</label><input value="'+esc(dhw.start||'192.168.1.100')+'" placeholder="192.168.1.100"'+
+        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'start\',this.value)"/></div>';
+      h+='<div class="pr"><label>IP de fin</label><input value="'+esc(dhw.end||'192.168.1.200')+'" placeholder="192.168.1.200"'+
+        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'end\',this.value)"/></div>';
+      h+='<div class="pr"><label>Masque distribué</label><input value="'+esc(dhw.mask||'255.255.255.0')+'" placeholder="255.255.255.0"'+
+        ' oninput="chkMask(this)" onchange="setDHCP(\''+id+'\',\'mask\',this.value)"/></div>';
+      h+='<div class="pr"><label>Passerelle distribuée</label><input value="'+esc(dhw.gateway||'')+'" placeholder="192.168.1.1"'+
+        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'gateway\',this.value)"/></div>';
+      h+='<div class="pr"><label>DNS distribué</label><input value="'+esc(dhw.dns||'')+'" placeholder="192.168.1.254"'+
+        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'dns\',this.value)"/></div>';
+    }
+  }
+
   // Services serveur
   if(d.type==='server'){
     h+='<div class="psection">Service HTTP</div>';
@@ -454,8 +538,8 @@ function showProps(id){
     }
   }
 
-  // Table de routage pour les routeurs / internet
-  if(d.type==='router'||d.type==='internet'){
+  // Table de routage pour les routeurs / internet / wifi_router
+  if(d.type==='router'||d.type==='internet'||d.type==='wifi_router'){
     h+='<div class="psection">Table de routage</div>';
     var ar=(d.autoRouteEnabled!==false); // true par défaut
     h+='<div class="pr ck" style="margin-bottom:8px"><input type="checkbox" id="aro" '+(ar?'checked':'')+
