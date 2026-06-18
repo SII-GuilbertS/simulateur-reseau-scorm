@@ -155,12 +155,12 @@ CHECKS = [
         "path:[src.id,_ir.router.id,_ir.inet.id],lat:32,internet:true}"
     ),
 
-    # ── animPath : ping WiFi ──────────────────────────────────────────────────
+    # ── animPath : toujours déclenché sur ping réussi (bug #2 fix) ───────────
     (
-        "animPath déclenché pour res.wifi (ping WiFi) et res.router",
-        "if(res.router||res.wifi)",
-        "if(res.router)\nanimPath(res.path);",
-        "if(res.router||res.wifi)\nanimPath(res.path);"
+        "animPath déclenché pour tout ping réussi (LAN direct, WiFi, router)",
+        "animPath(res.path);\n    checkDynamicObjective('ping_success'",
+        "if(res.router||res.wifi)\nanimPath(res.path);",
+        "animPath(res.path);"
     ),
 
     # ── doPing : chemin affiché avec noms ────────────────────────────────────

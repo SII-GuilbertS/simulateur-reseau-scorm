@@ -720,8 +720,9 @@ function setMode(m){
   ['t-link','t-delete','t-clear'].forEach(function(id){
     var b=document.getElementById(id);if(b)b.classList.toggle('disabled',simMode);
   });
-  // Afficher le panneau bas seulement en simulation
-  document.querySelector('.bot').style.display=simMode?'flex':'none';
+  // Afficher le panneau bas en simulation — ou toujours si une activité est configurée
+  var _keepBot=typeof ACTIVITY_CONFIG!=='undefined'&&ACTIVITY_CONFIG&&ACTIVITY_CONFIG.objectives&&ACTIVITY_CONFIG.objectives.length;
+  document.querySelector('.bot').style.display=(simMode||_keepBot)?'flex':'none';
   if(simMode){
     setTool('select');
     saveToSession(); // auto-save à chaque passage en simulation
@@ -956,7 +957,6 @@ function doPing(devId,target){
     if(res.path.length>1)tpr('Chemin : '+pathNames.join(' → '),'info');
     addLog('PING '+(hostname||target)+' depuis '+S.devs[devId].name+' — OK ('+pathNames.join('→')+')','ok');
     addPacket('ICMP Echo',srcIP,target,'4 réponses — '+pathNames.join('→'),true);
-    if(res.router||res.wifi)
     animPath(res.path);
     checkDynamicObjective('ping_success',{from:S.devs[devId].name,to:target});
   } else {
@@ -1521,12 +1521,18 @@ function notif(msg,type){
    FENÊTRE SÉPARÉE & PLEIN ÉCRAN
 ───────────────────────────────────────────────────── */
 function openPopup(){
-  var w=window.open(location.href,'sim_popup',
+  var html=document.documentElement.outerHTML;
+  if(html.indexOf('<!DOCTYPE')<0&&html.indexOf('<!doctype')<0)html='<!DOCTYPE html>\n'+html;
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var w=window.open(url,'sim_popup',
     'width=1440,height=940,resizable=yes,scrollbars=no,menubar=no,toolbar=no,location=no,status=no');
   if(!w||w.closed||typeof w.closed==='undefined'){
+    URL.revokeObjectURL(url);
     alert('Le navigateur a bloqué la fenêtre popup.\nAutorisez les popups pour ce site, puis réessayez.');
     return;
   }
+  setTimeout(function(){URL.revokeObjectURL(url);},15000);
   notif('↗ Simulateur ouvert dans une nouvelle fenêtre','info');
 }
 

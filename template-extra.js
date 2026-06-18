@@ -752,13 +752,17 @@ window.addEventListener('load',function(){
   } else {
     
   }
-  document.querySelector('.bot').style.display='none'; // masqué en mode config par défaut
   // Activité personnalisée : afficher l'onglet et vérifier les objectifs initiaux
-  if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.objectives){
+  if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.objectives&&ACTIVITY_CONFIG.objectives.length){
     var tabBtn=document.getElementById('btn-activ-tab');
     if(tabBtn)tabBtn.style.display='';
+    showTab('activ'); // afficher directement l'onglet Activité
     renderActivityTab();
     checkAllObjectives();
+    // Garder le panneau bas visible même en mode configuration
+    document.querySelector('.bot').style.display='flex';
+  } else {
+    document.querySelector('.bot').style.display='none'; // masqué en mode config par défaut
   }
   window.addEventListener('keydown',function(e){
     if(e.key==='Escape'&&S.cableFrom){S.cableFrom=null;hidePrev();render();}
