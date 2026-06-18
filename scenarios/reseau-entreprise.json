@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-18T00:00:00.000Z",
+  "teacherPwd": "prof",
+  "network": {
+    "nid": 8,
+    "devs": {
+      "d1": {
+        "id": "d1",
+        "type": "internet",
+        "name": "Internet",
+        "x": 100,
+        "y": 260,
+        "mac": "AA:BB:CC:DD:EE:01",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "10.0.0.1",
+            "mask": "255.255.255.0"
+          },
+          {
+            "name": "eth1",
+            "ip": "8.8.8.8",
+            "mask": "255.0.0.0"
+          }
+        ],
+        "staticRoutes": []
+      },
+      "d2": {
+        "id": "d2",
+        "type": "router",
+        "name": "Routeur",
+        "x": 340,
+        "y": 260,
+        "mac": "AA:BB:CC:DD:EE:02",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "10.0.0.2",
+            "mask": "255.255.255.0"
+          },
+          {
+            "name": "eth1",
+            "ip": "192.168.1.1",
+            "mask": "255.255.255.0"
+          }
+        ],
+        "staticRoutes": [],
+        "autoRouteEnabled": true
+      },
+      "d3": {
+        "id": "d3",
+        "type": "switch",
+        "name": "Switch-LAN",
+        "x": 600,
+        "y": 260,
+        "mac": "AA:BB:CC:DD:EE:03",
+        "ifaces": [],
+        "staticRoutes": []
+      },
+      "d4": {
+        "id": "d4",
+        "type": "pc",
+        "name": "PC-Alice",
+        "x": 450,
+        "y": 480,
+        "mac": "AA:BB:CC:DD:EE:04",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.10",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.1",
+            "dns": "192.168.1.100"
+          }
+        ],
+        "staticRoutes": []
+      },
+      "d5": {
+        "id": "d5",
+        "type": "pc",
+        "name": "PC-Bob",
+        "x": 650,
+        "y": 480,
+        "mac": "AA:BB:CC:DD:EE:05",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.11",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.1",
+            "dns": "192.168.1.100"
+          }
+        ],
+        "staticRoutes": []
+      },
+      "d6": {
+        "id": "d6",
+        "type": "pc",
+        "name": "PC-Charlie",
+        "x": 860,
+        "y": 480,
+        "mac": "AA:BB:CC:DD:EE:06",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.12",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.1",
+            "dns": "192.168.1.100"
+          }
+        ],
+        "staticRoutes": []
+      },
+      "d7": {
+        "id": "d7",
+        "type": "server",
+        "name": "Serveur",
+        "x": 790,
+        "y": 60,
+        "mac": "AA:BB:CC:DD:EE:07",
+        "ifaces": [
+          {
+            "name": "eth0",
+            "ip": "192.168.1.100",
+            "mask": "255.255.255.0",
+            "gateway": "192.168.1.1",
+            "dns": "192.168.1.100"
+          }
+        ],
+        "staticRoutes": [],
+        "http": {
+          "on": true,
+          "title": "Mon Entreprise",
+          "content": "Bienvenue sur le site web de l'entreprise.",
+          "htmlMode": false
+        },
+        "dns": {
+          "on": false,
+          "records": {
+            "www.mon-entreprise.fr": "192.168.1.100"
+          }
+        }
+      }
+    },
+    "links": {
+      "l1": {
+        "id": "l1",
+        "from": "d1",
+        "to": "d2"
+      },
+      "l2": {
+        "id": "l2",
+        "from": "d2",
+        "to": "d3"
+      },
+      "l3": {
+        "id": "l3",
+        "from": "d3",
+        "to": "d4"
+      },
+      "l4": {
+        "id": "l4",
+        "from": "d3",
+        "to": "d5"
+      },
+      "l5": {
+        "id": "l5",
+        "from": "d3",
+        "to": "d6"
+      },
+      "l6": {
+        "id": "l6",
+        "from": "d3",
+        "to": "d7"
+      }
+    },
+    "frames": {},
+    "texts": {}
+  },
+  "activity": {
+    "title": "Réseau Entreprise — Serveur Web et DNS en panne",
+    "level": "Terminale / BTS",
+    "instructions": "Le réseau de l'entreprise comporte un serveur web (www.mon-entreprise.fr) auquel les employés doivent accéder. Depuis ce matin, les PCs ne peuvent plus joindre le site, et PC-Bob n'a plus aucune connectivité.\n\n🔍 Votre mission :\n1. En mode Simulation, testez la connectivité : ping, nslookup, et navigateur web.\n2. Identifiez les pannes (deux problèmes à trouver !).\n3. Corrigez la configuration en mode Configuration.\n4. Validez que le site web est accessible et que tous les objectifs sont atteints.\n\n🌐 URL à tester : www.mon-entreprise.fr\n💡 Commandes utiles : ipconfig, ping <IP>, nslookup <domaine>",
+    "masteryscore": 60,
+    "displayMode": "full",
+    "objectives": [
+      {
+        "id": 1,
+        "label": "Internet est connecté au Routeur (câble WAN)",
+        "check": "cable_exists",
+        "params": {
+          "devA": "Internet",
+          "devB": "Routeur"
+        },
+        "points": 5,
+        "hint": "Vérifiez le câble entre Internet et le Routeur"
+      },
+      {
+        "id": 2,
+        "label": "Le Serveur est présent dans le réseau (type : server)",
+        "check": "device_added",
+        "params": {
+          "newdev": "Serveur",
+          "type": "server"
+        },
+        "points": 4,
+        "hint": "Le serveur doit être dans la topologie — vérifiez que l'appareil 'Serveur' existe"
+      },
+      {
+        "id": 3,
+        "label": "Le Serveur a l'adresse IP 192.168.1.100",
+        "check": "ip_configured",
+        "params": {
+          "dev": "Serveur",
+          "ip": "192.168.1.100"
+        },
+        "points": 8,
+        "hint": "Configurez 192.168.1.100 sur le Serveur (mode Configuration → propriétés du Serveur)"
+      },
+      {
+        "id": 4,
+        "label": "Le service HTTP du Serveur est actif",
+        "check": "service_active",
+        "params": {
+          "dev": "Serveur",
+          "service": "http"
+        },
+        "points": 8,
+        "hint": "Dans les propriétés du Serveur, activez le service HTTP"
+      },
+      {
+        "id": 5,
+        "label": "Le service DNS du Serveur est actif",
+        "check": "service_active",
+        "params": {
+          "dev": "Serveur",
+          "service": "dns"
+        },
+        "points": 10,
+        "hint": "Dans les propriétés du Serveur, activez le service DNS (le service a peut-être été désactivé !)"
+      },
+      {
+        "id": 6,
+        "label": "L'enregistrement DNS : www.mon-entreprise.fr → 192.168.1.100",
+        "check": "dns_record",
+        "params": {
+          "dev": "Serveur",
+          "domain": "www.mon-entreprise.fr",
+          "ip": "192.168.1.100"
+        },
+        "points": 12,
+        "hint": "Dans les propriétés du Serveur, section DNS, ajoutez l'enregistrement www.mon-entreprise.fr → 192.168.1.100"
+      },
+      {
+        "id": 7,
+        "label": "PC-Alice a l'adresse IP 192.168.1.10",
+        "check": "ip_configured",
+        "params": {
+          "dev": "PC-Alice",
+          "ip": "192.168.1.10"
+        },
+        "points": 5,
+        "hint": "Configurez l'IP 192.168.1.10 sur PC-Alice"
+      },
+      {
+        "id": 8,
+        "label": "La passerelle de PC-Alice est 192.168.1.1 (le Routeur)",
+        "check": "gateway_configured",
+        "params": {
+          "dev": "PC-Alice",
+          "gateway": "192.168.1.1"
+        },
+        "points": 5,
+        "hint": "La passerelle de PC-Alice doit être 192.168.1.1 (le Routeur)"
+      },
+      {
+        "id": 9,
+        "label": "PC-Alice utilise le Serveur comme DNS (192.168.1.100)",
+        "check": "dns_configured",
+        "params": {
+          "dev": "PC-Alice",
+          "dns": "192.168.1.100"
+        },
+        "points": 5,
+        "hint": "Configurez 192.168.1.100 comme serveur DNS de PC-Alice"
+      },
+      {
+        "id": 10,
+        "label": "Le Routeur a des routes configurées (accès réseau)",
+        "check": "route_exists",
+        "params": {
+          "dev": "Routeur"
+        },
+        "points": 11,
+        "hint": "Configurez les interfaces du Routeur (eth0 et eth1) pour que la table de routage soit remplie"
+      },
+      {
+        "id": 11,
+        "label": "PC-Alice peut joindre le Serveur (ping)",
+        "check": "ping_success",
+        "params": {
+          "from": "PC-Alice",
+          "to": "Serveur"
+        },
+        "points": 7,
+        "hint": "En mode Simulation, ouvrez le terminal de PC-Alice et tapez : ping 192.168.1.100"
+      },
+      {
+        "id": 12,
+        "label": "PC-Alice accède au site www.mon-entreprise.fr (HTTP)",
+        "check": "http_success",
+        "params": {
+          "from": "PC-Alice",
+          "url": "www.mon-entreprise.fr"
+        },
+        "points": 10,
+        "hint": "Dans le navigateur intégré, choisissez PC-Alice et entrez l'URL : www.mon-entreprise.fr"
+      },
+      {
+        "id": 13,
+        "label": "PC-Alice résout www.mon-entreprise.fr (DNS)",
+        "check": "dns_success",
+        "params": {
+          "from": "PC-Alice",
+          "domain": "www.mon-entreprise.fr"
+        },
+        "points": 10,
+        "hint": "En mode Simulation, terminal de PC-Alice : nslookup www.mon-entreprise.fr"
+      }
+    ],
+    "faults": [
+      {
+        "id": 1,
+        "type": "service_down",
+        "dev": "Serveur",
+        "service": "dns"
+      },
+      {
+        "id": 2,
+        "type": "bad_gateway",
+        "dev": "PC-Bob",
+        "badValue": "192.168.99.1"
+      }
+    ]
+  }
+}

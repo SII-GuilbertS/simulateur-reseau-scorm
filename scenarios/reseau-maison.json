@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-18T00:00:00.000Z",
+  "teacherPwd": "prof",
+  "network": {
+    "nid": 7,
+    "devs": {
+      "d1": {
+        "id": "d1",
+        "type": "internet",
+        "name": "Internet",
+        "x": 100, "y": 280,
+        "mac": "AA:BB:CC:DD:EE:01",
+        "ifaces": [
+          {"name": "eth0", "ip": "10.0.0.1", "mask": "255.255.255.0"},
+          {"name": "eth1", "ip": "8.8.8.8",  "mask": "255.0.0.0"}
+        ],
+        "staticRoutes": []
+      },
+      "d2": {
+        "id": "d2",
+        "type": "wifi_router",
+        "name": "Box-WiFi",
+        "ssid": "WiFi-Maison",
+        "wifiPass": "maison123",
+        "x": 380, "y": 280,
+        "mac": "AA:BB:CC:DD:EE:02",
+        "ifaces": [
+          {"name": "WAN",  "ip": "10.0.0.2",    "mask": "255.255.255.0", "gateway": "10.0.0.1", "dns": ""},
+          {"name": "WiFi", "ip": "192.168.1.1", "mask": "255.255.255.0"}
+        ],
+        "dhcp": {
+          "on": true,
+          "start": "192.168.1.100", "end": "192.168.1.200",
+          "mask": "255.255.255.0", "gateway": "192.168.1.1", "dns": ""
+        },
+        "staticRoutes": []
+      },
+      "d3": {
+        "id": "d3",
+        "type": "switch",
+        "name": "Switch-Salon",
+        "x": 660, "y": 280,
+        "mac": "AA:BB:CC:DD:EE:03",
+        "ifaces": [],
+        "staticRoutes": []
+      },
+      "d4": {
+        "id": "d4",
+        "type": "pc",
+        "name": "PC-Bureau",
+        "x": 660, "y": 500,
+        "mac": "AA:BB:CC:DD:EE:04",
+        "ifaces": [
+          {"name": "eth0", "ip": "192.168.1.10", "mask": "255.255.255.0",
+           "gateway": "192.168.1.1", "dns": "192.168.1.1"}
+        ],
+        "staticRoutes": []
+      },
+      "d5": {
+        "id": "d5",
+        "type": "pc",
+        "name": "Laptop",
+        "x": 580, "y": 80,
+        "mac": "AA:BB:CC:DD:EE:05",
+        "ifaces": [
+          {"name": "eth0", "ip": "", "mask": "255.255.255.0", "gateway": "", "dns": "", "dhcpMode": true}
+        ],
+        "staticRoutes": []
+      },
+      "d6": {
+        "id": "d6",
+        "type": "pc",
+        "name": "Smartphone",
+        "x": 880, "y": 160,
+        "mac": "AA:BB:CC:DD:EE:06",
+        "ifaces": [
+          {"name": "eth0", "ip": "", "mask": "255.255.255.0", "gateway": "", "dns": "", "dhcpMode": true}
+        ],
+        "staticRoutes": []
+      }
+    },
+    "links": {
+      "l1": {"id": "l1", "from": "d1", "to": "d2"},
+      "l2": {"id": "l2", "from": "d2", "to": "d3"},
+      "l3": {"id": "l3", "from": "d3", "to": "d4"},
+      "l4": {"id": "l4", "from": "d5", "to": "d2", "type": "wifi"},
+      "l5": {"id": "l5", "from": "d6", "to": "d2", "type": "wifi"}
+    },
+    "frames": {},
+    "texts": {}
+  },
+  "activity": {
+    "title": "Réseau Maison — Panne WiFi",
+    "level": "4ème / 3ème",
+    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Passez en mode Simulation et utilisez le terminal pour diagnostiquer la panne (commandes : ipconfig, ping).\n2. Identifiez l'erreur de configuration sur le PC-Bureau.\n3. Repassez en mode Configuration pour corriger le problème.\n4. Vérifiez que tous les objectifs sont validés.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux attendus pour le réseau 192.168.1.0/24.",
+    "masteryscore": 60,
+    "displayMode": "full",
+    "objectives": [
+      {
+        "id": 1,
+        "label": "La Box-WiFi est reliée à Internet (câble WAN)",
+        "check": "cable_exists",
+        "params": {"devA": "Internet", "devB": "Box-WiFi"},
+        "points": 5,
+        "hint": "Vérifiez qu'un câble relie l'appareil Internet à la Box-WiFi"
+      },
+      {
+        "id": 2,
+        "label": "Le Switch-Salon est connecté à la Box-WiFi",
+        "check": "cable_exists",
+        "params": {"devA": "Box-WiFi", "devB": "Switch-Salon"},
+        "points": 5,
+        "hint": "Un câble doit relier la Box-WiFi au Switch-Salon"
+      },
+      {
+        "id": 3,
+        "label": "Le PC-Bureau est connecté au Switch-Salon",
+        "check": "cable_exists",
+        "params": {"devA": "PC-Bureau", "devB": "Switch-Salon"},
+        "points": 5,
+        "hint": "Reliez le PC-Bureau au switch avec un câble Ethernet"
+      },
+      {
+        "id": 4,
+        "label": "Le SSID du WiFi est bien 'WiFi-Maison'",
+        "check": "ssid_configured",
+        "params": {"dev": "Box-WiFi", "ssid": "WiFi-Maison"},
+        "points": 10,
+        "hint": "Dans les propriétés de la Box-WiFi, vérifiez le nom du réseau WiFi (SSID)"
+      },
+      {
+        "id": 5,
+        "label": "Le service DHCP de la Box-WiFi est activé",
+        "check": "service_active",
+        "params": {"dev": "Box-WiFi", "service": "dhcp"},
+        "points": 10,
+        "hint": "Activez le DHCP dans les propriétés de la Box-WiFi pour distribuer automatiquement les adresses IP"
+      },
+      {
+        "id": 6,
+        "label": "Le PC-Bureau a l'adresse IP 192.168.1.10",
+        "check": "ip_configured",
+        "params": {"dev": "PC-Bureau", "ip": "192.168.1.10"},
+        "points": 15,
+        "hint": "Dans les propriétés du PC-Bureau (mode Configuration), saisissez l'IP 192.168.1.10"
+      },
+      {
+        "id": 7,
+        "label": "La passerelle du PC-Bureau est 192.168.1.1 (la Box)",
+        "check": "gateway_configured",
+        "params": {"dev": "PC-Bureau", "gateway": "192.168.1.1"},
+        "points": 15,
+        "hint": "La passerelle du PC-Bureau doit pointer vers l'IP WiFi de la Box : 192.168.1.1"
+      },
+      {
+        "id": 8,
+        "label": "Le DNS du PC-Bureau est configuré (192.168.1.1)",
+        "check": "dns_configured",
+        "params": {"dev": "PC-Bureau", "dns": "192.168.1.1"},
+        "points": 10,
+        "hint": "Configurez 192.168.1.1 (la Box) comme serveur DNS du PC-Bureau"
+      },
+      {
+        "id": 9,
+        "label": "Le Laptop est connecté en WiFi à la Box",
+        "check": "wifi_link",
+        "params": {"devA": "Laptop", "devB": "Box-WiFi"},
+        "points": 15,
+        "hint": "Reliez le Laptop à la Box-WiFi avec une connexion WiFi (clic droit → Relier en WiFi, ou faites glisser un lien WiFi)"
+      },
+      {
+        "id": 10,
+        "label": "Le Smartphone est connecté en WiFi à la Box",
+        "check": "wifi_link",
+        "params": {"devA": "Smartphone", "devB": "Box-WiFi"},
+        "points": 10,
+        "hint": "Reliez le Smartphone à la Box-WiFi avec une connexion WiFi"
+      }
+    ],
+    "faults": [
+      {
+        "id": 1,
+        "type": "bad_gateway",
+        "dev": "PC-Bureau",
+        "badValue": "192.168.99.1"
+      }
+    ]
+  }
+}
