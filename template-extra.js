@@ -95,6 +95,45 @@ function checkAllObjectives(){
   if(changed){updateActivityScore();renderActivityTab();}
 }
 
+/* ─────────────────────────────────────────────────────
+   MODE PANNE — injection de fautes dans le réseau élève
+───────────────────────────────────────────────────── */
+function applyFaults(faults){
+  if(!faults||!faults.length)return;
+  faults.forEach(function(f){
+    var d,fi;
+    switch(f.type){
+      case 'bad_ip':
+        d=devByName(f.dev);if(!d)return;fi=mainIface(d);if(fi)fi.ip=f.badValue||'';break;
+      case 'bad_mask':
+        d=devByName(f.dev);if(!d)return;fi=mainIface(d);if(fi)fi.mask=f.badValue||'';break;
+      case 'bad_gateway':
+        d=devByName(f.dev);if(!d)return;fi=mainIface(d);if(fi)fi.gateway=f.badValue||'';break;
+      case 'bad_dns':
+        d=devByName(f.dev);if(!d)return;fi=mainIface(d);if(fi)fi.dns=f.badValue||'';break;
+      case 'service_down':
+        d=devByName(f.dev);if(!d)return;
+        if(f.service==='http'&&d.http)d.http.on=false;
+        if(f.service==='dns'&&d.dns)d.dns.on=false;
+        if(f.service==='dhcp'&&d.dhcp)d.dhcp.on=false;
+        break;
+      case 'missing_cable':{
+        var dA=devByName(f.devA),dB=devByName(f.devB);
+        if(!dA||!dB)return;
+        Object.keys(S.links).forEach(function(lid){
+          var l=S.links[lid];
+          if((l.from===dA.id&&l.to===dB.id)||(l.from===dB.id&&l.to===dA.id))
+            delete S.links[lid];
+        });
+        break;}
+      case 'ssid_wrong':
+        d=devByName(f.dev);if(!d||d.type!=='wifi_router')return;
+        d.ssid=f.badValue||'';break;
+    }
+  });
+  if(typeof autoRoute==='function')autoRoute();
+}
+
 function checkDynamicObjective(type,context){
   if(!ACTIVITY_CONFIG)return;
   var changed=false;
@@ -165,6 +204,11 @@ function renderActivityTab(){
   cfg.objectives.forEach(function(obj){total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;});
   var pct=total>0?Math.round(earned/total*100):0;
   var h='';
+  if(cfg.faults&&cfg.faults.length){
+    h+='<div style="background:#fff5f5;border:1.5px solid #fc8181;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:.82em;color:#c53030;">'+
+      '<strong>🔴 Mode Panne</strong> — ce réseau contient '+(cfg.faults.length===1?'une erreur cachée':'des erreurs cachées')+'.<br>'+
+      '<span style="font-weight:400;color:#742a2a">Utilisez le terminal pour diagnostiquer, puis corrigez la configuration.</span></div>';
+  }
   if(mode!=='score'){
     h+='<div class="activ-header">';
     h+='<div class="activ-title">'+esc(cfg.title||'Activité')+'</div>';
@@ -212,6 +256,8 @@ function loadFromSession(){
   if(!json||json===''){
     if(STARTER_NETWORK&&STARTER_NETWORK.devs){
       applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
+      if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.faults&&ACTIVITY_CONFIG.faults.length)
+        applyFaults(ACTIVITY_CONFIG.faults);
       return 'starter';
     }
     return false;
@@ -253,6 +299,8 @@ function clearAll(){
     S.mode='config';
     S.score=0;ACTIVITY_RESULTS={};
     applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
+    if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.faults&&ACTIVITY_CONFIG.faults.length)
+      applyFaults(ACTIVITY_CONFIG.faults);
     S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
     localStorage.removeItem(SESSION_KEY);
     render();noSel();updScore();renderActivityTab();checkAllObjectives();

@@ -172,6 +172,7 @@ const {
   getRoutingTable, autoRoute,
   mkDev, addLink, delDev,
   checkObjectiveStatic, checkDynamicObjective, checkAllObjectives,
+  applyFaults,
   ipMatchesPattern,
 } = sandbox;
 
@@ -1050,6 +1051,124 @@ test('ssid_configured : appareil non-wifi_router → non validé', function() {
   var pc = mkPC('192.168.1.1','255.255.255.0','','','MonPC');
   notOk(checkObjectiveStatic({check:'ssid_configured', params:{dev:'MonPC'}}),
     'ssid_configured doit échouer sur un PC');
+});
+
+/* ── applyFaults — mode panne ── */
+suite('applyFaults — injection de pannes dans le réseau');
+
+test('bad_ip : modifie l\'IP principale du PC', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','192.168.1.1','192.168.1.254','MonPC');
+  sandbox.applyFaults([{type:'bad_ip', dev:'MonPC', badValue:'192.168.99.99'}]);
+  var d = Object.values(S.devs).find(function(x){return x.name==='MonPC';});
+  eq(d.ifaces[0].ip, '192.168.99.99', 'bad_ip doit remplacer l\'IP');
+});
+
+test('bad_mask : modifie le masque du PC', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','192.168.1.1','','MonPC');
+  sandbox.applyFaults([{type:'bad_mask', dev:'MonPC', badValue:'255.255.0.0'}]);
+  var d = Object.values(S.devs).find(function(x){return x.name==='MonPC';});
+  eq(d.ifaces[0].mask, '255.255.0.0', 'bad_mask doit remplacer le masque');
+});
+
+test('bad_gateway : modifie la passerelle du PC', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','192.168.1.1','','MonPC');
+  sandbox.applyFaults([{type:'bad_gateway', dev:'MonPC', badValue:'10.0.0.1'}]);
+  var d = Object.values(S.devs).find(function(x){return x.name==='MonPC';});
+  eq(d.ifaces[0].gateway, '10.0.0.1', 'bad_gateway doit remplacer la passerelle');
+});
+
+test('bad_dns : modifie le serveur DNS du PC', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','192.168.1.1','192.168.1.254','MonPC');
+  sandbox.applyFaults([{type:'bad_dns', dev:'MonPC', badValue:'8.8.8.8'}]);
+  var d = Object.values(S.devs).find(function(x){return x.name==='MonPC';});
+  eq(d.ifaces[0].dns, '8.8.8.8', 'bad_dns doit remplacer le DNS');
+});
+
+test('service_down : désactive le service HTTP', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1'); S.devs[srv].name='Web'; S.devs[srv].http.on=true;
+  sandbox.applyFaults([{type:'service_down', dev:'Web', service:'http'}]);
+  ok(!S.devs[srv].http.on, 'service_down http doit désactiver HTTP');
+});
+
+test('service_down : désactive le service DNS', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1'); S.devs[srv].name='DNS'; S.devs[srv].dns.on=true;
+  sandbox.applyFaults([{type:'service_down', dev:'DNS', service:'dns'}]);
+  ok(!S.devs[srv].dns.on, 'service_down dns doit désactiver DNS');
+});
+
+test('service_down : désactive le service DHCP', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1'); S.devs[srv].name='SrvDHCP'; S.devs[srv].dhcp.on=true;
+  sandbox.applyFaults([{type:'service_down', dev:'SrvDHCP', service:'dhcp'}]);
+  ok(!S.devs[srv].dhcp.on, 'service_down dhcp doit désactiver DHCP');
+});
+
+test('missing_cable : supprime le câble entre deux appareils', function() {
+  resetNet();
+  var pc1 = mkPC('192.168.1.1','255.255.255.0','','','PC1');
+  var pc2 = mkPC('192.168.1.2','255.255.255.0','','','PC2');
+  link(pc1, pc2);
+  assert(Object.keys(S.links).length === 1, 'setup: un câble doit exister');
+  sandbox.applyFaults([{type:'missing_cable', devA:'PC1', devB:'PC2'}]);
+  eq(Object.keys(S.links).length, 0, 'missing_cable doit supprimer le câble');
+});
+
+test('missing_cable : câble inexistant → pas d\'erreur', function() {
+  resetNet();
+  mkPC('192.168.1.1','255.255.255.0','','','PC1');
+  mkPC('192.168.1.2','255.255.255.0','','','PC2');
+  // pas de câble entre eux
+  sandbox.applyFaults([{type:'missing_cable', devA:'PC1', devB:'PC2'}]);
+  ok(true, 'missing_cable sans câble ne doit pas lever d\'erreur');
+});
+
+test('ssid_wrong : modifie le SSID de la Box WiFi', function() {
+  resetNet();
+  var wr = mkWifiRouter('','','','BonSSID'); S.devs[wr].name='Box';
+  sandbox.applyFaults([{type:'ssid_wrong', dev:'Box', badValue:'MauvaisSSID'}]);
+  eq(S.devs[wr].ssid, 'MauvaisSSID', 'ssid_wrong doit remplacer le SSID');
+});
+
+test('applyFaults : appareil inconnu → ignoré sans erreur', function() {
+  resetNet();
+  sandbox.applyFaults([{type:'bad_ip', dev:'AppAreilInexistant', badValue:'1.2.3.4'}]);
+  ok(true, 'une panne sur un appareil inconnu doit être ignorée silencieusement');
+});
+
+test('applyFaults : plusieurs pannes appliquées ensemble', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','192.168.1.1','192.168.1.254','PC1');
+  var srv = mkServer('192.168.1.100'); S.devs[srv].name='Srv1'; S.devs[srv].http.on=true;
+  sandbox.applyFaults([
+    {type:'bad_ip',       dev:'PC1',  badValue:'10.10.10.10'},
+    {type:'service_down', dev:'Srv1', service:'http'}
+  ]);
+  var pc = Object.values(S.devs).find(function(x){return x.name==='PC1';});
+  eq(pc.ifaces[0].ip, '10.10.10.10', 'première panne appliquée');
+  ok(!S.devs[srv].http.on, 'deuxième panne appliquée');
+});
+
+test('applyFaults : correction détectable via checkObjectiveStatic', function() {
+  // Scenario complet : panne bad_ip → élève fixe → objectif validé
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','192.168.1.1','192.168.1.254','PC-Eleve');
+  // 1. Appliquer la panne
+  sandbox.applyFaults([{type:'bad_ip', dev:'PC-Eleve', badValue:'192.168.99.99'}]);
+  // 2. Vérifier que l'objectif de correction échoue encore
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC-Eleve', ip:'192.168.1.10'}}),
+    'avant correction : objectif ne doit pas être validé');
+  // 3. L\'élève corrige l\'IP
+  var d = Object.values(S.devs).find(function(x){return x.name==='PC-Eleve';});
+  d.ifaces[0].ip = '192.168.1.10';
+  // 4. Objectif maintenant validé
+  ok(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC-Eleve', ip:'192.168.1.10'}}),
+    'après correction : objectif doit être validé');
 });
 
 /* ─────────────────────────────────────────────────────
