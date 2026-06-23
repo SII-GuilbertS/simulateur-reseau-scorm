@@ -486,13 +486,17 @@ function renderLinks(){
     var isWifiLink=(l.type==='wifi');
     var baseColor=isWifiLink?'#a78bfa':((ai&&bi&&ai.ip&&bi.ip)?'#7abfff':'#b0bec5');
     var midFill=isAnim?(S.animPhase==='fwd'?'#48bb78':'#63b3ed'):(isWifiLink?'#7c3aed':(ai&&bi&&ai.ip&&bi.ip?'#4299e1':'#a0aec0'));
-    h+='<line id="'+l.id+'" class="'+cls+'"'+
+    // Zone de clic invisible épaisse (12px) pour faciliter la sélection
+    h+='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"'+
+      ' stroke="transparent" stroke-width="12" stroke-linecap="round"'+
+      ' onmousedown="event.stopPropagation();selLink(\''+l.id+'\')" oncontextmenu="linkRC(event,\''+l.id+'\')" style="cursor:pointer"/>'+
+    // Ligne visible
+      '<line id="'+l.id+'" class="'+cls+'"'+
       ' x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"'+
       (isAnim?'':' stroke="'+baseColor+'"')+
       (isAnim?'':' stroke-width="2.5"')+
       (isWifiLink?' stroke-dasharray="8,5"':'')+
-      ' stroke-linecap="round"'+
-      ' onclick="selLink(\''+l.id+'\')" oncontextmenu="linkRC(event,\''+l.id+'\')" style="cursor:pointer"/>'+
+      ' stroke-linecap="round" pointer-events="none"/>'+
       // Indicateur milieu
       '<circle cx="'+((x1+x2)/2)+'" cy="'+((y1+y2)/2)+'" r="'+(isAnim?6:4)+'"'+
       ' fill="'+midFill+'"'+
@@ -655,7 +659,11 @@ function linkRC(e,id){
 function cvMD(e){
   if(S.tool==='link'&&S.cableFrom){S.cableFrom=null;hidePrev();render();}
   var t=e.target;var inG=t.closest&&t.closest('g[id^="gd"]');
-  if(S.tool==='select'&&!inG){S.sel=null;render();noSel();}
+  // Si clic sur un câble (zone transparente épaisse), selLink a déjà
+  // stoppé la propagation — on n'arrive ici que si ce n'est pas un câble.
+  // Sécurité supplémentaire : ne pas désélectionner si target est un link connu.
+  var isLink=(t.id&&S.links&&S.links[t.id]);
+  if(S.tool==='select'&&!inG&&!isLink){S.sel=null;render();noSel();}
 }
 
 function cvMM(e){
