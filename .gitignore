@@ -1,4 +1,4 @@
-# Copies générées par build_site.py (les originaux sont à la racine du projet)
+# Copies générées par tools/build_site.py (ne pas modifier dans site/)
 site/demo/
 site/scenarios/
 site/scorm-builder.html

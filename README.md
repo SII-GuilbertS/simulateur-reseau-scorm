@@ -4,6 +4,20 @@ Outil pédagogique standalone permettant de créer des activités de simulation 
 
 ---
 
+## Organisation du dépôt
+
+```
+scorm-builder.html   L'application : à ouvrir dans le navigateur
+scenarios/           Scénarios prêts à importer
+docs/                Guides enseignant et élève (PDF, Word)
+site/                Site de présentation à envoyer chez l'hébergeur
+src/                 Sources du moteur et du template élève
+tools/               Scripts de build, de validation et de génération
+tests/               Tests unitaires du moteur
+```
+
+---
+
 ## Fichiers
 
 ### Application principale
@@ -38,7 +52,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 
 ### Tests unitaires
 
-#### `sim-tests.js`
+#### `tests/sim-tests.js`
 Suite de **128 tests unitaires** couvrant le moteur de simulation réseau. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
@@ -49,7 +63,7 @@ Suite de **128 tests unitaires** couvrant le moteur de simulation réseau. S'ex�
 - Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
 
 ```bash
-node sim-tests.js
+node tests/sim-tests.js
 # ✅ 128/128 tests passés — SUCCÈS
 ```
 
@@ -104,17 +118,12 @@ Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`.
 
 ---
 
-#### `scenario-lycee-pasteur.json`
-Scénario historique — réseau lycée Pasteur, 11 appareils, 9 liens, 9 objectifs, 100 points, seuil 60 %.
-
----
-
 ### Documentation
 
-#### `doc-prof.pdf` / `doc-prof.docx`
+#### `docs/doc-prof.pdf` / `docs/doc-prof.docx`
 Guide complet pour les **enseignants** : présentation, 3 onglets du builder, 14 types d'objectifs, mode panne, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
 
-#### `doc-eleve.pdf` / `doc-eleve.docx`
+#### `docs/doc-eleve.pdf` / `docs/doc-eleve.docx`
 Guide de prise en main pour les **élèves** : interface, modes Configuration/Simulation, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `traceroute`…), onglet Navigateur pour le web, objectifs et score, exemple guidé, résolution de problèmes.
 
 ---
@@ -123,20 +132,20 @@ Guide de prise en main pour les **élèves** : interface, modes Configuration/Si
 
 | Fichier | Rôle |
 |---------|------|
-| `sim-engine.js` | Source du moteur réseau IPv4 (compilé dans scorm-builder.html) |
-| `template-skeleton.html` | Squelette HTML du template élève |
-| `template-extra.js` | JS spécifique au template élève (SCORM, applyFaults, renderActivityTab…) |
-| `build.py` | Script de compilation : `python3 build.py --rebuild` |
-| `sim-tests.js` | Suite de tests unitaires Node.js |
-| `validate.py` | Validation des scénarios JSON |
+| `src/sim-engine.js` | Source du moteur réseau IPv4 (compilé dans scorm-builder.html) |
+| `src/template-skeleton.html` | Squelette HTML du template élève |
+| `src/template-extra.js` | JS spécifique au template élève (SCORM, applyFaults, renderActivityTab…) |
+| `tools/build.py` | Script de compilation : `python3 tools/build.py --rebuild` |
+| `tests/sim-tests.js` | Suite de tests unitaires Node.js |
+| `tools/validate.py` | Validation des scénarios JSON |
 
 **Modifier le moteur et régénérer :**
 ```bash
-# 1. Éditer sim-engine.js ou template-extra.js ou template-skeleton.html
+# 1. Éditer src/sim-engine.js, src/template-extra.js ou src/template-skeleton.html
 # 2. Recompiler
-python3 build.py --rebuild
+python3 tools/build.py --rebuild
 # 3. Vérifier les tests
-node sim-tests.js
+node tests/sim-tests.js
 ```
 
 ---
@@ -223,10 +232,10 @@ start scorm-builder.html         # Windows
 # → Onglet 3 Générer → 📂 Importer un scénario → scenarios/reseau-maison.json
 
 # Lancer les tests unitaires
-node sim-tests.js
+node tests/sim-tests.js
 
 # Recompiler après modification du moteur
-python3 build.py --rebuild && node sim-tests.js
+python3 tools/build.py --rebuild && node tests/sim-tests.js
 ```
 
 ---

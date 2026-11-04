@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Génération doc-prof.pdf et doc-eleve.pdf
 Usage :
-  python3 gen_docs.py               # génère les deux PDFs à côté du script
-  python3 build.py --docs           # même chose via le pipeline build.py
+  python3 tools/gen_docs.py         # génère les deux PDFs dans docs/
+  python3 tools/build.py --docs     # même chose via le pipeline build.py
 """
 import pathlib, sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -534,7 +534,7 @@ def build_eleve(out_path):
 
 # ══════════════════════════════════════════════════════════════════════════════
 if __name__ == '__main__':
-    base = pathlib.Path(__file__).parent
-    build_prof(str(base / 'doc-prof.pdf'))
-    build_eleve(str(base / 'doc-eleve.pdf'))
+    docs = pathlib.Path(__file__).resolve().parent.parent / 'docs'
+    build_prof(str(docs / 'doc-prof.pdf'))
+    build_eleve(str(docs / 'doc-eleve.pdf'))
     print('Docs générés.')

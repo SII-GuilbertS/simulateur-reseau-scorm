@@ -1,15 +1,13 @@
 #!/bin/bash
-# Usage: ./push.sh "message de commit"
-# Lance depuis le dossier du projet.
+# Usage: tools/push.sh "message de commit"
+# Se place à la racine du projet.
 
 MSG="${1:-update}"
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
-git add scorm-builder.html sim-tests.js README.md \
-        doc-prof.pdf doc-prof.docx \
-        doc-eleve.pdf doc-eleve.docx \
-        scenario-lycee-pasteur.json \
-        scenario-lycee-pasteur-old.json 2>/dev/null
+git add scorm-builder.html tests/sim-tests.js README.md \
+        docs/doc-prof.pdf docs/doc-prof.docx \
+        docs/doc-eleve.pdf docs/doc-eleve.docx 2>/dev/null
 
 STAGED=$(git diff --cached --name-only)
 if [ -z "$STAGED" ]; then

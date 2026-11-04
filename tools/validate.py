@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 validate.py — Vérifie scorm-builder.html avant tout commit.
-Usage: python3 validate.py
+Usage: python3 tools/validate.py
 """
 import re, sys, base64, subprocess, tempfile, os
 
@@ -11,7 +11,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
-TARGET = 'scorm-builder.html'
+TARGET = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'scorm-builder.html')
 errors = []
 
 with open(TARGET, 'r', encoding='utf-8') as f:

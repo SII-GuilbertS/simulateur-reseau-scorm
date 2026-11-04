@@ -1,6 +1,6 @@
 /**
  * sim-tests.js — Tests de non-régression du moteur de simulation réseau
- * Usage : node sim-tests.js
+ * Usage : node tests/sim-tests.js
  *
  * Source testée : STUDENT_TEMPLATE (b64) extrait de scorm-builder.html
  * Le template est la version déployée aux élèves — c'est elle qu'on valide.
@@ -14,7 +14,7 @@ const vm  = require('vm');
 /* ─────────────────────────────────────────────────────
    1. EXTRACTION DU JS SIMULATEUR DEPUIS LE STUDENT_TEMPLATE
 ───────────────────────────────────────────────────── */
-const SRC = path.join(__dirname, 'scorm-builder.html');
+const SRC = path.join(__dirname, '..', 'scorm-builder.html');
 const html = fs.readFileSync(SRC, 'utf-8');
 
 // Décoder le STUDENT_TEMPLATE b64

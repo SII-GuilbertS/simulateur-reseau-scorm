@@ -18,10 +18,10 @@ Fichier HTML standalone (~435k) qui contient à la fois l'outil auteur (enseigna
 de simulation embarqué pour l'élève. Il combine trois parties :
 
 1. **Bloc SIM-ENGINE** (`SIM-ENGINE-START` … `SIM-ENGINE-END`, marqué `NE PAS MODIFIER`) —
-   copie générée automatiquement du contenu de `sim-engine.js`, utilisée par le JS du builder.
+   copie générée automatiquement du contenu de `src/sim-engine.js`, utilisée par le JS du builder.
 2. **`var STUDENT_TEMPLATE`** — le template élève complet, encodé en base64 inline. Décodé, il
-   contient `template-skeleton.html` + `sim-engine.js` + `template-extra.js` combinés (le
-   placeholder `/* __JS__ */` dans le skeleton reçoit `sim-engine.js` + `template-extra.js`).
+   contient les trois fichiers de `src/` combinés (le placeholder `/* __JS__ */` de
+   `template-skeleton.html` reçoit `sim-engine.js` + `template-extra.js`).
 3. **JS du builder lui-même** — `EvalModule` (objectifs pédagogiques, score, pannes) et
    `GenModule` (export SCORM .zip / HTML standalone, génération d'énoncé imprimable,
    import/export de scénarios JSON), plus les surcharges builder (undo/redo, copier/coller,
@@ -44,27 +44,27 @@ tous les deux **générés automatiquement**. Ne jamais les éditer directement 
 Workflow correct pour modifier le moteur de simulation :
 
 ```bash
-# 1. Éditer sim-engine.js (et/ou template-extra.js, template-skeleton.html si besoin)
+# 1. Éditer src/sim-engine.js (et/ou src/template-extra.js, src/template-skeleton.html si besoin)
 # 2. Régénérer scorm-builder.html
-python3 build.py --rebuild
+python3 tools/build.py --rebuild
 # 3. Vérifier les tests
-node sim-tests.js
+node tests/sim-tests.js
 ```
 
-`build.py` sait aussi tourner en mode audit seul (`python3 build.py`, dry-run) ou réparation
-ciblée (`--fix`) via une liste de checks codés en dur — mais pour toute modification volontaire
-du moteur, `--rebuild` est la bonne commande, pas `--fix`.
+`tools/build.py` sait aussi tourner en mode audit seul (`python3 tools/build.py`, dry-run) ou
+réparation ciblée (`--fix`) via une liste de checks codés en dur — mais pour toute modification
+volontaire du moteur, `--rebuild` est la bonne commande, pas `--fix`.
 
-`validate.py` est un check pré-commit complémentaire : il extrait le JS du builder et du
+`tools/validate.py` est un check pré-commit complémentaire : il extrait le JS du builder et du
 template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus d'anciennes
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node sim-tests.js` → doit afficher 128/128
+## Tests : `node tests/sim-tests.js` → doit afficher 128/128
 
 Suite de 128 tests unitaires Node.js, exécutée sans navigateur via un sandbox
-`vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de `sim-engine.js`
-directement — donc **toujours rebuild avant de tester** un changement du moteur).
+`vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
+`src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
 Couverture : fonctions réseau de base (`ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`,
 `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`...), simulation applicative (`simPing`
@@ -85,14 +85,11 @@ et imbriqué).
     Terminale NSI/BTS SIO, 17 objectifs
   - `reseau-college.json` — adressage IP fixe par salle, salles en encadrés, niveau collège,
     5 objectifs
-- `scenario-lycee-pasteur.json` (racine) — scénario historique, 11 appareils, 9 objectifs.
-  `scenario-lycee-pasteur-old.json` et `scenario-simple.json` sont des variantes/anciennes
-  versions gardées à la racine.
 
 ## Documentation
 
-- `doc-prof.pdf` / `.docx` — guide enseignant complet
-- `doc-eleve.pdf` / `.docx` — guide élève (interface, commandes terminal, résolution de
+- `docs/doc-prof.pdf` / `.docx` — guide enseignant complet
+- `docs/doc-eleve.pdf` / `.docx` — guide élève (interface, commandes terminal, résolution de
   problèmes)
 - `README.md` — documentation utilisateur détaillée du projet
 - `TODO.md` — backlog des fonctionnalités à venir ; à consulter avant de proposer de nouvelles
@@ -100,8 +97,8 @@ et imbriqué).
 
 ### Règle : ne régénérer la doc qu'à la création d'une version stable
 
-**Ne jamais appeler `python3 build.py --docs` (ni `python3 gen_docs.py`) lors de commits
-ordinaires**, même si du contenu documentable a changé.
+**Ne jamais appeler `python3 tools/build.py --docs` (ni `python3 tools/gen_docs.py`) lors de
+commits ordinaires**, même si du contenu documentable a changé.
 
 La documentation PDF est régénérée **uniquement** lorsque l'utilisateur demande explicitement
 de créer une version stable/release, par exemple :
@@ -113,20 +110,20 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node sim-tests.js          # → 128/128
+node tests/sim-tests.js    # → 128/128
 
-# 2. Mettre à jour gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
+# 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
-python3 build.py --docs
+python3 tools/build.py --docs
 
 # 4. Mettre à jour le site : dans site/index.html, remplacer le numéro de version partout
 #    (navigation, deux cartes de documentation, pied de page et son lien vers le tag) et le mois,
 #    ajuster le texte si des fonctionnalités ont changé, refaire site/assets/ si l'interface a changé
 # 5. Régénérer le contenu du site (builder, docs, scénarios, démos)
-python3 build_site.py
+python3 tools/build_site.py
 
 # 6. Commiter avec un message de version
-git add doc-prof.pdf doc-eleve.pdf gen_docs.py site/index.html site/assets
+git add docs/doc-prof.pdf docs/doc-eleve.pdf tools/gen_docs.py site/index.html site/assets
 git commit -m "docs: release vX.Y — ..."
 
 # 7. Poser le tag sur ce commit (le lien du pied de page ne marche qu'une fois le tag poussé)
@@ -139,25 +136,26 @@ manuel : à la fin, rappeler à l'utilisateur d'envoyer le contenu de `site/`.
 ## Site de présentation : `site/`
 
 Contenu à envoyer chez l'hébergeur (OVH). `site/index.html` et `site/assets/` sont maintenus à la
-main ; le reste est généré par `python3 build_site.py` et ignoré par git. Le site n'évolue qu'à
-chaque release (voir le workflow release ci-dessus), pas lors des commits ordinaires.
+main ; le reste est généré par `python3 tools/build_site.py` et ignoré par git. Le site n'évolue
+qu'à chaque release (voir le workflow release ci-dessus), pas lors des commits ordinaires.
 
 ## Licence
 
 Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.0
 (`LICENSE-CONTENU.txt`) ; le détail est dans le README. Garder la ligne `Required Notice:` en tête de
-`template-skeleton.html` et de `scorm-builder.html` : elle accompagne les activités exportées.
+`src/template-skeleton.html` et de `scorm-builder.html` : elle accompagne les activités exportées.
 
 ## Fichiers sources et leur rôle
 
 | Fichier | Rôle |
 |---|---|
 | `scorm-builder.html` | Application complète, générée en partie — voir règle critique ci-dessus |
-| `sim-engine.js` | Source du moteur réseau IPv4 partagé builder + template élève |
-| `template-extra.js` | JS spécifique au template élève (SCORM, `applyFaults`, rendu de l'onglet activité) |
-| `template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
-| `build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
-| `build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
-| `validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
-| `sim-tests.js` | Suite de 128 tests unitaires Node.js |
-| `gen_docs.py` | Génère `doc-prof.pdf` et `doc-eleve.pdf` via reportlab. Appelé par `python3 build.py --docs` |
+| `src/sim-engine.js` | Source du moteur réseau IPv4 partagé builder + template élève |
+| `src/template-extra.js` | JS spécifique au template élève (SCORM, `applyFaults`, rendu de l'onglet activité) |
+| `src/template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
+| `tools/build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
+| `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
+| `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
+| `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
+| `tests/sim-tests.js` | Suite de 128 tests unitaires Node.js |
+| `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

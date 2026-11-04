@@ -18,11 +18,11 @@ ARCHITECTURE (depuis la restructuration point 1) :
     ③ SimModule + EvalModule + GenModule (builder)
 
 Usage :
-    python3 build.py              — vérifie uniquement (dry-run)
-    python3 build.py --fix        — répare les checks KO
-    python3 build.py --rebuild    — régénère depuis sim-engine.js + template-extra.js
-    python3 build.py --rebuild --fix  — régénère + répare si nécessaire
-    python3 build.py --docs       — régénère doc-prof.pdf + doc-eleve.pdf via gen_docs.py
+    python3 tools/build.py              — vérifie uniquement (dry-run)
+    python3 tools/build.py --fix        — répare les checks KO
+    python3 tools/build.py --rebuild    — régénère depuis src/sim-engine.js + src/template-extra.js
+    python3 tools/build.py --rebuild --fix  — régénère + répare si nécessaire
+    python3 tools/build.py --docs       — régénère docs/doc-prof.pdf + docs/doc-eleve.pdf via gen_docs.py
 """
 import sys, base64, re, os
 
@@ -32,11 +32,11 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
-DIR = os.path.dirname(os.path.abspath(__file__))
-SRC       = os.path.join(DIR, "scorm-builder.html")
-ENGINE_JS = os.path.join(DIR, "sim-engine.js")
-EXTRA_JS  = os.path.join(DIR, "template-extra.js")
-SKEL_HTML = os.path.join(DIR, "template-skeleton.html")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC       = os.path.join(ROOT, "scorm-builder.html")
+ENGINE_JS = os.path.join(ROOT, "src", "sim-engine.js")
+EXTRA_JS  = os.path.join(ROOT, "src", "template-extra.js")
+SKEL_HTML = os.path.join(ROOT, "src", "template-skeleton.html")
 
 FIX_MODE     = "--fix" in sys.argv
 REBUILD_MODE = "--rebuild" in sys.argv
@@ -51,9 +51,9 @@ if DOCS_MODE:
     spec = importlib.util.spec_from_file_location("gen_docs", gen_path)
     gen_docs = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gen_docs)
-    base = pathlib.Path(__file__).parent
-    gen_docs.build_prof(str(base / "doc-prof.pdf"))
-    gen_docs.build_eleve(str(base / "doc-eleve.pdf"))
+    docs = pathlib.Path(ROOT) / "docs"
+    gen_docs.build_prof(str(docs / "doc-prof.pdf"))
+    gen_docs.build_eleve(str(docs / "doc-eleve.pdf"))
     print("✓  Documentation régénérée.")
     sys.exit(0)
 

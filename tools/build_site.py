@@ -2,7 +2,7 @@
 """
 build_site.py — Met à jour le dossier site/, prêt à envoyer chez l'hébergeur.
 
-Usage : python3 build_site.py
+Usage : python3 tools/build_site.py
 
 site/index.html et site/assets/ sont maintenus à la main. Tout le reste est
 recopié ou généré depuis les sources du projet, à ne pas modifier dans site/.
@@ -11,10 +11,11 @@ Les démos appliquent à STUDENT_TEMPLATE les mêmes substitutions que le bouton
 """
 import base64, json, pathlib, re, shutil, sys
 
-ROOT = pathlib.Path(__file__).resolve().parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 SITE = ROOT / 'site'
 DEMOS = ['reseau-maison', 'reseau-college', 'reseau-entreprise', 'reseau-lycee']
-COPIES = ['scorm-builder.html', 'doc-prof.pdf', 'doc-eleve.pdf']
+# Chemins sources ; le site les publie à plat, sous leur seul nom de fichier.
+COPIES = ['scorm-builder.html', 'docs/doc-prof.pdf', 'docs/doc-eleve.pdf']
 
 
 def student_template():
@@ -89,8 +90,9 @@ def main():
     for generated in ('demo', 'scenarios'):
         shutil.rmtree(SITE / generated, ignore_errors=True)
 
-    for name in COPIES:
-        shutil.copy2(ROOT / name, SITE / name)
+    for source in COPIES:
+        name = pathlib.PurePosixPath(source).name
+        shutil.copy2(ROOT / source, SITE / name)
         print(f'OK  site/{name}')
 
     (SITE / 'scenarios').mkdir()
