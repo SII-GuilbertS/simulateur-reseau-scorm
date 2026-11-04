@@ -1221,12 +1221,14 @@ function doRoute(devId){
 /* ─────────────────────────────────────────────────────
    ROUTAGE AUTOMATIQUE (RIP simplifié)
 ───────────────────────────────────────────────────── */
-/* Calcule les routes sans rien afficher ; renvoie le nombre de routes ajoutées. */
-function computeRoutes(){
+/* Calcule les routes sans rien afficher ; renvoie le nombre de routes ajoutées.
+   onlyAuto : laisse de côté les routeurs dont le routage automatique est décoché. */
+function computeRoutes(onlyAuto){
   var routers=Object.values(S.devs).filter(function(d){return isRouter(d);});
   routers.forEach(function(r){r.staticRoutes=r.staticRoutes||[];});
   var added=0;
   routers.forEach(function(r1){
+    if(onlyAuto&&r1.autoRouteEnabled===false)return;
     r1.ifaces.forEach(function(fi1){
       if(!fi1.ip||!fi1.mask)return;
       routers.forEach(function(r2){
@@ -1303,10 +1305,10 @@ function injectFaults(faults){
   });
 }
 
+/* État de départ d'une activité : pannes éventuelles, puis routes. L'affichage revient à l'appelant. */
 function applyFaults(faults){
-  if(!faults||!faults.length)return;
-  injectFaults(faults);
-  if(typeof autoRoute==='function')autoRoute();
+  if(faults&&faults.length)injectFaults(faults);
+  computeRoutes(true);
 }
 
 /* ─────────────────────────────────────────────────────

@@ -218,7 +218,7 @@ function loadFromSession(){
   if(!json||json===''){
     if(STARTER_NETWORK&&STARTER_NETWORK.devs){
       applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
-      if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.faults&&ACTIVITY_CONFIG.faults.length)
+      if(ACTIVITY_CONFIG)
         applyFaults(ACTIVITY_CONFIG.faults);
       return 'starter';
     }
@@ -261,7 +261,7 @@ function clearAll(){
     S.mode='config';
     S.score=0;ACTIVITY_RESULTS={};
     applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
-    if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.faults&&ACTIVITY_CONFIG.faults.length)
+    if(ACTIVITY_CONFIG)
       applyFaults(ACTIVITY_CONFIG.faults);
     S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
     localStorage.removeItem(SESSION_KEY);

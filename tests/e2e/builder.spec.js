@@ -243,19 +243,24 @@ test.describe('Builder', () => {
     await expect(builderScore(page)).toHaveText('📊 Score : 80 / 100 pts');
   });
 
-  /* Variantes de reseau-lycee où l'élève réussirait sans rien faire. Sans panne, l'activité ne
-     calcule pas les routes : l'objectif 13 reste faux (77). La panne de PC-Salle1 retire 3 points
-     mais déclenche ce calcul (80) : ce score exige donc les pannes et les routes. */
+  /* Variantes de reseau-lycee où l'élève réussirait sans rien faire. Les objectifs statiques valent
+     83 points, dont 6 pour la route de Routeur-Principal, et la panne de PC-Salle1 en retire 3.
+     Ces scores exigent donc les pannes, les routes et le respect de la case « routage automatique ». */
+  const MINOR_FAULT = { id: 1, type: 'bad_gateway', dev: 'PC-Salle1', badValue: '10.0.0.9' };
   const TOO_EASY = [
-    { label: 'sans panne', faults: [], score: 77 },
-    { label: 'avec une panne mineure', score: 80,
-      faults: [{ id: 1, type: 'bad_gateway', dev: 'PC-Salle1', badValue: '10.0.0.9' }] },
+    { label: 'sans panne', faults: [], score: 83 },
+    { label: 'avec une panne mineure', faults: [MINOR_FAULT], score: 80 },
+    { label: 'routage automatique décoché, sans panne', faults: [], manualRouter: true, score: 77 },
+    { label: 'routage automatique décoché, avec panne', faults: [MINOR_FAULT], manualRouter: true, score: 74 },
   ];
 
-  for (const { label, faults, score } of TOO_EASY) {
+  for (const { label, faults, manualRouter, score } of TOO_EASY) {
     test(`avertissement à l'export si l'élève réussit d'office (${label}) : même score que l'activité`, async ({ page }, info) => {
       const data = readScenario('reseau-lycee');
       data.activity.faults = faults;
+      if (manualRouter) {
+        Object.values(data.network.devs).find((d) => d.name === 'Routeur-Principal').autoRouteEnabled = false;
+      }
       const scenario = info.outputPath('trop-facile.json');
       fs.writeFileSync(scenario, JSON.stringify(data));
 
@@ -269,6 +274,11 @@ test.describe('Builder', () => {
 
       // Le score annoncé au professeur est bien celui que l'élève verra.
       await page.goto(pathToFileURL(file).href);
+      await studentScore(page, score);
+
+      // « Recommencer » doit redonner exactement le même état de départ.
+      await page.locator('#t-clear').click();
+      await expect.poll(() => page.dialogs.at(-1)).toContain('Recommencer');
       await studentScore(page, score);
     });
   }
