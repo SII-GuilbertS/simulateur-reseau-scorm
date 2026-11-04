@@ -118,7 +118,7 @@ node sim-tests.js          # → 128/128
 python3 build.py --docs
 
 # 4. Mettre à jour le site : dans site/index.html, remplacer le numéro de version partout
-#    (navigation, en-tête, deux cartes de documentation, pied de page) et le mois du pied de page,
+#    (navigation, deux cartes de documentation, pied de page et son lien vers le tag) et le mois,
 #    ajuster le texte si des fonctionnalités ont changé, refaire site/assets/ si l'interface a changé
 # 5. Régénérer le contenu du site (builder, docs, scénarios, démos)
 python3 build_site.py
@@ -126,6 +126,9 @@ python3 build_site.py
 # 6. Commiter avec un message de version
 git add doc-prof.pdf doc-eleve.pdf gen_docs.py site/index.html site/assets
 git commit -m "docs: release vX.Y — ..."
+
+# 7. Poser le tag sur ce commit (le lien du pied de page ne marche qu'une fois le tag poussé)
+git tag -a vX.Y -m "Version X.Y"
 ```
 
 Une release n'est terminée que lorsque `site/` affiche la nouvelle version. L'envoi chez OVH reste
