@@ -126,7 +126,7 @@
         "label": "Le SSID du WiFi est bien 'WiFi-Maison'",
         "check": "ssid_configured",
         "params": {"dev": "Box-WiFi", "ssid": "WiFi-Maison"},
-        "points": 10,
+        "points": 5,
         "hint": "Dans les propriétés de la Box-WiFi, vérifiez le nom du réseau WiFi (SSID)"
       },
       {
@@ -134,7 +134,7 @@
         "label": "Le service DHCP de la Box-WiFi est activé",
         "check": "service_active",
         "params": {"dev": "Box-WiFi", "service": "dhcp"},
-        "points": 10,
+        "points": 5,
         "hint": "Activez le DHCP dans les propriétés de la Box-WiFi pour distribuer automatiquement les adresses IP"
       },
       {
@@ -142,7 +142,7 @@
         "label": "Le PC-Bureau a l'adresse IP 192.168.1.10",
         "check": "ip_configured",
         "params": {"dev": "PC-Bureau", "ip": "192.168.1.10"},
-        "points": 15,
+        "points": 10,
         "hint": "Dans les propriétés du PC-Bureau (mode Configuration), saisissez l'IP 192.168.1.10"
       },
       {
@@ -150,7 +150,7 @@
         "label": "La passerelle du PC-Bureau est 192.168.1.1 (la Box)",
         "check": "gateway_configured",
         "params": {"dev": "PC-Bureau", "gateway": "192.168.1.1"},
-        "points": 15,
+        "points": 45,
         "hint": "La passerelle du PC-Bureau doit pointer vers l'IP WiFi de la Box : 192.168.1.1"
       },
       {
@@ -158,7 +158,7 @@
         "label": "Le DNS du PC-Bureau est configuré (192.168.1.1)",
         "check": "dns_configured",
         "params": {"dev": "PC-Bureau", "dns": "192.168.1.1"},
-        "points": 10,
+        "points": 5,
         "hint": "Configurez 192.168.1.1 (la Box) comme serveur DNS du PC-Bureau"
       },
       {
@@ -166,7 +166,7 @@
         "label": "Le Laptop est connecté en WiFi à la Box",
         "check": "wifi_link",
         "params": {"devA": "Laptop", "devB": "Box-WiFi"},
-        "points": 15,
+        "points": 10,
         "hint": "Reliez le Laptop à la Box-WiFi avec une connexion WiFi (clic droit → Relier en WiFi, ou faites glisser un lien WiFi)"
       },
       {
@@ -174,7 +174,7 @@
         "label": "Le Smartphone est connecté en WiFi à la Box",
         "check": "wifi_link",
         "params": {"devA": "Smartphone", "devB": "Box-WiFi"},
-        "points": 10,
+        "points": 5,
         "hint": "Reliez le Smartphone à la Box-WiFi avec une connexion WiFi"
       }
     ],

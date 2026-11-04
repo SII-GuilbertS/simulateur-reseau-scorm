@@ -53,7 +53,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **128 tests unitaires** couvrant le moteur de simulation réseau. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **209 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -61,10 +61,14 @@ Suite de **128 tests unitaires** couvrant le moteur de simulation réseau. S'ex�
 - Routage : `getRoutingTable`, `autoRoute` (RIP simplifié)
 - Évaluation : `checkObjectiveStatic` (10 types statiques), `checkDynamicObjective` (4 types dynamiques)
 - Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
+- Commandes élève : terminal et navigateur jusqu'à la validation des objectifs
+- Score et SCORM : calcul du score, seuil de réussite, échanges avec un LMS simulé
+- Session : sauvegarde, reprise, réseau de départ
+- Scénarios : pour chaque fichier de `scenarios/`, cohérence, score de 100 une fois le réseau corrigé, et score sous le seuil tant que les pannes ne sont pas réparées
 
 ```bash
 node tests/sim-tests.js
-# ✅ 128/128 tests passés — SUCCÈS
+# ✅ 209/209 tests passés — SUCCÈS
 ```
 
 ---

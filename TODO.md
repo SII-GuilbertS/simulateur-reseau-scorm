@@ -50,7 +50,7 @@
 
 ## 🔧 Technique et robustesse
 
-- [ ] **Tests visuels automatisés** — Playwright ou Puppeteer pour tester le builder dans Chrome : drag & drop d'appareils, câblage, export SCORM, import scénario. Complète les 128 tests unitaires Node.
+- [ ] **Tests visuels automatisés** — Playwright ou Puppeteer pour tester le builder dans Chrome : drag & drop d'appareils, câblage, export SCORM, import scénario. Complète les tests unitaires Node.
 
 - [ ] **Validation JSON Schema** — schéma JSON Schema complet dans `tools/validate.py` avec messages d'erreur explicites (champs manquants, types incorrects, IDs dupliqués).
 

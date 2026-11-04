@@ -60,9 +60,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 128/128
+## Tests : `node tests/sim-tests.js` → doit afficher 209/209
 
-Suite de 128 tests unitaires Node.js, exécutée sans navigateur via un sandbox
+Suite de 209 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -71,7 +71,16 @@ Couverture : fonctions réseau de base (`ip2n`, `isValidUserIP`, `isValidUserMas
 LAN/WiFi/routé/internet, `simDNS`, `simHTTP`, `simDHCP`), routage (`getRoutingTable`, `autoRoute`
 — RIP simplifié), évaluation (`checkObjectiveStatic` : 10 types statiques,
 `checkDynamicObjective` : 4 types dynamiques), mode panne (`applyFaults` : 7 types, formats plat
-et imbriqué).
+et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
+sauvegarde et reprise, et pour chaque fichier de `scenarios/` : cohérence, score de 100 une fois le
+réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Non couverts : rendu de
+l'interface et `EvalModule`/`GenModule` du builder (exports).
+
+`checkDynamicObjective` existe aussi en copies propres au builder, hors du bloc généré, que les tests
+n'exercent pas : y reporter à la main toute modification de cette fonction.
+
+Le hook local `.git/hooks/pre-commit` (non versionné) exige le nombre exact de tests : si ce nombre
+change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
@@ -110,7 +119,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 128/128
+node tests/sim-tests.js    # → 209/209
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -157,5 +166,5 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 128 tests unitaires Node.js |
+| `tests/sim-tests.js` | Suite de 209 tests Node.js |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

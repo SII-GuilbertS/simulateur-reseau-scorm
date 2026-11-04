@@ -137,6 +137,7 @@ const sandbox = {
   saveToSession:    function() { return true; },
   renderActivityTab:function() {},
   updScore:         function() {},
+  alert:            function(msg) { sandbox._lastAlert = msg; },
 
   /* JSZip stub */
   JSZip: function() {
@@ -181,7 +182,7 @@ const {
 ───────────────────────────────────────────────────── */
 let _passed = 0, _failed = 0, _suite = '';
 const RESET = '\x1b[0m', GREEN = '\x1b[32m', RED = '\x1b[31m',
-      CYAN  = '\x1b[36m', BOLD  = '\x1b[1m', DIM = '\x1b[2m';
+      CYAN = '\x1b[36m', BOLD  = '\x1b[1m', DIM = '\x1b[2m';
 
 function suite(name) {
   _suite = name;
@@ -1169,6 +1170,667 @@ test('applyFaults : correction détectable via checkObjectiveStatic', function()
   // 4. Objectif maintenant validé
   ok(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC-Eleve', ip:'192.168.1.10'}}),
     'après correction : objectif doit être validé');
+});
+
+/* ── Helpers : activité, terminal et LMS ── */
+function setupActivity(objectives, masteryscore) {
+  resetNet();
+  sandbox.ACTIVITY_CONFIG = {
+    title:'Test', instructions:'',
+    masteryscore: masteryscore === undefined ? 60 : masteryscore,
+    objectives: objectives,
+  };
+  sandbox.ACTIVITY_RESULTS = {};
+}
+
+function objective(id, check, params, points) {
+  return { id:id, label:'Objectif '+id, check:check, params:params||{},
+           points: points === undefined ? 10 : points };
+}
+
+function done(id) { return !!sandbox.ACTIVITY_RESULTS[id]; }
+
+function term(devId, command) {
+  S.termDev = devId;
+  sandbox.document.getElementById('tinput').value = command;
+  sandbox.termExec();
+}
+
+function browse(devId, url) {
+  sandbox.document.getElementById('bd-sel').value = devId;
+  sandbox.document.getElementById('burl').value = url;
+  sandbox.browGo();
+}
+
+/* PC-Alice, un serveur DNS et un serveur web sur le même switch. */
+function makeLan() {
+  var sw = mkSwitch();
+  var pc = mkPC('192.168.1.10','255.255.255.0','','192.168.1.53','PC-Alice');
+  var dns = mkServer('192.168.1.53'); S.devs[dns].name = 'Srv-DNS';
+  S.devs[dns].dns.on = true;
+  S.devs[dns].dns.records['lycee.local'] = '192.168.1.20';
+  var web = mkServer('192.168.1.20'); S.devs[web].name = 'Srv-Web';
+  S.devs[web].http.on = true;
+  link(pc,sw); link(dns,sw); link(web,sw);
+  return { pc:pc, dns:dns, web:web, sw:sw };
+}
+
+function makeLMS(initial, initResult) {
+  var api = {
+    data: Object.assign({}, initial),
+    commits: 0, finishes: 0, sets: 0,
+    LMSInitialize: function() { return initResult === undefined ? 'true' : initResult; },
+    LMSGetValue:   function(k) { return api.data[k] || ''; },
+    LMSSetValue:   function(k, v) { api.data[k] = v; api.sets++; return 'true'; },
+    LMSCommit:     function() { api.commits++; return 'true'; },
+    LMSFinish:     function() { api.finishes++; return 'true'; },
+  };
+  return api;
+}
+
+function withLMS(api, fn) {
+  sandbox.window.API = api;
+  sandbox.window.parent = sandbox.window;
+  try {
+    sandbox.scormInit();
+    fn(api);
+  } finally {
+    delete sandbox.window.API;
+    delete sandbox.window.parent;
+    sandbox._api = null;
+    sandbox._apiOk = false;
+  }
+}
+
+function withStorage(fn) {
+  var store = {}, original = sandbox.localStorage;
+  sandbox.localStorage = {
+    getItem:    function(k) { return k in store ? store[k] : null; },
+    setItem:    function(k, v) { store[k] = String(v); },
+    removeItem: function(k) { delete store[k]; },
+  };
+  try { fn(store); } finally { sandbox.localStorage = original; }
+}
+
+/* ── checkDynamicObjective — règles de validation ── */
+suite('checkDynamicObjective — règles de validation');
+
+test('ping_success : source et cible (IP) correctes → validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'192.168.1.20'})]);
+  checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.20'});
+  ok(done(1));
+});
+
+test('ping_success : cible donnée par nom d\'appareil → comparée à son IP', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'Srv-Web'})]);
+  var web = mkServer('192.168.1.20'); S.devs[web].name = 'Srv-Web';
+  checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.20'});
+  ok(done(1));
+});
+
+test('ping_success : mauvaise source → non validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'192.168.1.20'})]);
+  checkDynamicObjective('ping_success',{from:'PC-Bob',to:'192.168.1.20'});
+  notOk(done(1));
+});
+
+test('ping_success : mauvaise cible → non validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'192.168.1.20'})]);
+  checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.99'});
+  notOk(done(1));
+});
+
+test('ping_success : sans paramètre → tout ping réussi valide', function() {
+  setupActivity([objective(1,'ping_success',{})]);
+  checkDynamicObjective('ping_success',{from:'PC-Bob',to:'10.0.0.1'});
+  ok(done(1));
+});
+
+test('dns_success : domaine attendu → validé', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'})]);
+  checkDynamicObjective('dns_success',{from:'PC-Alice',domain:'lycee.local'});
+  ok(done(1));
+});
+
+test('dns_success : autre domaine → non validé', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'})]);
+  checkDynamicObjective('dns_success',{from:'PC-Alice',domain:'autre.local'});
+  notOk(done(1));
+});
+
+test('http_success : URL normalisée (http://, casse, / final)', function() {
+  setupActivity([objective(1,'http_success',{from:'PC-Alice',url:'www.lycee.fr'})]);
+  checkDynamicObjective('http_success',{from:'PC-Alice',url:'HTTP://WWW.Lycee.fr/'});
+  ok(done(1));
+});
+
+test('http_success : autre URL → non validé', function() {
+  setupActivity([objective(1,'http_success',{from:'PC-Alice',url:'www.lycee.fr'})]);
+  checkDynamicObjective('http_success',{from:'PC-Alice',url:'www.autre.fr'});
+  notOk(done(1));
+});
+
+test('dhcp_success : bon appareil → validé, autre appareil → non validé', function() {
+  setupActivity([objective(1,'dhcp_success',{from:'PC-Alice'}), objective(2,'dhcp_success',{from:'PC-Bob'})]);
+  checkDynamicObjective('dhcp_success',{from:'PC-Alice',ip:'192.168.1.100'});
+  ok(done(1)); notOk(done(2));
+});
+
+test('un événement ne valide pas un objectif d\'un autre type', function() {
+  setupActivity([objective(1,'dns_success',{}), objective(2,'http_success',{})]);
+  checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.20'});
+  notOk(done(1)); notOk(done(2));
+});
+
+test('validation → score mis à jour', function() {
+  setupActivity([objective(1,'ping_success',{},25), objective(2,'dns_success',{},75)]);
+  checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.20'});
+  eq(S.score, 25);
+});
+
+test('sans ACTIVITY_CONFIG → aucune erreur', function() {
+  resetNet();
+  sandbox.ACTIVITY_CONFIG = null;
+  checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.20'});
+  sandbox.checkAllObjectives();
+  ok(true);
+});
+
+/* ── Du terminal et du navigateur jusqu'à l'objectif ── */
+suite('Commandes élève → validation des objectifs');
+
+test('ping réussi au terminal → ping_success validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'Srv-Web'})]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.20');
+  ok(done(1));
+});
+
+test('ping échoué au terminal → ping_success non validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'192.168.1.99'})]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.99');
+  notOk(done(1));
+});
+
+test('ping par nom de domaine → dns_success et ping_success validés', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'}),
+                 objective(2,'ping_success',{from:'PC-Alice',to:'Srv-Web'})]);
+  var n = makeLan();
+  term(n.pc,'ping lycee.local');
+  ok(done(1)); ok(done(2));
+});
+
+test('nslookup réussi → dns_success validé', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'})]);
+  var n = makeLan();
+  term(n.pc,'nslookup lycee.local');
+  ok(done(1));
+});
+
+test('nslookup sur serveur DNS arrêté → dns_success non validé', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'})]);
+  var n = makeLan();
+  S.devs[n.dns].dns.on = false;
+  term(n.pc,'nslookup lycee.local');
+  notOk(done(1));
+});
+
+test('nslookup en majuscules → dns_success validé', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'})]);
+  var n = makeLan();
+  term(n.pc,'nslookup LYCEE.LOCAL');
+  ok(done(1));
+});
+
+test('ping en majuscules → dns_success validé, domaine de l\'objectif en majuscules accepté', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'Lycee.Local'})]);
+  var n = makeLan();
+  term(n.pc,'ping LYCEE.LOCAL');
+  ok(done(1));
+});
+
+test('dhcp au terminal → dhcp_success validé et IP appliquée', function() {
+  setupActivity([objective(1,'dhcp_success',{from:'PC-Alice'})]);
+  var sw = mkSwitch(), pc = mkPC('','255.255.255.0','','','PC-Alice');
+  var srv = mkServer('192.168.1.1');
+  S.devs[srv].dhcp = {on:true,start:'192.168.1.100',end:'192.168.1.200',mask:'255.255.255.0',gateway:'192.168.1.1',dns:''};
+  link(pc,sw); link(srv,sw);
+  term(pc,'dhcp');
+  ok(done(1));
+  ok(S.devs[pc].ifaces[0].ip.indexOf('192.168.1.') === 0);
+});
+
+test('dhcp sans serveur → dhcp_success non validé', function() {
+  setupActivity([objective(1,'dhcp_success',{from:'PC-Alice'})]);
+  var pc = mkPC('','255.255.255.0','','','PC-Alice');
+  term(pc,'dhcp');
+  notOk(done(1));
+});
+
+test('navigateur : page atteinte → http_success et dns_success validés', function() {
+  setupActivity([objective(1,'http_success',{from:'PC-Alice',url:'lycee.local'}),
+                 objective(2,'dns_success',{from:'PC-Alice',domain:'lycee.local'})]);
+  var n = makeLan();
+  browse(n.pc,'http://lycee.local/');
+  ok(done(1)); ok(done(2));
+});
+
+test('navigateur : service HTTP arrêté → http_success non validé', function() {
+  setupActivity([objective(1,'http_success',{from:'PC-Alice',url:'lycee.local'})]);
+  var n = makeLan();
+  S.devs[n.web].http.on = false;
+  browse(n.pc,'lycee.local');
+  notOk(done(1));
+});
+
+/* ── Score ── */
+suite('Score de l\'activité');
+
+test('score proportionnel aux points et arrondi', function() {
+  setupActivity([objective(1,'ping_success',{},1), objective(2,'dns_success',{},2)]);
+  sandbox.ACTIVITY_RESULTS[2] = true;
+  sandbox.updateActivityScore();
+  eq(S.score, 67);
+});
+
+test('tous les objectifs atteints → 100', function() {
+  setupActivity([objective(1,'ping_success',{},30), objective(2,'dns_success',{},70)]);
+  sandbox.ACTIVITY_RESULTS[1] = true; sandbox.ACTIVITY_RESULTS[2] = true;
+  sandbox.updateActivityScore();
+  eq(S.score, 100);
+});
+
+test('aucun point défini → score 0 et non NaN', function() {
+  setupActivity([{id:1,label:'Sans points',check:'ping_success',params:{}}]);
+  sandbox.ACTIVITY_RESULTS[1] = true;
+  sandbox.updateActivityScore();
+  eq(S.score, 0);
+});
+
+test('checkAllObjectives valide les statiques et calcule le score', function() {
+  setupActivity([objective(1,'ip_configured',{dev:'PC1',ip:'192.168.1.10'},40),
+                 objective(2,'ip_configured',{dev:'PC1',ip:'10.0.0.1'},60)]);
+  mkPC('192.168.1.10','255.255.255.0','','','PC1');
+  sandbox.checkAllObjectives();
+  ok(done(1)); notOk(done(2));
+  eq(S.score, 40);
+});
+
+test('checkAllObjectives ne valide jamais un objectif dynamique', function() {
+  setupActivity([objective(1,'ping_success',{}), objective(2,'dhcp_success',{})]);
+  mkPC('192.168.1.10');
+  sandbox.checkAllObjectives();
+  notOk(done(1)); notOk(done(2));
+});
+
+test('objectif atteint → reste acquis si le réseau change ensuite', function() {
+  setupActivity([objective(1,'ip_configured',{dev:'PC1',ip:'192.168.1.10'},100)]);
+  var pc = mkPC('192.168.1.10','255.255.255.0','','','PC1');
+  sandbox.checkAllObjectives();
+  S.devs[pc].ifaces[0].ip = '10.0.0.1';
+  sandbox.checkAllObjectives();
+  ok(done(1));
+  eq(S.score, 100);
+});
+
+/* ── SCORM ── */
+suite('SCORM — échanges avec le LMS');
+
+test('scormInit : première ouverture → statut incomplete', function() {
+  withLMS(makeLMS({'cmi.core.lesson_status':'not attempted'}), function(api) {
+    eq(api.data['cmi.core.lesson_status'], 'incomplete');
+  });
+});
+
+test('scormInit : activité déjà réussie → statut passed conservé', function() {
+  withLMS(makeLMS({'cmi.core.lesson_status':'passed'}), function(api) {
+    eq(api.data['cmi.core.lesson_status'], 'passed');
+  });
+});
+
+test('scormInit : initialisation refusée → aucune écriture', function() {
+  withLMS(makeLMS({}, 'false'), function(api) {
+    sandbox.sSet('cmi.core.score.raw','50');
+    eq(api.sets, 0);
+  });
+});
+
+test('sans LMS : les appels SCORM sont sans effet et sans erreur', function() {
+  sandbox._api = null; sandbox._apiOk = false;
+  sandbox.sSet('cmi.core.score.raw','50');
+  sandbox.sCom();
+  sandbox.sEnd(50,true);
+  eq(sandbox.sGet('cmi.core.score.raw'), '');
+});
+
+test('LMS d\'une page parente : API trouvée en remontant les fenêtres', function() {
+  var api = makeLMS({});
+  var top = { API:api }; top.parent = top;
+  var original = sandbox.window;
+  var child = { parent:top };
+  sandbox.window = child;
+  try {
+    sandbox.scormInit();
+    eq(sandbox._api, api);
+  } finally {
+    sandbox.window = original;
+    sandbox._api = null; sandbox._apiOk = false;
+  }
+});
+
+test('page parente d\'un autre domaine (accès refusé) → pas d\'erreur', function() {
+  var original = sandbox.window;
+  var child = {};
+  Object.defineProperty(child,'parent',{ get:function(){ throw new Error('SecurityError'); } });
+  sandbox.window = child;
+  try {
+    sandbox.scormInit();
+    eq(sandbox._api, null);
+  } finally {
+    sandbox.window = original;
+    sandbox._api = null; sandbox._apiOk = false;
+  }
+});
+
+test('objectif atteint → score transmis et enregistré au LMS', function() {
+  setupActivity([objective(1,'ping_success',{},25), objective(2,'dns_success',{},75)]);
+  withLMS(makeLMS({}), function(api) {
+    checkDynamicObjective('ping_success',{from:'PC-Alice',to:'192.168.1.20'});
+    eq(api.data['cmi.core.score.raw'], '25');
+    eq(api.data['cmi.core.score.min'], '0');
+    eq(api.data['cmi.core.score.max'], '100');
+    ok(api.commits > 0);
+  });
+});
+
+test('Terminer : score égal au seuil → passed et session fermée', function() {
+  setupActivity([objective(1,'ping_success',{},60), objective(2,'dns_success',{},40)], 60);
+  withLMS(makeLMS({}), function(api) {
+    sandbox.ACTIVITY_RESULTS[1] = true;
+    sandbox.updateActivityScore();
+    sandbox.finishActivity();
+    eq(api.data['cmi.core.lesson_status'], 'passed');
+    eq(api.data['cmi.core.score.raw'], '60');
+    eq(api.finishes, 1);
+  });
+});
+
+test('Terminer : score sous le seuil → failed', function() {
+  setupActivity([objective(1,'ping_success',{},59), objective(2,'dns_success',{},41)], 60);
+  withLMS(makeLMS({}), function(api) {
+    sandbox.ACTIVITY_RESULTS[1] = true;
+    sandbox.updateActivityScore();
+    sandbox.finishActivity();
+    eq(api.data['cmi.core.lesson_status'], 'failed');
+  });
+});
+
+test('Terminer : le seuil de l\'activité remplace le seuil par défaut', function() {
+  setupActivity([objective(1,'ping_success',{},70), objective(2,'dns_success',{},30)], 80);
+  withLMS(makeLMS({}), function(api) {
+    sandbox.ACTIVITY_RESULTS[1] = true;
+    sandbox.updateActivityScore();
+    sandbox.finishActivity();
+    eq(api.data['cmi.core.lesson_status'], 'failed');
+  });
+});
+
+test('Terminer : seuil absent → 60 par défaut', function() {
+  setupActivity([objective(1,'ping_success',{},60), objective(2,'dns_success',{},40)]);
+  delete sandbox.ACTIVITY_CONFIG.masteryscore;
+  withLMS(makeLMS({}), function(api) {
+    sandbox.ACTIVITY_RESULTS[1] = true;
+    sandbox.updateActivityScore();
+    sandbox.finishActivity();
+    eq(api.data['cmi.core.lesson_status'], 'passed');
+  });
+});
+
+test('après Terminer : plus aucune écriture ni double fermeture', function() {
+  setupActivity([objective(1,'ping_success',{},100)]);
+  withLMS(makeLMS({}), function(api) {
+    sandbox.finishActivity();
+    var sets = api.sets;
+    sandbox.sSet('cmi.core.score.raw','99');
+    sandbox.sEnd(99,true);
+    eq(api.sets, sets);
+    eq(api.finishes, 1);
+  });
+});
+
+test('Terminer : le bilan affiché liste les objectifs et le résultat', function() {
+  setupActivity([objective(1,'ping_success',{},100)]);
+  sandbox.ACTIVITY_RESULTS[1] = true;
+  sandbox.updateActivityScore();
+  sandbox.finishActivity();
+  ok(sandbox._lastAlert.indexOf('Objectif 1') >= 0);
+  ok(sandbox._lastAlert.indexOf('RÉUSSI') >= 0);
+});
+
+test('Terminer sans aucun point défini : le bilan affiche 0 % et non NaN', function() {
+  setupActivity([]);
+  sandbox.finishActivity();
+  ok(sandbox._lastAlert.indexOf('NaN') < 0);
+  ok(sandbox._lastAlert.indexOf('0%') >= 0);
+});
+
+/* ── Sauvegarde et reprise ── */
+suite('Sauvegarde et reprise de session');
+
+test('LMS disponible : sauvegarde dans suspend_data puis reprise', function() {
+  setupActivity([objective(1,'ping_success',{},100)]);
+  withLMS(makeLMS({}), function(api) {
+    mkPC('192.168.1.10','255.255.255.0','','','PC-Sauve');
+    sandbox.ACTIVITY_RESULTS[1] = true;
+    S.score = 100;
+    ok(sandbox.saveToSession());
+    ok(api.data['cmi.suspend_data'].indexOf('PC-Sauve') >= 0);
+    resetNet();
+    sandbox.ACTIVITY_RESULTS = {};
+    eq(sandbox.loadFromSession(), true);
+    ok(devByName('PC-Sauve'));
+    ok(done(1));
+    eq(S.score, 100);
+  });
+});
+
+test('sans LMS : sauvegarde et reprise via localStorage', function() {
+  setupActivity([objective(1,'ping_success',{},100)]);
+  withStorage(function() {
+    mkPC('192.168.1.10','255.255.255.0','','','PC-Local');
+    ok(sandbox.saveToSession());
+    resetNet();
+    eq(sandbox.loadFromSession(), true);
+    ok(devByName('PC-Local'));
+  });
+});
+
+test('première ouverture : réseau de départ chargé et pannes injectées', function() {
+  setupActivity([]);
+  var starter = { devs:{}, links:{}, nid:5 };
+  starter.devs.d1 = { id:'d1', type:'pc', name:'PC-Depart', x:0, y:0,
+    ifaces:[{name:'eth0',ip:'192.168.1.10',mask:'255.255.255.0',gateway:'',dns:''}] };
+  sandbox.STARTER_NETWORK = starter;
+  sandbox.ACTIVITY_CONFIG.faults = [{type:'bad_ip',dev:'PC-Depart',badValue:'10.9.9.9'}];
+  try {
+    withStorage(function() {
+      eq(sandbox.loadFromSession(), 'starter');
+      eq(mainIface(devByName('PC-Depart')).ip, '10.9.9.9');
+      eq(starter.devs.d1.ifaces[0].ip, '192.168.1.10');
+    });
+  } finally { sandbox.STARTER_NETWORK = null; }
+});
+
+test('reprise : les pannes ne sont pas réinjectées sur le travail de l\'élève', function() {
+  setupActivity([]);
+  withStorage(function() {
+    mkPC('192.168.1.10','255.255.255.0','','','PC-Corrige');
+    sandbox.saveToSession();
+    resetNet();
+    sandbox.ACTIVITY_CONFIG = { objectives:[], faults:[{type:'bad_ip',dev:'PC-Corrige',badValue:'10.9.9.9'}] };
+    eq(sandbox.loadFromSession(), true);
+    eq(mainIface(devByName('PC-Corrige')).ip, '192.168.1.10');
+  });
+});
+
+test('sauvegarde illisible → false, sans erreur', function() {
+  setupActivity([]);
+  withStorage(function(store) {
+    store[sandbox.SESSION_KEY] = '{pas du json';
+    eq(sandbox.loadFromSession(), false);
+  });
+});
+
+/* ── Scénarios fournis ── */
+const SCENARIOS_DIR = path.join(__dirname, '..', 'scenarios');
+const OBJECTIVE_TYPES = ['cable_exists','ip_configured','gateway_configured','dns_configured',
+  'service_active','device_added','wifi_link','route_exists','dns_record','ssid_configured',
+  'ping_success','dns_success','http_success','dhcp_success'];
+const FAULT_TYPES = ['bad_ip','bad_mask','bad_gateway','bad_dns','service_down','missing_cable','ssid_wrong'];
+const IPV4 = /^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+$/;
+
+function readScenario(file) {
+  return JSON.parse(fs.readFileSync(path.join(SCENARIOS_DIR, file), 'utf-8'));
+}
+
+/* Ouvre le scénario comme le ferait un élève : réseau de départ, puis pannes éventuelles. */
+function openScenario(data, withFaults) {
+  setupActivity(JSON.parse(JSON.stringify(data.activity.objectives)), data.activity.masteryscore);
+  sandbox.ACTIVITY_CONFIG.faults = withFaults ? JSON.parse(JSON.stringify(data.activity.faults)) : [];
+  sandbox.STARTER_NETWORK = JSON.parse(JSON.stringify(data.network));
+  try {
+    withStorage(function() { eq(sandbox.loadFromSession(), 'starter'); });
+  } finally { sandbox.STARTER_NETWORK = null; }
+}
+
+/* Réalise les actions de l'élève qu'exige chaque objectif dynamique. */
+function playObjectives(objectives) {
+  sandbox.checkAllObjectives();
+  objectives.forEach(function(o) {
+    var p = o.params || {};
+    var from = devByName(p.from);
+    if(!from) return;
+    if(o.check === 'ping_success') {
+      var target = devByName(p.to);
+      term(from.id, 'ping ' + (target ? mainIface(target).ip : p.to));
+    }
+    if(o.check === 'dns_success')  term(from.id, 'nslookup ' + p.domain);
+    if(o.check === 'dhcp_success') term(from.id, 'dhcp');
+    if(o.check === 'http_success') browse(from.id, p.url);
+  });
+}
+
+/* Le réseau du scénario sert de corrigé. Restent à faire : relancer les services
+   coupés et créer les appareils que l'élève doit ajouter. */
+function applySolution(data) {
+  data.activity.faults.forEach(function(f) {
+    var p = f.params || f;
+    if(f.type === 'service_down') devByName(p.dev)[p.service].on = true;
+  });
+  var created = {};
+  data.activity.objectives.forEach(function(o) {
+    var p = o.params || {};
+    if(o.check === 'device_added' && p.newdev && !devByName(p.newdev)) {
+      var id = mkDev(p.type || 'pc', 10, 10);
+      S.devs[id].name = p.newdev;
+      created[p.newdev] = id;
+    }
+  });
+  data.activity.objectives.forEach(function(o) {
+    var p = o.params || {};
+    if(o.check === 'cable_exists' && (created[p.devA] || created[p.devB]))
+      link(devByName(p.devA).id, devByName(p.devB).id);
+    if(o.check === 'ip_configured' && created[p.dev])
+      mainIface(S.devs[created[p.dev]]).ip = p.ip;
+  });
+  sandbox.autoRoute();
+}
+
+const allScenarios = fs.readdirSync(SCENARIOS_DIR).filter(function(f) { return f.endsWith('.json'); });
+
+allScenarios.forEach(function(file) {
+  const data = readScenario(file);
+  const activity = data.activity, net = data.network;
+
+  suite('Scénario ' + file + ' — cohérence du fichier');
+
+  test('points : total 100, seuil de réussite entre 1 et 100', function() {
+    eq(activity.objectives.reduce(function(s,o) { return s + o.points; }, 0), 100);
+    ok(activity.masteryscore >= 1 && activity.masteryscore <= 100);
+  });
+
+  test('identifiants d\'objectifs uniques, types d\'objectifs et de pannes connus', function() {
+    var ids = activity.objectives.map(function(o) { return String(o.id); });
+    eq(new Set(ids).size, ids.length);
+    activity.objectives.forEach(function(o) {
+      ok(OBJECTIVE_TYPES.indexOf(o.check) >= 0, 'type inconnu : ' + o.check);
+    });
+    activity.faults.forEach(function(f) {
+      assert(FAULT_TYPES.indexOf(f.type) >= 0, 'panne inconnue : ' + f.type);
+    });
+  });
+
+  test('topologie : noms uniques, câbles entre appareils existants', function() {
+    var names = Object.values(net.devs).map(function(d) { return d.name; });
+    eq(new Set(names).size, names.length);
+    Object.values(net.links).forEach(function(l) {
+      assert(net.devs[l.from] && net.devs[l.to], 'câble orphelin : ' + l.id);
+    });
+  });
+
+  test('objectifs et pannes ne citent que des appareils existants ou à ajouter', function() {
+    var known = new Set(Object.values(net.devs).map(function(d) { return d.name; }));
+    activity.objectives.forEach(function(o) {
+      if(o.check === 'device_added' && o.params.newdev) known.add(o.params.newdev);
+    });
+    function check(params, where) {
+      ['dev','devA','devB','from'].forEach(function(k) {
+        if(params[k]) assert(known.has(params[k]), where + ' : appareil inconnu « ' + params[k] + ' »');
+      });
+      if(params.to && !IPV4.test(params.to))
+        assert(known.has(params.to), where + ' : cible inconnue « ' + params.to + ' »');
+    }
+    activity.objectives.forEach(function(o) { check(o.params || {}, 'objectif ' + o.id); });
+    activity.faults.forEach(function(f) { check(f.params || f, 'panne ' + f.id); });
+  });
+
+  test('ouverture avec pannes : chargement et évaluation sans erreur', function() {
+    openScenario(data, true);
+    sandbox.checkAllObjectives();
+    ok(S.score >= 0 && S.score <= 100);
+  });
+});
+
+allScenarios.forEach(function(file) {
+  const data = readScenario(file);
+
+  suite('Scénario ' + file + ' — parcours de l\'élève');
+
+  test('une fois le réseau corrigé, tous les objectifs sont atteignables (score 100)', function() {
+    openScenario(data, false);
+    applySolution(data);
+    playObjectives(data.activity.objectives);
+    var missing = data.activity.objectives.filter(function(o) { return !done(o.id); })
+      .map(function(o) { return '#' + o.id + ' ' + o.check; });
+    eq(missing.join(', '), '');
+    eq(S.score, 100);
+  });
+
+  test('les pannes modifient réellement le réseau de départ', function() {
+    openScenario(data, false);
+    sandbox.autoRoute(); // applyFaults le lance aussi : seules les pannes doivent différer
+    var before = JSON.stringify([S.devs, S.links]);
+    openScenario(data, true);
+    assert(JSON.stringify([S.devs, S.links]) !== before, 'réseau identique avec et sans pannes');
+  });
+
+  test('sans corriger les pannes, l\'élève reste sous le seuil', function() {
+    openScenario(data, true);
+    playObjectives(data.activity.objectives);
+    assert(S.score < data.activity.masteryscore,
+      'score ' + S.score + ' sans corriger de panne, pour un seuil de ' + data.activity.masteryscore);
+  });
 });
 
 /* ─────────────────────────────────────────────────────

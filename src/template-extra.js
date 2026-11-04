@@ -155,7 +155,8 @@ function checkDynamicObjective(type,context){
       }
       ok=(!p.from||p.from===context.from)&&(!p.to||_pto===context.to);
     } else if(type==='dns_success'){
-      ok=(!p.from||p.from===context.from)&&(!p.domain||p.domain===context.domain);
+      // Même règle que simDNS : un nom de domaine ne dépend pas de la casse.
+      ok=(!p.from||p.from===context.from)&&(!p.domain||p.domain.trim().toLowerCase()===(context.domain||'').trim().toLowerCase());
     } else if(type==='http_success'){
       var _normURL=function(u){return (u||'').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'').toLowerCase();};
       ok=(!p.from||p.from===context.from)&&(!p.url||_normURL(p.url)===_normURL(context.url));
@@ -736,7 +737,7 @@ function finishActivity(){
       total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;
       msg+=(ACTIVITY_RESULTS[obj.id]?'✅':'❌')+' '+obj.label+' ('+obj.points+' pts)\n';
     });
-    msg+='\n'+Math.round(earned/total*100)+'% — '+(passed?'✅ RÉUSSI (≥'+threshold+'%)':'⚠️ À améliorer (<'+threshold+'%)');
+    msg+='\n'+(total>0?Math.round(earned/total*100):0)+'% — '+(passed?'✅ RÉUSSI (≥'+threshold+'%)':'⚠️ À améliorer (<'+threshold+'%)');
   } else {
     msg+='Aucun objectif configuré.';
   }
