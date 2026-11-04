@@ -103,7 +103,7 @@ Scénario historique — réseau lycée Pasteur, 11 appareils, 9 liens, 9 object
 Guide complet pour les **enseignants** : présentation, 3 onglets du builder, 14 types d'objectifs, mode panne, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
 
 #### `doc-eleve.pdf` / `doc-eleve.docx`
-Guide de prise en main pour les **élèves** : interface, modes Configuration/Simulation, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `http`, `traceroute`…), objectifs et score, exemple guidé, résolution de problèmes.
+Guide de prise en main pour les **élèves** : interface, modes Configuration/Simulation, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `traceroute`…), onglet Navigateur pour le web, objectifs et score, exemple guidé, résolution de problèmes.
 
 ---
 

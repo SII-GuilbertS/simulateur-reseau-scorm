@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.2
+#  DOC PROF  v1.3
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.2'
+    doc._subtitle    = 'Documentation v1.3'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -273,7 +273,9 @@ def build_prof(out_path):
             'puis choisissez votre format d\'export.',
             BODY),
         Paragraph('■ <b>Package SCORM (.zip)</b> — À importer dans Moodle. Remonte la note automatiquement.', BODY_L),
-        Paragraph('■ <b>HTML standalone</b> — Fichier .html unique, ouvrable directement dans Chrome/Firefox.', BODY_L),
+        Paragraph('■ <b>HTML standalone</b> — Fichier .html unique, ouvrable directement dans Chrome/Firefox. '
+                  'Une fois en ligne, il peut être ouvert par un lien ou affiché dans une iframe. '
+                  'Dans ce cas, la note n\'est pas transmise à la plateforme : utilisez le package SCORM pour cela.', BODY_L),
         Paragraph('■ <b>Énoncé imprimable</b> — Page HTML avec topologie SVG, liste des objectifs et zone élève '
                   '(Nom/Classe/Score). Bouton Imprimer intégré, optimisé A4.', BODY_L),
         Paragraph('■ <b>Aperçu élève</b> — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder.', BODY_L),
@@ -333,13 +335,29 @@ def build_prof(out_path):
     kb_p = [[Paragraph(r[0], MONO if i>0 else CELL_B), Paragraph(r[1], CELL)]
             for i, r in enumerate(kb_rows)]
     story.append(table_obj(kb_p, [45*mm, CONTENT_W-45*mm]))
+    story.append(Spacer(1, 8))
+
+    # 6. Licence
+    story += [
+        Paragraph('6. Licence', H1), hr(),
+        Paragraph(
+            'L\'outil est réservé aux usages non commerciaux. Le code est sous licence '
+            '<b>PolyForm Noncommercial 1.0.0</b>, qui autorise l\'usage par les établissements d\'enseignement '
+            'et les institutions publiques. Ce guide et les scénarios fournis sont sous licence <b>CC BY-NC-SA 4.0</b>.',
+            BODY),
+        Paragraph(
+            'Les activités exportées embarquent le moteur et restent soumises à la licence du code : '
+            'conservez la mention de copyright qu\'elles contiennent. '
+            'Le contenu que vous créez avec l\'outil vous appartient.',
+            BODY),
+    ]
 
     doc.build(story, onFirstPage=cover_page, onLaterPages=page_template)
     print(f'✓  {out_path}')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.2
+#  DOC ELEVE  v1.3
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -348,7 +366,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.2'
+    doc._subtitle    = 'Guide élève v1.3'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
@@ -412,7 +430,6 @@ def build_eleve(out_path):
         ['Commande', 'Description', 'Exemple'],
         ['ping',       'Ping vers une IP ou un nom.',               'ping 192.168.1.1'],
         ['nslookup',   'Résout un nom de domaine en IP.',            'nslookup web.ecole.fr'],
-        ['http',       'Accède à une page web.',                     'http 192.168.1.1'],
         ['dhcp',       'Demande une IP automatique.',                'dhcp'],
         ['traceroute', 'Affiche le chemin réseau.',                  'traceroute 8.8.8.8'],
         ['ifconfig',   'Affiche la configuration IP.',              'ifconfig'],
@@ -426,6 +443,8 @@ def build_eleve(out_path):
               Paragraph(r[1], CELL),
               Paragraph(r[2], MONO if i>0 else CELL_B)] for i, r in enumerate(cmd_rows)]
     story.append(table_obj(cmd_p, cw_cmd))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph('Pour accéder à une page web, utilisez l\'onglet <b>Navigateur</b> du panneau du bas.', BODY))
     story.append(Spacer(1, 8))
 
     # 3. Configurer les IP
@@ -497,12 +516,16 @@ def build_eleve(out_path):
          'Vérifiez que le SSID de la Box WiFi est correct et qu\'une liaison WiFi relie votre appareil.'),
         ('L\'objectif ne se valide pas',
          'Relisez l\'intitulé et vérifiez chaque paramètre (IP, masque, passerelle, DNS). '
-         'Pour les objectifs de simulation (ping, dns, http), effectuez la commande dans le terminal.'),
+         'Pour les objectifs de simulation, lancez la commande dans le terminal (ping, nslookup, dhcp) '
+         'ou ouvrez le site dans l\'onglet Navigateur (HTTP).'),
     ]:
         p = story[-1] if False else Paragraph(f'<font color="#2b6cb0"><b>■ {title}</b></font>', H2)
         story.append(p)
         story.append(Paragraph(desc, BODY))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        'Ce guide est sous licence CC BY-NC-SA 4.0 et le simulateur sous licence PolyForm Noncommercial 1.0.0.',
+        BODY))
 
     doc.build(story, onFirstPage=cover_eleve, onLaterPages=page_template)
     print(f'✓  {out_path}')
