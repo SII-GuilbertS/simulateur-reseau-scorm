@@ -84,7 +84,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 12 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 15 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -172,7 +172,7 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 |---|---|
 | `scorm-builder.html` | Application complète, générée en partie — voir règle critique ci-dessus |
 | `src/sim-engine.js` | Source du moteur réseau IPv4 partagé builder + template élève |
-| `src/template-extra.js` | JS spécifique au template élève (SCORM, `applyFaults`, rendu de l'onglet activité) |
+| `src/template-extra.js` | JS spécifique au template élève (SCORM, rendu de l'onglet activité) |
 | `src/template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
 | `tools/build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |

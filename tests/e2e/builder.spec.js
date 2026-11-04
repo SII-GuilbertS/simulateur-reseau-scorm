@@ -174,6 +174,7 @@ test.describe('Import et export de chaque scénario', () => {
       await expect(page.locator('#gen-s-pts')).toHaveText(`100 pt — seuil ${mastery}%`);
 
       const file = await exportFile(page, 'html', info.outputPath(name + '.html'));
+      expect(page.dialogs, 'aucun avertissement : l\'élève ne réussit pas d\'office').toEqual([]);
       await page.goto(pathToFileURL(file).href);
 
       await studentScore(page, startScore);
@@ -242,17 +243,66 @@ test.describe('Builder', () => {
     await expect(builderScore(page)).toHaveText('📊 Score : 80 / 100 pts');
   });
 
-  test('annuler l\'avertissement « correction » n\'exporte rien', async ({ page }) => {
-    await openBuilderWith(page, 'reseau-lycee');
+  /* Variantes de reseau-lycee où l'élève réussirait sans rien faire. Sans panne, l'activité ne
+     calcule pas les routes : l'objectif 13 reste faux (77). La panne de PC-Salle1 retire 3 points
+     mais déclenche ce calcul (80) : ce score exige donc les pannes et les routes. */
+  const TOO_EASY = [
+    { label: 'sans panne', faults: [], score: 77 },
+    { label: 'avec une panne mineure', score: 80,
+      faults: [{ id: 1, type: 'bad_gateway', dev: 'PC-Salle1', badValue: '10.0.0.9' }] },
+  ];
+
+  for (const { label, faults, score } of TOO_EASY) {
+    test(`avertissement à l'export si l'élève réussit d'office (${label}) : même score que l'activité`, async ({ page }, info) => {
+      const data = readScenario('reseau-lycee');
+      data.activity.faults = faults;
+      const scenario = info.outputPath('trop-facile.json');
+      fs.writeFileSync(scenario, JSON.stringify(data));
+
+      await page.goto(BUILDER_URL);
+      await page.locator('#gen-import-file').setInputFiles(scenario);
+      const file = await exportFile(page, 'html', info.outputPath('trop-facile.html'));
+
+      expect(page.dialogs.length).toBe(1);
+      expect(page.dialogs[0]).toContain('il réussirait sans rien corriger');
+      expect(page.dialogs[0]).toContain(`aurait déjà ${score} / 100 pour un seuil de 65 %`);
+
+      // Le score annoncé au professeur est bien celui que l'élève verra.
+      await page.goto(pathToFileURL(file).href);
+      await studentScore(page, score);
+    });
+  }
+
+  test('annuler l\'avertissement n\'exporte rien', async ({ page }, info) => {
+    const data = readScenario('reseau-lycee');
+    data.activity.faults = [];
+    const scenario = info.outputPath('trop-facile.json');
+    fs.writeFileSync(scenario, JSON.stringify(data));
+    await page.goto(BUILDER_URL);
+    await page.locator('#gen-import-file').setInputFiles(scenario);
     await page.locator('.bld-tab[data-tab="3"]').click();
+
     page.dialogAction = 'dismiss';
     let downloaded = false;
     page.on('download', () => { downloaded = true; });
-    await page.locator('button[onclick="GenModule.generateHtml()"]').click();
-    await expect.poll(() => page.dialogs.length).toBe(1);
-    expect(page.dialogs[0]).toContain('vous semblez exporter une correction');
+    for (const fn of ['generateHtml', 'generate']) {
+      await page.locator(`button[onclick="GenModule.${fn}()"]`).click();
+    }
+    await expect.poll(() => page.dialogs.length).toBe(2);
     await page.waitForTimeout(500);
     expect(downloaded).toBe(false);
+  });
+
+  test('le contrôle à l\'export ne modifie ni le réseau ni l\'écran du builder', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-lycee');
+    const snapshot = () => page.locator('body').evaluate(() => JSON.stringify({
+      devs: S.devs, links: S.links, nid: S.nid, frames: S.frames, texts: S.texts,
+      results: ACTIVITY_RESULTS, score: S.score, log: document.getElementById('lout').textContent,
+    }));
+    const before = await snapshot();
+    await exportFile(page, 'html', info.outputPath('lycee.html'));
+    expect(await snapshot()).toBe(before);
+    await expect(page.locator('body')).not.toContainText('RIP :');
   });
 
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {

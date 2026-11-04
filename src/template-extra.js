@@ -95,52 +95,6 @@ function checkAllObjectives(){
   if(changed){updateActivityScore();renderActivityTab();}
 }
 
-/* ─────────────────────────────────────────────────────
-   MODE PANNE — injection de fautes dans le réseau élève
-───────────────────────────────────────────────────── */
-function applyFaults(faults){
-  if(!faults||!faults.length)return;
-  faults.forEach(function(f){
-    // Support format plat {type,dev,badValue} ET format builder {type,params:{dev,badValue}}
-    var p=f.params||{};
-    var fdev     = f.dev      != null ? f.dev      : p.dev;
-    var fbadVal  = f.badValue != null ? f.badValue : p.badValue;
-    var fservice = f.service  != null ? f.service  : p.service;
-    var fdevA    = f.devA     != null ? f.devA     : p.devA;
-    var fdevB    = f.devB     != null ? f.devB     : p.devB;
-    var d,fi;
-    switch(f.type){
-      case 'bad_ip':
-        d=devByName(fdev);if(!d)return;fi=mainIface(d);if(fi)fi.ip=fbadVal||'';break;
-      case 'bad_mask':
-        d=devByName(fdev);if(!d)return;fi=mainIface(d);if(fi)fi.mask=fbadVal||'';break;
-      case 'bad_gateway':
-        d=devByName(fdev);if(!d)return;fi=mainIface(d);if(fi)fi.gateway=fbadVal||'';break;
-      case 'bad_dns':
-        d=devByName(fdev);if(!d)return;fi=mainIface(d);if(fi)fi.dns=fbadVal||'';break;
-      case 'service_down':
-        d=devByName(fdev);if(!d)return;
-        if(fservice==='http'&&d.http)d.http.on=false;
-        if(fservice==='dns'&&d.dns)d.dns.on=false;
-        if(fservice==='dhcp'&&d.dhcp)d.dhcp.on=false;
-        break;
-      case 'missing_cable':{
-        var dA=devByName(fdevA),dB=devByName(fdevB);
-        if(!dA||!dB)return;
-        Object.keys(S.links).forEach(function(lid){
-          var l=S.links[lid];
-          if((l.from===dA.id&&l.to===dB.id)||(l.from===dB.id&&l.to===dA.id))
-            delete S.links[lid];
-        });
-        break;}
-      case 'ssid_wrong':
-        d=devByName(fdev);if(!d||d.type!=='wifi_router')return;
-        d.ssid=fbadVal||'';break;
-    }
-  });
-  if(typeof autoRoute==='function')autoRoute();
-}
-
 function checkDynamicObjective(type,context){
   if(!ACTIVITY_CONFIG)return;
   var changed=false;

@@ -148,7 +148,7 @@ Guide de prise en main pour les **élèves** : interface, modes Configuration/Si
 |---------|------|
 | `src/sim-engine.js` | Source du moteur réseau IPv4 (compilé dans scorm-builder.html) |
 | `src/template-skeleton.html` | Squelette HTML du template élève |
-| `src/template-extra.js` | JS spécifique au template élève (SCORM, applyFaults, renderActivityTab…) |
+| `src/template-extra.js` | JS spécifique au template élève (SCORM, renderActivityTab…) |
 | `tools/build.py` | Script de compilation : `python3 tools/build.py --rebuild` |
 | `tests/sim-tests.js` | Suite de tests unitaires Node.js |
 | `tests/e2e/` | Tests du builder et des exports dans Chrome (Playwright) |
