@@ -219,6 +219,24 @@ python3 build.py --rebuild && node sim-tests.js
 
 ---
 
+## Licence
+
+Ce projet est réservé aux usages non commerciaux. Son code reste consultable et réutilisable, mais il n'est pas open source au sens strict.
+
+| Éléments | Licence | Texte |
+|----------|---------|-------|
+| Code : builder, moteur, template élève, scripts, tests et page du site | [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) | [`LICENSE`](LICENSE) |
+| Contenus : guides `doc-*`, scénarios JSON fournis et captures de `site/assets/` | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) | [`LICENSE-CONTENU.txt`](LICENSE-CONTENU.txt) |
+
+- **Établissements et enseignants :** l'usage par un établissement d'enseignement ou une institution publique est autorisé par la licence du code.
+- **Activités exportées :** elles embarquent le moteur et restent donc soumises à la licence du code. La mention requise y est ajoutée automatiquement ; ne la retirez pas.
+- **Vos propres scénarios :** le contenu que vous créez avec l'outil vous appartient. Cette licence ne vous en retire pas les droits.
+- **Usage commercial :** il n'est pas couvert. Pour en discuter, contactez sylvain.guilbert1@ac-toulouse.fr.
+
+Seuls les textes officiels en anglais de ces licences font foi.
+
+---
+
 ## 🧪 Guide testeur
 
 **Prérequis :** Chrome ou Firefox récent. Aucune installation.

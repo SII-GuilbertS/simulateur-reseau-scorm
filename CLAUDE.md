@@ -137,6 +137,12 @@ Contenu à envoyer chez l'hébergeur (OVH). `site/index.html` et `site/assets/` 
 main ; le reste est généré par `python3 build_site.py` et ignoré par git. Le site n'évolue qu'à
 chaque release (voir le workflow release ci-dessus), pas lors des commits ordinaires.
 
+## Licence
+
+Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.0
+(`LICENSE-CONTENU.txt`) ; le détail est dans le README. Garder la ligne `Required Notice:` en tête de
+`template-skeleton.html` et de `scorm-builder.html` : elle accompagne les activités exportées.
+
 ## Fichiers sources et leur rôle
 
 | Fichier | Rôle |
