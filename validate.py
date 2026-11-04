@@ -5,6 +5,12 @@ Usage: python3 validate.py
 """
 import re, sys, base64, subprocess, tempfile, os
 
+# Windows: la console utilise souvent cp1252, qui ne sait pas encoder les
+# emojis (✅, ✗...) et fait planter le script avec un faux échec.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 TARGET = 'scorm-builder.html'
 errors = []
 
