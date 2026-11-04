@@ -26,6 +26,12 @@ Usage :
 """
 import sys, base64, re, os
 
+# Windows : la sortie utilise souvent cp1252, qui ne sait pas encoder les
+# symboles affichés (─, ✓...) et fait planter le script.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 DIR = os.path.dirname(os.path.abspath(__file__))
 SRC       = os.path.join(DIR, "scorm-builder.html")
 ENGINE_JS = os.path.join(DIR, "sim-engine.js")

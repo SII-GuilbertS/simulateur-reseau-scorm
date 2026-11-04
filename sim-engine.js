@@ -63,7 +63,8 @@ var _api=null,_apiOk=false;
 var SESSION_KEY='sim_reseau_v2'; // clé localStorage fallback
 
 function scormInit(){
-  function findIn(w){var n=0;while(!w.API&&w.parent!==w&&n++<12)w=w.parent;return w.API||null;}
+  // Page hôte d'un autre domaine (iframe) : lecture interdite, donc pas d'API SCORM accessible.
+  function findIn(w){try{var n=0;while(!w.API&&w.parent!==w&&n++<12)w=w.parent;return w.API||null;}catch(e){return null;}}
   _api=findIn(window);
   if(!_api&&window.opener){try{_api=findIn(window.opener);}catch(e){}}
   if(_api){
