@@ -13,7 +13,7 @@ import base64, json, pathlib, re, shutil, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 SITE = ROOT / 'site'
-DEMOS = ['reseau-maison', 'reseau-entreprise', 'reseau-lycee']
+DEMOS = ['reseau-maison', 'reseau-college', 'reseau-entreprise', 'reseau-lycee']
 COPIES = ['scorm-builder.html', 'doc-prof.pdf', 'doc-eleve.pdf']
 
 

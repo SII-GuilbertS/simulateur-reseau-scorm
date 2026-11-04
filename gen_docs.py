@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.3
+#  DOC PROF  v1.4
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.3'
+    doc._subtitle    = 'Documentation v1.4'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -286,13 +286,14 @@ def build_prof(out_path):
     story += [
         Paragraph('3. Scénarios prêts à l\'emploi', H1), hr(),
         Paragraph(
-            'Trois scénarios JSON complets sont fournis dans le dossier <b>scenarios/</b>. '
+            'Quatre scénarios JSON complets sont fournis dans le dossier <b>scenarios/</b>. '
             'Chargez-les via <b>Onglet 3 → 📂 Importer un scénario</b>.',
             BODY),
     ]
     sc_rows = [
         ['Fichier', 'Titre', 'Niveau', 'Obj. / Seuil'],
         ['scenarios/reseau-maison.json',    'Réseau Maison — Panne WiFi',           '4e / 3e',       '10 / 60%'],
+        ['scenarios/reseau-college.json',   'Réseau du collège — Adressage par salle', 'Collège',    '5 / 60%'],
         ['scenarios/reseau-entreprise.json','Réseau Entreprise — Serveur en panne', 'Term. / BTS',   '13 / 60%'],
         ['scenarios/reseau-lycee.json',     'Réseau Lycée — Diagnostic complet',    'NSI / BTS SIO', '17 / 65%'],
     ]
@@ -357,7 +358,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.3
+#  DOC ELEVE  v1.4
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -366,7 +367,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.3'
+    doc._subtitle    = 'Guide élève v1.4'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
