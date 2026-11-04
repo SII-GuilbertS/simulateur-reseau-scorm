@@ -77,12 +77,14 @@ et imbriqué).
 
 ## Scénarios
 
-- `scenarios/` — 3 scénarios JSON clés-en-main, prêts à importer via l'onglet 3 (**Générer →
+- `scenarios/` — 4 scénarios JSON clés-en-main, prêts à importer via l'onglet 3 (**Générer →
   Importer un scénario**) :
   - `reseau-maison.json` — panne WiFi, niveau 4e/3e, 10 objectifs
   - `reseau-entreprise.json` — serveur web/DNS en panne, niveau Terminale/BTS, 13 objectifs
   - `reseau-lycee.json` — diagnostic complet couvrant les 14 types d'objectifs, niveau
     Terminale NSI/BTS SIO, 17 objectifs
+  - `reseau-college.json` — adressage IP fixe par salle, salles en encadrés, niveau collège,
+    5 objectifs
 - `scenario-lycee-pasteur.json` (racine) — scénario historique, 11 appareils, 9 objectifs.
   `scenario-lycee-pasteur-old.json` et `scenario-simple.json` sont des variantes/anciennes
   versions gardées à la racine.

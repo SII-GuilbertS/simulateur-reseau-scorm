@@ -53,7 +53,8 @@ def normalize(activity):
 def build_demo(template, name):
     data = json.loads((ROOT / 'scenarios' / f'{name}.json').read_text(encoding='utf-8'))
     net = data['network']
-    starter = js_literal({'devs': net['devs'], 'links': net['links'], 'nid': net['nid']})
+    starter = js_literal({'devs': net['devs'], 'links': net['links'], 'nid': net['nid'],
+                          'frames': net.get('frames', {}), 'texts': net.get('texts', {})})
     activity = js_literal(normalize(data['activity']))
     pwd = data.get('teacherPwd', 'prof').replace("'", "\\'")
     key = f'sim_reseau_demo_{name}'

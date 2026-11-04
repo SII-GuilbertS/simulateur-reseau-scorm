@@ -93,6 +93,7 @@ function sEnd(sc,ok){
 
 function applyNetworkData(data){
   S.devs=data.devs||{};S.links=data.links||{};S.nid=data.nid||1;
+  S.frames=data.frames||{};S.texts=data.texts||{};
   S.activeLinks=new Set();S.animPhase=null;
   Object.values(S.devs).forEach(function(d){
     if(!d.dhcp)d.dhcp={on:false,start:'192.168.1.100',end:'192.168.1.200',mask:'255.255.255.0',gateway:'',dns:''};
@@ -1489,7 +1490,7 @@ function _doGenerateScorm(networkData){
 }
 
 function generateScorm(){
-  var nd={devs:S.devs,links:S.links,nid:S.nid};
+  var nd={devs:S.devs,links:S.links,nid:S.nid,frames:S.frames,texts:S.texts};
   var nb=Object.keys(S.devs).length;
   if(nb===0&&!confirm('Le canvas est vide. Générer un SCORM sans réseau de départ ?'))return;
   _doGenerateScorm(nb>0?nd:null);

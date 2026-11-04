@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "createdAt": "2026-11-04T00:00:00.000Z",
+  "teacherPwd": "prof",
+  "network": {
+    "nid": 40,
+    "devs": {
+      "d1": { "id": "d1", "type": "switch", "name": "Switch-College", "x": 367, "y": 262, "mac": "AA:BB:CC:10:00:01", "ifaces": [], "staticRoutes": [] },
+
+      "d2": { "id": "d2", "type": "switch", "name": "SW-A101", "x": 286, "y": 42, "mac": "AA:BB:CC:10:00:02", "ifaces": [], "staticRoutes": [] },
+      "d3": { "id": "d3", "type": "pc", "name": "A101-P1", "x": 18, "y": 160, "mac": "AA:BB:CC:10:00:03", "ifaces": [{ "name": "eth0", "ip": "10.1.101.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d4": { "id": "d4", "type": "pc", "name": "A101-P2", "x": 152, "y": 160, "mac": "AA:BB:CC:10:00:04", "ifaces": [{ "name": "eth0", "ip": "10.1.101.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+
+      "d5": { "id": "d5", "type": "switch", "name": "SW-A204", "x": 286, "y": 384, "mac": "AA:BB:CC:10:00:05", "ifaces": [], "staticRoutes": [] },
+      "d6": { "id": "d6", "type": "pc", "name": "A204-P1", "x": 18, "y": 502, "mac": "AA:BB:CC:10:00:06", "ifaces": [{ "name": "eth0", "ip": "10.1.204.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d7": { "id": "d7", "type": "pc", "name": "A204-P2", "x": 152, "y": 502, "mac": "AA:BB:CC:10:00:07", "ifaces": [{ "name": "eth0", "ip": "10.1.204.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+
+      "d8": { "id": "d8", "type": "switch", "name": "SW-B105", "x": 448, "y": 42, "mac": "AA:BB:CC:10:00:08", "ifaces": [], "staticRoutes": [] },
+      "d9": { "id": "d9", "type": "pc", "name": "B105-P1", "x": 582, "y": 160, "mac": "AA:BB:CC:10:00:09", "ifaces": [{ "name": "eth0", "ip": "10.2.105.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d10": { "id": "d10", "type": "pc", "name": "B105-P2", "x": 716, "y": 160, "mac": "AA:BB:CC:10:00:0A", "ifaces": [{ "name": "eth0", "ip": "10.2.105.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+
+      "d11": { "id": "d11", "type": "switch", "name": "SW-B210", "x": 448, "y": 384, "mac": "AA:BB:CC:10:00:0B", "ifaces": [], "staticRoutes": [] },
+      "d12": { "id": "d12", "type": "pc", "name": "B210-P1", "x": 582, "y": 502, "mac": "AA:BB:CC:10:00:0C", "ifaces": [{ "name": "eth0", "ip": "10.2.210.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d13": { "id": "d13", "type": "pc", "name": "B210-P2", "x": 716, "y": 502, "mac": "AA:BB:CC:10:00:0D", "ifaces": [{ "name": "eth0", "ip": "10.2.210.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] }
+    },
+    "links": {
+      "l1": { "id": "l1", "from": "d1", "to": "d2" },
+      "l2": { "id": "l2", "from": "d1", "to": "d5" },
+      "l3": { "id": "l3", "from": "d1", "to": "d8" },
+      "l4": { "id": "l4", "from": "d1", "to": "d11" },
+      "l5": { "id": "l5", "from": "d2", "to": "d3" },
+      "l6": { "id": "l6", "from": "d2", "to": "d4" },
+      "l7": { "id": "l7", "from": "d5", "to": "d6" },
+      "l8": { "id": "l8", "from": "d5", "to": "d7" },
+      "l9": { "id": "l9", "from": "d8", "to": "d9" },
+      "l10": { "id": "l10", "from": "d8", "to": "d10" },
+      "l11": { "id": "l11", "from": "d11", "to": "d12" },
+      "l12": { "id": "l12", "from": "d11", "to": "d13" }
+    },
+    "frames": {
+      "f30": { "id": "f30", "x": 10, "y": 10, "w": 410, "h": 242, "label": "Bâtiment A · 1er étage · Salle 101", "bg": "#dbeafe", "border": "#2563eb" },
+      "f31": { "id": "f31", "x": 10, "y": 352, "w": 410, "h": 242, "label": "Bâtiment A · 2e étage · Salle 204", "bg": "#dbeafe", "border": "#2563eb" },
+      "f32": { "id": "f32", "x": 440, "y": 10, "w": 410, "h": 242, "label": "Bâtiment B · 1er étage · Salle 105", "bg": "#dcfce7", "border": "#16a34a" },
+      "f33": { "id": "f33", "x": 440, "y": 352, "w": 410, "h": 242, "label": "Bâtiment B · 2e étage · Salle 210", "bg": "#dcfce7", "border": "#16a34a" }
+    },
+    "texts": {}
+  },
+  "activity": {
+    "title": "Réseau du collège — Adressage par salle",
+    "level": "Collège — Cycle 4",
+    "instructions": "Le réseau du collège utilise des adresses IP fixes, construites selon la position de chaque poste :\n• 1er nombre : 10 (le collège)\n• 2e nombre : le bâtiment (1 = bâtiment A, 2 = bâtiment B)\n• 3e nombre : le numéro de la salle\n• 4e nombre : le numéro du poste\nLe masque est 255.0.0.0 pour tous les postes.\n\nChaque poste est nommé d'après sa salle et son numéro : A101-P2 est le poste 2 de la salle 101 du bâtiment A.\n\n🔍 Votre mission :\n1. Un PC n'est plus connecté : retrouvez-le et rebranchez-le au switch de sa salle.\n2. Un PC a une adresse IP incorrecte : retrouvez-le et corrigez son adresse grâce à son nom et à sa salle.\n3. Ajoutez un poste dans la salle 210 du bâtiment B : nommez-le B210-P3, câblez-le au switch de la salle et donnez-lui la bonne adresse IP et le bon masque.\n\n💡 Pour vérifier : passez en mode Simulation et testez vos corrections avec ping.",
+    "masteryscore": 60,
+    "displayMode": "full",
+    "objectives": [
+      { "id": 1, "label": "Le PC débranché est de nouveau relié au switch de sa salle", "check": "cable_exists", "params": { "devA": "A204-P2", "devB": "SW-A204" }, "points": 20, "hint": "Cherchez dans les salles le PC qui n'a pas de câble, puis reliez-le au switch de sa salle." },
+      { "id": 2, "label": "L'adresse IP du PC mal configuré est corrigée", "check": "ip_configured", "params": { "dev": "B105-P2", "ip": "10.2.105.2" }, "points": 20, "hint": "Comparez le nom et la salle de chaque PC avec son adresse IP : quel nombre ne correspond pas ?" },
+      { "id": 3, "label": "Le poste B210-P3 est ajouté", "check": "device_added", "params": { "newdev": "B210-P3", "type": "pc" }, "points": 20, "hint": "Glissez un PC depuis la palette dans la salle 210, puis changez son nom dans ses propriétés." },
+      { "id": 4, "label": "Le poste B210-P3 est relié au switch de sa salle", "check": "cable_exists", "params": { "devA": "B210-P3", "devB": "SW-B210" }, "points": 20, "hint": "Avec l'outil Câble, reliez le poste au switch de la salle." },
+      { "id": 5, "label": "Le poste B210-P3 a la bonne adresse IP", "check": "ip_configured", "params": { "dev": "B210-P3", "ip": "10.2.210.3" }, "points": 20, "hint": "Appliquez la règle : collège, bâtiment, salle, poste." }
+    ],
+    "faults": [
+      { "id": 1, "type": "missing_cable", "devA": "A204-P2", "devB": "SW-A204" },
+      { "id": 2, "type": "bad_ip", "dev": "B105-P2", "badValue": "10.1.105.2" }
+    ]
+  }
+}

@@ -57,7 +57,7 @@ node sim-tests.js
 
 ### Scénarios prêts à l'emploi (`scenarios/`)
 
-Trois scénarios JSON complets couvrant l'ensemble des 14 types d'objectifs et des 7 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
+Quatre scénarios JSON complets couvrant l'ensemble des 14 types d'objectifs et des 7 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
 
 #### `scenarios/reseau-maison.json`
 **Réseau Maison — Panne WiFi** — niveau 4e/3e
@@ -89,6 +89,18 @@ Pannes : IP incorrecte sur PC-Salle2 + SSID incorrect sur la Box WiFi.
 17 objectifs — 100 points — seuil 65 %.
 
 Objectifs couverts : **tous les 14 types** (`cable_exists`, `ssid_configured`, `service_active`, `wifi_link`, `ip_configured`, `gateway_configured`, `dns_configured`, `device_added`, `service_active`, `dns_record`, `route_exists`, `ping_success`, `http_success`, `dns_success`, `dhcp_success`).
+
+---
+
+#### `scenarios/reseau-college.json`
+**Réseau du collège — Adressage par salle** — niveau collège (cycle 4)
+
+Topologie : Switch-College, 4 salles encadrées (bâtiments A et B, 2 salles chacun) avec un switch et 2 PC par salle, en IP fixes.
+Plan d'adressage : `10.<bâtiment>.<salle>.<poste>`, masque `255.0.0.0` (bâtiment A = 1, B = 2).
+Pannes : câble débranché sur A204-P2 + IP incorrecte sur B105-P2. L'élève ajoute aussi le poste B210-P3.
+5 objectifs — 100 points — seuil 60 %.
+
+Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`.
 
 ---
 
