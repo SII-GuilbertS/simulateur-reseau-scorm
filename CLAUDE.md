@@ -104,9 +104,7 @@ et imbriqué).
 | `sim-engine.js` | Source du moteur réseau IPv4 partagé builder + template élève |
 | `template-extra.js` | JS spécifique au template élève (SCORM, `applyFaults`, rendu de l'onglet activité) |
 | `template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
-| `build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`) |
+| `build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
 | `validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `sim-tests.js` | Suite de 128 tests unitaires Node.js |
-
-Il n'y a pas de script `gen_docs.py` dans le projet actuellement — les docs `doc-prof`/`doc-eleve`
-(pdf/docx) sont maintenues manuellement.
+| `gen_docs.py` | Génère `doc-prof.pdf` et `doc-eleve.pdf` via reportlab. Appelé par `python3 build.py --docs` |

@@ -22,6 +22,7 @@ Usage :
     python3 build.py --fix        — répare les checks KO
     python3 build.py --rebuild    — régénère depuis sim-engine.js + template-extra.js
     python3 build.py --rebuild --fix  — régénère + répare si nécessaire
+    python3 build.py --docs       — régénère doc-prof.pdf + doc-eleve.pdf via gen_docs.py
 """
 import sys, base64, re, os
 
@@ -33,6 +34,22 @@ SKEL_HTML = os.path.join(DIR, "template-skeleton.html")
 
 FIX_MODE     = "--fix" in sys.argv
 REBUILD_MODE = "--rebuild" in sys.argv
+DOCS_MODE    = "--docs" in sys.argv
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Mode --docs : délègue à gen_docs.py et sort
+# ─────────────────────────────────────────────────────────────────────────────
+if DOCS_MODE:
+    import importlib.util, pathlib
+    gen_path = pathlib.Path(__file__).parent / "gen_docs.py"
+    spec = importlib.util.spec_from_file_location("gen_docs", gen_path)
+    gen_docs = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen_docs)
+    base = pathlib.Path(__file__).parent
+    gen_docs.build_prof(str(base / "doc-prof.pdf"))
+    gen_docs.build_eleve(str(base / "doc-eleve.pdf"))
+    print("✓  Documentation régénérée.")
+    sys.exit(0)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Chargement

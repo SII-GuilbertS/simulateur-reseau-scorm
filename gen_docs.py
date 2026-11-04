@@ -1,0 +1,516 @@
+#!/usr/bin/env python3
+"""Génération doc-prof.pdf et doc-eleve.pdf
+Usage :
+  python3 gen_docs.py               # génère les deux PDFs à côté du script
+  python3 build.py --docs           # même chose via le pipeline build.py
+"""
+import pathlib, sys
+sys.stdout.reconfigure(encoding='utf-8')
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm, cm
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    PageBreak, HRFlowable
+)
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+
+W, H = A4
+MARGIN = 2*cm
+
+# ── Couleurs ─────────────────────────────────────────────────────────────────
+NAVY   = colors.HexColor('#1a365d')
+RED    = colors.HexColor('#e94560')
+BLUE   = colors.HexColor('#2b6cb0')
+LGRAY  = colors.HexColor('#f0f4f8')
+MGRAY  = colors.HexColor('#e2e8f0')
+DGRAY  = colors.HexColor('#4a5568')
+WHITE  = colors.white
+LGREEN = colors.HexColor('#f0fff4')
+LRED   = colors.HexColor('#fff5f5')
+GREEN  = colors.HexColor('#2f855a')
+DGREEN = colors.HexColor('#1a4731')
+
+# ── Styles ────────────────────────────────────────────────────────────────────
+SS = getSampleStyleSheet()
+
+def mkstyle(name, **kw):
+    base = kw.pop('parent', 'Normal')
+    return ParagraphStyle(name, parent=SS[base], **kw)
+
+BODY   = mkstyle('Body',  fontName='Helvetica', fontSize=9.5, leading=14, alignment=TA_JUSTIFY, spaceAfter=6)
+BODY_L = mkstyle('BodyL', fontName='Helvetica', fontSize=9.5, leading=14, alignment=TA_LEFT,    spaceAfter=4)
+H1     = mkstyle('H1',    fontName='Helvetica-Bold', fontSize=14, leading=18, textColor=NAVY, spaceBefore=16, spaceAfter=8)
+H2     = mkstyle('H2',    fontName='Helvetica-Bold', fontSize=11, leading=14, textColor=BLUE, spaceBefore=12, spaceAfter=6)
+MONO   = mkstyle('Mono',  fontName='Courier', fontSize=8.5, leading=12, textColor=DGRAY)
+CELL   = mkstyle('Cell',  fontName='Helvetica', fontSize=8.8, leading=12)
+CELL_B = mkstyle('CellB', fontName='Helvetica-Bold', fontSize=8.8, leading=12)
+INFO   = mkstyle('Info',  fontName='Helvetica', fontSize=8.8, leading=13,
+                 textColor=colors.HexColor('#2b4c7e'), backColor=colors.HexColor('#ebf4ff'))
+WARN   = mkstyle('Warn',  fontName='Helvetica', fontSize=8.8, leading=13,
+                 textColor=colors.HexColor('#742a2a'), backColor=LRED)
+TIP    = mkstyle('Tip',   fontName='Helvetica', fontSize=8.8, leading=13,
+                 textColor=colors.HexColor('#1a4731'), backColor=LGREEN)
+
+CONTENT_W = W - 2*MARGIN
+
+def hr():
+    return HRFlowable(width=CONTENT_W, thickness=1.5, color=MGRAY, spaceAfter=6, spaceBefore=4)
+
+def callout(text, style=INFO, icon='ℹ'):
+    tbl = Table([[Paragraph(f'<b>{icon}</b> {text}', style)]], colWidths=[CONTENT_W])
+    tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(-1,-1), style.backColor),
+        ('BOX',           (0,0),(-1,-1), 1, colors.HexColor('#bee3f8')),
+        ('TOPPADDING',    (0,0),(-1,-1), 6),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 6),
+        ('LEFTPADDING',   (0,0),(-1,-1), 10),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 10),
+    ]))
+    return tbl
+
+def table_obj(rows, col_widths):
+    ts = TableStyle([
+        ('FONTNAME',      (0,0),(-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE',      (0,0),(-1,-1), 8.5),
+        ('LEADING',       (0,0),(-1,-1), 12),
+        ('BACKGROUND',    (0,0),(-1, 0), NAVY),
+        ('TEXTCOLOR',     (0,0),(-1, 0), WHITE),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1), [WHITE, LGRAY]),
+        ('GRID',          (0,0),(-1,-1), 0.5, MGRAY),
+        ('TOPPADDING',    (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 5),
+        ('LEFTPADDING',   (0,0),(-1,-1), 8),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 8),
+        ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+    ])
+    t = Table(rows, colWidths=col_widths, repeatRows=1)
+    t.setStyle(ts)
+    return t
+
+def workflow_table(rows):
+    ts = TableStyle([
+        ('FONTNAME',      (0,0),(0,-1), 'Helvetica-Bold'),
+        ('FONTNAME',      (1,0),(1,-1), 'Helvetica-Bold'),
+        ('FONTSIZE',      (0,0),(-1,-1), 8.8),
+        ('LEADING',       (0,0),(-1,-1), 13),
+        ('ROWBACKGROUNDS',(0,0),(-1,-1), [WHITE, LGRAY]),
+        ('BOX',           (0,0),(-1,-1), 1, MGRAY),
+        ('INNERGRID',     (0,0),(-1,-1), 0.5, MGRAY),
+        ('TOPPADDING',    (0,0),(-1,-1), 6),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 6),
+        ('LEFTPADDING',   (0,0),(-1,-1), 8),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 8),
+        ('ALIGN',         (0,0),(0,-1), 'CENTER'),
+        ('BACKGROUND',    (0,0),(0,-1), NAVY),
+        ('TEXTCOLOR',     (0,0),(0,-1), WHITE),
+        ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
+    ])
+    t = Table(rows, colWidths=[22*mm, 55*mm, CONTENT_W-77*mm])
+    t.setStyle(ts)
+    return t
+
+# ── Templates de page ─────────────────────────────────────────────────────────
+def cover_page(canvas, doc):
+    canvas.saveState()
+    canvas.setFillColor(NAVY)
+    canvas.rect(0, H*0.42, W, H*0.58, fill=1, stroke=0)
+    canvas.setFillColor(RED)
+    canvas.rect(0, H*0.42, W, 4*mm, fill=1, stroke=0)
+    canvas.setFillColor(RED)
+    canvas.roundRect(W/2-28*mm, H*0.62, 56*mm, 8*mm, 3*mm, fill=1, stroke=0)
+    canvas.setFillColor(WHITE); canvas.setFont('Helvetica-Bold', 9)
+    canvas.drawCentredString(W/2, H*0.622+1.5*mm, doc._badge)
+    canvas.setFillColor(WHITE); canvas.setFont('Helvetica-Bold', 34)
+    canvas.drawCentredString(W/2, H*0.55, doc._title)
+    canvas.setFont('Helvetica', 14)
+    canvas.drawCentredString(W/2, H*0.50, 'SCORM Builder — Simulateur Réseau IPv4')
+    canvas.setFillColor(BLUE); canvas.setFont('Helvetica-Oblique', 10.5)
+    canvas.drawCentredString(W/2, H*0.455, doc._tagline)
+    canvas.setFillColor(colors.HexColor('#f7f9fc'))
+    canvas.rect(0, 0, W, H*0.42, fill=1, stroke=0)
+    canvas.setStrokeColor(MGRAY); canvas.setLineWidth(1)
+    canvas.line(MARGIN, H*0.20, W-MARGIN, H*0.20)
+    canvas.setFillColor(DGRAY); canvas.setFont('Helvetica', 9)
+    canvas.drawCentredString(W/2, H*0.225, f'Simulateur Réseau IPv4  |  {doc._subtitle}')
+    canvas.setFont('Helvetica-Oblique', 8.5)
+    canvas.setFillColor(colors.HexColor('#718096'))
+    canvas.drawCentredString(W/2, H*0.195, doc._subnote)
+    canvas.restoreState()
+
+def page_template(canvas, doc):
+    canvas.saveState()
+    canvas.setFillColor(doc._hdr_color)
+    canvas.rect(0, H-14*mm, W, 14*mm, fill=1, stroke=0)
+    canvas.setFillColor(doc._hdr_accent)
+    canvas.rect(0, H-14.8*mm, W, 1.2*mm, fill=1, stroke=0)
+    canvas.setFillColor(WHITE); canvas.setFont('Helvetica-Bold', 8.5)
+    canvas.drawString(MARGIN, H-9.5*mm, '■ Simulateur Réseau IPv4')
+    canvas.setFont('Helvetica', 8.5)
+    canvas.drawRightString(W-MARGIN, H-9.5*mm, doc._headertitle)
+    canvas.setStrokeColor(MGRAY); canvas.setLineWidth(0.5)
+    canvas.line(MARGIN, 14*mm, W-MARGIN, 14*mm)
+    canvas.setFillColor(colors.HexColor('#718096')); canvas.setFont('Helvetica', 7.5)
+    canvas.drawCentredString(W/2, 8*mm, f'Page {doc.page}')
+    canvas.restoreState()
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  DOC PROF  v1.2
+# ══════════════════════════════════════════════════════════════════════════════
+def build_prof(out_path):
+    doc = SimpleDocTemplate(out_path, pagesize=A4,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN+5*mm, bottomMargin=MARGIN+3*mm)
+    doc._badge       = 'Mode Constructeur'
+    doc._title       = 'Guide Enseignant'
+    doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
+    doc._subtitle    = 'Documentation v1.2'
+    doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
+    doc._headertitle = 'Guide Enseignant'
+    doc._hdr_color   = NAVY
+    doc._hdr_accent  = RED
+
+    story = [Paragraph(' ', BODY), PageBreak()]
+
+    # 1. Présentation
+    story += [
+        Paragraph('1. Présentation de l\'outil', H1), hr(),
+        Paragraph(
+            'Le <b>SCORM Builder</b> est un outil standalone (fichier HTML unique) permettant de '
+            'concevoir des activités réseau pour vos élèves, de les configurer avec des objectifs '
+            'pédagogiques évalués et des pannes à diagnostiquer, puis de les exporter en package '
+            'SCORM 1.2 prêt à être déposé dans Moodle. Il fonctionne entièrement dans votre navigateur, '
+            'sans installation ni connexion internet.',
+            BODY),
+        callout('Ouvrez simplement scorm-builder.html dans Chrome ou Firefox. '
+                'Aucune dépendance externe n\'est requise pour construire le réseau et configurer l\'évaluation.'),
+        Spacer(1, 8),
+    ]
+
+    # 2. Les trois onglets
+    story += [Paragraph('2. Les trois onglets du Builder', H1), hr()]
+
+    story += [
+        Paragraph('2.1 Onglet 1 — Construire le réseau', H2),
+        Paragraph(
+            'La palette propose sept types d\'appareils : <b>PC</b>, <b>Serveur</b>, <b>Switch</b>, '
+            '<b>Routeur</b>, <b>Box WiFi</b> (routeur WiFi avec DHCP intégré), <b>Internet</b> '
+            'et l\'outil <b>Câble</b>. Faites glisser les appareils sur le canevas, puis configurez '
+            'leurs propriétés (IP, masque, passerelle, DNS, services HTTP/DNS/DHCP, SSID WiFi) '
+            'dans le panneau de droite.',
+            BODY),
+        callout('<b>Ce réseau devient le réseau de départ de l\'activité élève.</b>', INFO, '■'),
+        Paragraph('• Outil <b>Câble</b> : cliquez sur deux appareils pour les relier.', BODY_L),
+        Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC.', BODY_L),
+        Paragraph('• <b>Ctrl+Z / Ctrl+Y</b> : annuler / rétablir. <b>Ctrl+C / Ctrl+V</b> : copier / coller un appareil.', BODY_L),
+        Paragraph('• <b>Ctrl+S</b> : sauvegarder la session dans le navigateur.', BODY_L),
+        Spacer(1, 6),
+    ]
+
+    story += [
+        Paragraph('2.2 Onglet 2 — Configurer l\'évaluation', H2),
+        Paragraph(
+            'Définissez le titre, le niveau scolaire, le score de maîtrise et le mode d\'affichage. '
+            'Ajoutez des <b>objectifs</b> (chacun associé à un type de vérification et un nombre de '
+            'points) et des <b>pannes</b> à injecter silencieusement dans le réseau de départ.',
+            BODY),
+        Paragraph('<b>14 types d\'objectifs disponibles :</b>', H2),
+    ]
+
+    obj_rows = [
+        ['Type', 'Libellé', 'Description'],
+        ['ping_success',       'Ping réussi',        'Vérifie qu\'un ping entre deux appareils aboutit.'],
+        ['dns_success',        'Résolution DNS',      'Vérifie qu\'un nom de domaine est résolu.'],
+        ['http_success',       'Accès HTTP',          'Vérifie l\'accès à une page web par IP ou hostname.'],
+        ['dhcp_success',       'Attribution DHCP',    'Vérifie qu\'un appareil obtient une IP via DHCP.'],
+        ['cable_exists',       'Câble existant',      'Vérifie qu\'un câble relie deux appareils nommés.'],
+        ['wifi_link',          'Liaison WiFi',        'Vérifie qu\'une liaison WiFi existe.'],
+        ['ip_configured',      'IP configurée',       'Vérifie qu\'un appareil a une IP précise.'],
+        ['gateway_configured', 'Passerelle',          'Vérifie la passerelle d\'un appareil.'],
+        ['dns_configured',     'DNS configuré',       'Vérifie l\'adresse DNS d\'un appareil.'],
+        ['service_active',     'Service actif',       'Vérifie qu\'un service HTTP/DNS/DHCP est activé.'],
+        ['device_added',       'Appareil présent',    'Vérifie qu\'un appareil d\'un type donné est présent.'],
+        ['ssid_configured',    'SSID WiFi',           'Vérifie que la Box WiFi diffuse le bon SSID.'],
+        ['route_exists',       'Route existante',     'Vérifie une entrée dans la table de routage.'],
+        ['dns_record',         'Enregistrement DNS',  'Vérifie qu\'un enregistrement DNS pointe vers la bonne IP.'],
+    ]
+    cw = [44*mm, 36*mm, CONTENT_W-80*mm]
+    rows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
+               Paragraph(r[1], CELL_B if i==0 else CELL),
+               Paragraph(r[2], CELL)] for i, r in enumerate(obj_rows)]
+    story.append(table_obj(rows_p, cw))
+    story.append(Spacer(1, 10))
+
+    story += [
+        Paragraph('2.2.1 Mode panne — Injecter des erreurs', H2),
+        Paragraph(
+            'La section <b>Pannes</b> injecte des erreurs silencieuses dans le réseau de départ. '
+            'Les élèves doivent les identifier et les corriger pour valider les objectifs.',
+            BODY),
+    ]
+    fault_rows = [
+        ['Type', 'Effet', 'Paramètres'],
+        ['bad_ip',       'IP incorrecte',      'appareil + valeur incorrecte'],
+        ['bad_mask',     'Masque incorrect',   'appareil + valeur incorrecte'],
+        ['bad_gateway',  'Passerelle fausse',  'appareil + valeur incorrecte'],
+        ['bad_dns',      'DNS incorrect',      'appareil + valeur incorrecte'],
+        ['service_down', 'Service désactivé',  'appareil + service (http/dns/dhcp)'],
+        ['missing_cable','Câble débranché',    'appareil A + appareil B'],
+        ['ssid_wrong',   'SSID incorrect',     'Box WiFi + valeur incorrecte'],
+    ]
+    fw = [40*mm, 46*mm, CONTENT_W-86*mm]
+    frows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
+                Paragraph(r[1], CELL), Paragraph(r[2], CELL)] for i, r in enumerate(fault_rows)]
+    story.append(table_obj(frows_p, fw))
+    story.append(Spacer(1, 6))
+
+    story += [
+        Paragraph('2.3 Onglet 3 — Générer le package', H2),
+        Paragraph(
+            'Définissez le <b>mot de passe professeur</b> (déverrouille le mode enseignant côté élève), '
+            'puis choisissez votre format d\'export.',
+            BODY),
+        Paragraph('■ <b>Package SCORM (.zip)</b> — À importer dans Moodle. Remonte la note automatiquement.', BODY_L),
+        Paragraph('■ <b>HTML standalone</b> — Fichier .html unique, ouvrable directement dans Chrome/Firefox.', BODY_L),
+        Paragraph('■ <b>Énoncé imprimable</b> — Page HTML avec topologie SVG, liste des objectifs et zone élève '
+                  '(Nom/Classe/Score). Bouton Imprimer intégré, optimisé A4.', BODY_L),
+        Paragraph('■ <b>Aperçu élève</b> — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder.', BODY_L),
+        Spacer(1, 4),
+    ]
+
+    # 3. Scénarios
+    story += [
+        Paragraph('3. Scénarios prêts à l\'emploi', H1), hr(),
+        Paragraph(
+            'Trois scénarios JSON complets sont fournis dans le dossier <b>scenarios/</b>. '
+            'Chargez-les via <b>Onglet 3 → 📂 Importer un scénario</b>.',
+            BODY),
+    ]
+    sc_rows = [
+        ['Fichier', 'Titre', 'Niveau', 'Obj. / Seuil'],
+        ['scenarios/reseau-maison.json',    'Réseau Maison — Panne WiFi',           '4e / 3e',       '10 / 60%'],
+        ['scenarios/reseau-entreprise.json','Réseau Entreprise — Serveur en panne', 'Term. / BTS',   '13 / 60%'],
+        ['scenarios/reseau-lycee.json',     'Réseau Lycée — Diagnostic complet',    'NSI / BTS SIO', '17 / 65%'],
+    ]
+    sw = [58*mm, 52*mm, 24*mm, CONTENT_W-134*mm]
+    srows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
+                Paragraph(r[1], CELL), Paragraph(r[2], CELL), Paragraph(r[3], CELL)]
+               for i, r in enumerate(sc_rows)]
+    story.append(table_obj(srows_p, sw))
+    story += [
+        Spacer(1, 6),
+        callout('reseau-lycee.json couvre les <b>14 types d\'objectifs</b> et les <b>7 types de pannes</b>.', TIP, '💡'),
+        Spacer(1, 4),
+    ]
+
+    # 4. Workflow
+    story += [Paragraph('4. Workflow complet', H1), hr()]
+    wf_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
+        ['1', 'Ouvrir le Builder',        'Double-cliquez sur scorm-builder.html dans Chrome ou Firefox.'],
+        ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP.'],
+        ['3', 'Configurer l\'évaluation', 'Onglet 2 : objectifs, pannes, score de maîtrise.'],
+        ['4', 'Générer',                  'Onglet 3 : SCORM, HTML ou énoncé imprimable.'],
+        ['5', 'Tester',                   'Bouton "Aperçu élève" ou ouvrir le .html exporté.'],
+        ['6', 'Déployer sur Moodle',      'Importez le .zip SCORM dans votre cours.'],
+        ['7', 'Sauvegarder le scénario',  'Onglet 3 → Exporter le scénario (.json) pour réutiliser.'],
+    ]]
+    story.append(workflow_table(wf_p))
+    story.append(Spacer(1, 8))
+
+    # 5. Raccourcis
+    story += [Paragraph('5. Raccourcis clavier', H1), hr()]
+    kb_rows = [
+        ['Raccourci', 'Action'],
+        ['Ctrl+1 / 2 / 3', 'Naviguer entre les onglets'],
+        ['Ctrl+S',          'Sauvegarder la session'],
+        ['Ctrl+Z / Ctrl+Y', 'Annuler / Rétablir'],
+        ['Ctrl+C / Ctrl+V', 'Copier / Coller un appareil sélectionné'],
+        ['Suppr',           'Supprimer l\'appareil ou le câble sélectionné'],
+        ['F11',             'Basculer en plein écran'],
+    ]
+    kb_p = [[Paragraph(r[0], MONO if i>0 else CELL_B), Paragraph(r[1], CELL)]
+            for i, r in enumerate(kb_rows)]
+    story.append(table_obj(kb_p, [45*mm, CONTENT_W-45*mm]))
+
+    doc.build(story, onFirstPage=cover_page, onLaterPages=page_template)
+    print(f'✓  {out_path}')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  DOC ELEVE  v1.2
+# ══════════════════════════════════════════════════════════════════════════════
+def build_eleve(out_path):
+    doc = SimpleDocTemplate(out_path, pagesize=A4,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN+5*mm, bottomMargin=MARGIN+3*mm)
+    doc._badge       = 'Mode Simulation'
+    doc._title       = 'Guide Élève'
+    doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
+    doc._subtitle    = 'Guide élève v1.2'
+    doc._subnote     = 'Activité pédagogique — Lycée'
+    doc._headertitle = 'Guide Élève'
+    doc._hdr_color   = DGREEN
+    doc._hdr_accent  = GREEN
+
+    def cover_eleve(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(DGREEN)
+        canvas.rect(0, H*0.42, W, H*0.58, fill=1, stroke=0)
+        canvas.setFillColor(GREEN)
+        canvas.rect(0, H*0.42, W, 4*mm, fill=1, stroke=0)
+        canvas.setFillColor(GREEN)
+        canvas.roundRect(W/2-28*mm, H*0.62, 56*mm, 8*mm, 3*mm, fill=1, stroke=0)
+        canvas.setFillColor(WHITE); canvas.setFont('Helvetica-Bold', 9)
+        canvas.drawCentredString(W/2, H*0.622+1.5*mm, doc._badge)
+        canvas.setFillColor(WHITE); canvas.setFont('Helvetica-Bold', 38)
+        canvas.drawCentredString(W/2, H*0.545, 'Guide Élève')
+        canvas.setFont('Helvetica', 14)
+        canvas.drawCentredString(W/2, H*0.50, 'Simulateur Réseau IPv4')
+        canvas.setFillColor(GREEN); canvas.setFont('Helvetica-Oblique', 10.5)
+        canvas.drawCentredString(W/2, H*0.455, doc._tagline)
+        canvas.setFillColor(colors.HexColor('#f7f9fc'))
+        canvas.rect(0, 0, W, H*0.42, fill=1, stroke=0)
+        canvas.setStrokeColor(MGRAY); canvas.setLineWidth(1)
+        canvas.line(MARGIN, H*0.20, W-MARGIN, H*0.20)
+        canvas.setFillColor(DGRAY); canvas.setFont('Helvetica', 9)
+        canvas.drawCentredString(W/2, H*0.225, f'Simulateur Réseau IPv4  |  {doc._subtitle}')
+        canvas.setFont('Helvetica-Oblique', 8.5)
+        canvas.setFillColor(colors.HexColor('#718096'))
+        canvas.drawCentredString(W/2, H*0.195, doc._subnote)
+        canvas.restoreState()
+
+    story = [Paragraph(' ', BODY), PageBreak()]
+
+    # 1. Prise en main
+    story += [
+        Paragraph('1. Prise en main du simulateur', H1), hr(),
+        Paragraph(
+            'L\'interface se compose de trois zones : le <b>canevas réseau</b> (centre) avec les '
+            'appareils et les câbles, le <b>panneau de propriétés</b> (droite, en mode Configuration) '
+            'pour configurer les appareils, et l\'<b>onglet 📋 Activité</b> (bas, toujours visible) '
+            'qui affiche vos objectifs et votre score.',
+            BODY),
+        Paragraph('<b>Les deux modes :</b>', H2),
+        Paragraph('• <b>Mode Configuration</b> — Modifiez le réseau : appareils, câbles, adresses IP.', BODY_L),
+        Paragraph('• <b>Mode Simulation</b> — Appareils sous tension. Cliquez pour ouvrir le terminal.', BODY_L),
+        callout('En mode Simulation, vous ne pouvez plus modifier le réseau. '
+                'Repassez en Configuration pour câbler ou reconfigurer.', WARN, '⚠'),
+        Spacer(1, 6),
+    ]
+
+    # 2. Terminal
+    story += [
+        Paragraph('2. Le terminal — commandes disponibles', H1), hr(),
+        Paragraph(
+            'En mode Simulation, cliquez sur un PC ou Serveur pour ouvrir son terminal. '
+            'Tapez la commande et appuyez sur <b>Entrée</b>. Utilisez ↑ / ↓ pour l\'historique.',
+            BODY),
+    ]
+    cmd_rows = [
+        ['Commande', 'Description', 'Exemple'],
+        ['ping',       'Ping vers une IP ou un nom.',               'ping 192.168.1.1'],
+        ['nslookup',   'Résout un nom de domaine en IP.',            'nslookup web.ecole.fr'],
+        ['http',       'Accède à une page web.',                     'http 192.168.1.1'],
+        ['dhcp',       'Demande une IP automatique.',                'dhcp'],
+        ['traceroute', 'Affiche le chemin réseau.',                  'traceroute 8.8.8.8'],
+        ['ifconfig',   'Affiche la configuration IP.',              'ifconfig'],
+        ['route',      'Affiche la table de routage.',              'route'],
+        ['arp',        'Affiche la table ARP (IP ↔ MAC).',         'arp'],
+        ['clear',      'Efface le terminal.',                        'clear'],
+        ['help',       'Liste toutes les commandes.',               'help'],
+    ]
+    cw_cmd = [25*mm, 70*mm, CONTENT_W-95*mm]
+    cmd_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
+              Paragraph(r[1], CELL),
+              Paragraph(r[2], MONO if i>0 else CELL_B)] for i, r in enumerate(cmd_rows)]
+    story.append(table_obj(cmd_p, cw_cmd))
+    story.append(Spacer(1, 8))
+
+    # 3. Configurer les IP
+    story += [
+        Paragraph('3. Configurer les adresses IP', H1), hr(),
+        Paragraph(
+            'En <b>mode Configuration</b>, cliquez sur un appareil pour afficher ses propriétés '
+            'dans le panneau de droite :',
+            BODY),
+    ]
+    ip_rows = [
+        ['Champ', 'Exemple', 'Description'],
+        ['Adresse IP',           '192.168.1.10',  'Identifiant unique de l\'appareil sur le réseau.'],
+        ['Masque de sous-réseau','255.255.255.0',  'Délimite la partie réseau et la partie hôte.'],
+        ['Passerelle (Gateway)', '192.168.1.254',  'Adresse du routeur pour sortir du réseau local.'],
+        ['DNS',                  '192.168.1.1',    'Serveur qui traduit les noms de domaine en IP.'],
+    ]
+    ip_p = [[Paragraph(r[0], CELL_B if i==0 else CELL_B),
+             Paragraph(r[1], CELL_B if i==0 else MONO),
+             Paragraph(r[2], CELL_B if i==0 else CELL)] for i, r in enumerate(ip_rows)]
+    story.append(table_obj(ip_p, [40*mm, 36*mm, CONTENT_W-76*mm]))
+    story += [
+        callout('Utilisez la commande <b>dhcp</b> dans le terminal pour obtenir une IP automatiquement '
+                '(si un serveur DHCP est présent sur le réseau).', INFO, '■'),
+        Spacer(1, 8),
+    ]
+
+    # 4. Objectifs
+    story += [
+        Paragraph('4. Les objectifs et le score', H1), hr(),
+        Paragraph(
+            'L\'onglet <b>📋 Activité</b> en bas liste vos tâches. Il est <b>toujours visible</b>, '
+            'quel que soit le mode. Chaque objectif validé ajoute des points à votre score.',
+            BODY),
+        Paragraph('• ✅ <b>Objectif validé</b> — condition remplie, points attribués.', BODY_L),
+        Paragraph('• ⭕ <b>Non validé</b> — vérifiez câblage et configuration IP.', BODY_L),
+        callout('Le score est automatiquement transmis à Moodle à la fermeture de l\'activité.', INFO, '■'),
+        Spacer(1, 8),
+    ]
+
+    # 5. Exemple guidé
+    story += [
+        Paragraph('5. Exemple guidé : configurer un réseau simple', H1), hr(),
+    ]
+    ex_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
+        ['Étape 1', 'Mode Configuration',   'Cliquez sur CONFIG en haut à droite.'],
+        ['Étape 2', 'Vérifier le câblage',  'PC → Switch → Serveur.'],
+        ['Étape 3', 'Configurer le Serveur','IP : 192.168.1.1 / Masque : 255.255.255.0'],
+        ['Étape 4', 'Configurer le PC',     'IP : 192.168.1.10 / Masque : 255.255.255.0'],
+        ['Étape 5', 'Mode Simulation',      'Cliquez sur SIMU en haut à droite.'],
+        ['Étape 6', 'Tester',               'Ouvrez le terminal du PC : ping 192.168.1.1'],
+        ['Étape 7', 'Vérifier',             '✅ apparaît dans l\'onglet Activité si le ping réussit.'],
+    ]]
+    story.append(workflow_table(ex_p))
+    story.append(Spacer(1, 8))
+
+    # 6. Dépannage
+    story += [Paragraph('6. En cas de problème', H1), hr()]
+    for title, desc in [
+        ('Le ping échoue',
+         'Vérifiez que les deux appareils sont dans le même sous-réseau, ou qu\'une passerelle '
+         'est configurée pour sortir du réseau local.'),
+        ('DNS ne résout pas',
+         'Vérifiez que l\'adresse DNS du PC pointe vers un Serveur ayant le service DNS activé '
+         'et que l\'enregistrement du domaine est configuré.'),
+        ('DHCP échoue',
+         'Assurez-vous qu\'une Box WiFi ou un Serveur sur le même segment LAN a le service DHCP activé.'),
+        ('WiFi non connecté',
+         'Vérifiez que le SSID de la Box WiFi est correct et qu\'une liaison WiFi relie votre appareil.'),
+        ('L\'objectif ne se valide pas',
+         'Relisez l\'intitulé et vérifiez chaque paramètre (IP, masque, passerelle, DNS). '
+         'Pour les objectifs de simulation (ping, dns, http), effectuez la commande dans le terminal.'),
+    ]:
+        p = story[-1] if False else Paragraph(f'<font color="#2b6cb0"><b>■ {title}</b></font>', H2)
+        story.append(p)
+        story.append(Paragraph(desc, BODY))
+    story.append(Spacer(1, 4))
+
+    doc.build(story, onFirstPage=cover_eleve, onLaterPages=page_template)
+    print(f'✓  {out_path}')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+if __name__ == '__main__':
+    base = pathlib.Path(__file__).parent
+    build_prof(str(base / 'doc-prof.pdf'))
+    build_eleve(str(base / 'doc-eleve.pdf'))
+    print('Docs générés.')
