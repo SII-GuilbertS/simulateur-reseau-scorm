@@ -3,3 +3,7 @@ site/demo/
 site/scenarios/
 site/scorm-builder.html
 site/doc-*.pdf
+
+# Tests navigateur (Playwright)
+tests/e2e/node_modules/
+tests/e2e/test-results/

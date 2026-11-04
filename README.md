@@ -13,7 +13,7 @@ docs/                Guides enseignant et élève (PDF, Word)
 site/                Site de présentation à envoyer chez l'hébergeur
 src/                 Sources du moteur et du template élève
 tools/               Scripts de build, de validation et de génération
-tests/               Tests unitaires du moteur
+tests/               Tests du moteur (sim-tests.js) et tests navigateur (e2e/)
 ```
 
 ---
@@ -70,6 +70,16 @@ Suite de **209 tests** couvrant le moteur de simulation réseau, l'évaluation e
 node tests/sim-tests.js
 # ✅ 209/209 tests passés — SUCCÈS
 ```
+
+#### `tests/e2e/`
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+
+```bash
+npm --prefix tests/e2e ci     # la première fois
+npm --prefix tests/e2e test
+```
+
+Ces tests ne remplacent pas un essai sur un vrai Moodle, et ne couvrent ni le drag & drop, ni l'énoncé imprimable, ni Firefox.
 
 ---
 
@@ -141,6 +151,7 @@ Guide de prise en main pour les **élèves** : interface, modes Configuration/Si
 | `src/template-extra.js` | JS spécifique au template élève (SCORM, applyFaults, renderActivityTab…) |
 | `tools/build.py` | Script de compilation : `python3 tools/build.py --rebuild` |
 | `tests/sim-tests.js` | Suite de tests unitaires Node.js |
+| `tests/e2e/` | Tests du builder et des exports dans Chrome (Playwright) |
 | `tools/validate.py` | Validation des scénarios JSON |
 
 **Modifier le moteur et régénérer :**

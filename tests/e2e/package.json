@@ -1,0 +1,13 @@
+{
+  "name": "simulateur-reseau-e2e",
+  "private": true,
+  "description": "Tests du builder et des exports dans un vrai navigateur",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "jszip": "^3.10.1"
+  }
+}

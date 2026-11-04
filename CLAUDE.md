@@ -84,6 +84,18 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
+## Tests navigateur : `npm --prefix tests/e2e test` → 12 tests
+
+Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
+poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
+score de départ des 4 scénarios, les copies de `checkDynamicObjective` propres au builder (via
+`nslookup`), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
+
+Non couverts : vrai Moodle, drag & drop et câblage, énoncé imprimable, Firefox. Elle n'est pas dans le
+hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à jour `SCENARIOS` dans
+`builder.spec.js`. À lancer avant chaque push qui touche au builder, aux exports ou aux scénarios.
+
 ## Scénarios
 
 - `scenarios/` — 4 scénarios JSON clés-en-main, prêts à importer via l'onglet 3 (**Générer →
@@ -167,4 +179,5 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
 | `tests/sim-tests.js` | Suite de 209 tests Node.js |
+| `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |
