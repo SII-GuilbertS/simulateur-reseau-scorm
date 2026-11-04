@@ -117,10 +117,25 @@ node sim-tests.js          # → 128/128
 # 3. Régénérer les PDFs
 python3 build.py --docs
 
-# 4. Commiter avec un message de version
-git add doc-prof.pdf doc-eleve.pdf gen_docs.py
+# 4. Mettre à jour le site : dans site/index.html, remplacer le numéro de version partout
+#    (navigation, en-tête, deux cartes de documentation, pied de page) et le mois du pied de page,
+#    ajuster le texte si des fonctionnalités ont changé, refaire site/assets/ si l'interface a changé
+# 5. Régénérer le contenu du site (builder, docs, scénarios, démos)
+python3 build_site.py
+
+# 6. Commiter avec un message de version
+git add doc-prof.pdf doc-eleve.pdf gen_docs.py site/index.html site/assets
 git commit -m "docs: release vX.Y — ..."
 ```
+
+Une release n'est terminée que lorsque `site/` affiche la nouvelle version. L'envoi chez OVH reste
+manuel : à la fin, rappeler à l'utilisateur d'envoyer le contenu de `site/`.
+
+## Site de présentation : `site/`
+
+Contenu à envoyer chez l'hébergeur (OVH). `site/index.html` et `site/assets/` sont maintenus à la
+main ; le reste est généré par `python3 build_site.py` et ignoré par git. Le site n'évolue qu'à
+chaque release (voir le workflow release ci-dessus), pas lors des commits ordinaires.
 
 ## Fichiers sources et leur rôle
 
@@ -131,6 +146,7 @@ git commit -m "docs: release vX.Y — ..."
 | `template-extra.js` | JS spécifique au template élève (SCORM, `applyFaults`, rendu de l'onglet activité) |
 | `template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
 | `build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
+| `build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `sim-tests.js` | Suite de 128 tests unitaires Node.js |
 | `gen_docs.py` | Génère `doc-prof.pdf` et `doc-eleve.pdf` via reportlab. Appelé par `python3 build.py --docs` |

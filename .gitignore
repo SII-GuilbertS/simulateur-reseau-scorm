@@ -1,0 +1,5 @@
+# Copies générées par build_site.py (les originaux sont à la racine du projet)
+site/demo/
+site/scenarios/
+site/scorm-builder.html
+site/doc-*.pdf
