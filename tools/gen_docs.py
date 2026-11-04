@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.4
+#  DOC PROF  v1.5
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.4'
+    doc._subtitle    = 'Documentation v1.5'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -358,7 +358,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.4
+#  DOC ELEVE  v1.5
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -367,7 +367,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.4'
+    doc._subtitle    = 'Guide élève v1.5'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
