@@ -96,6 +96,32 @@ et imbriqué).
 - `TODO.md` — backlog des fonctionnalités à venir ; à consulter avant de proposer de nouvelles
   features
 
+### Règle : ne régénérer la doc qu'à la création d'une version stable
+
+**Ne jamais appeler `python3 build.py --docs` (ni `python3 gen_docs.py`) lors de commits
+ordinaires**, même si du contenu documentable a changé.
+
+La documentation PDF est régénérée **uniquement** lorsque l'utilisateur demande explicitement
+de créer une version stable/release, par exemple :
+- « crée une version stable »
+- « release v1.x »
+- « mets à jour la documentation »
+- « génère les PDFs »
+
+Workflow release :
+```bash
+# 1. S'assurer que les tests passent
+node sim-tests.js          # → 128/128
+
+# 2. Mettre à jour gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
+# 3. Régénérer les PDFs
+python3 build.py --docs
+
+# 4. Commiter avec un message de version
+git add doc-prof.pdf doc-eleve.pdf gen_docs.py
+git commit -m "docs: release vX.Y — ..."
+```
+
 ## Fichiers sources et leur rôle
 
 | Fichier | Rôle |
