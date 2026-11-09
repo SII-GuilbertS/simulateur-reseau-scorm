@@ -375,6 +375,8 @@ body{padding-top:0}/* nav is flex child */
   <div class="hdr-r">
     <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs" style="cursor:pointer">🏅 Score : 0 / 100</div>
     <button class="wbtn icon-only" onclick="resetScore()" title="Remettre le score à zéro et recalculer">🔄</button>
+    <button class="wbtn" onclick="freezeStart()" title="Mémoriser le réseau actuel comme état de départ (fait automatiquement à l'import d'un scénario)">📌 Figer le départ</button>
+    <button class="wbtn" id="btn-reset-start" onclick="resetToStart()" title="Aucun état de départ figé">↺ Réinitialiser</button>
     <div id="score-details"></div>
     <button class="wbtn icon-only" id="btn-fs"  onclick="toggleFullscreen()" title="Plein écran">⤢</button>
 
@@ -3293,6 +3295,44 @@ function resetScore(){
   notif('🔄 Score remis à zéro','info');
 }
 
+/* ── État de départ (Figer / Réinitialiser) ─────────────────
+   Photo des appareils et câbles, prise à l'import d'un scénario ou par « Figer le départ ».
+   Réinitialiser y revient : ajouts supprimés, suppressions et configurations restaurées,
+   positions actuelles et annotations conservées, objectifs remis à zéro. Sans pannes. */
+var START_SNAP=null,START_SNAP_AT=null;
+function freezeStart(silent){
+  START_SNAP=JSON.stringify({devs:S.devs,links:S.links});
+  START_SNAP_AT=new Date();
+  _updStartUI();
+  if(!silent)notif('📌 État de départ figé : '+Object.keys(S.devs).length+' appareils, '+Object.keys(S.links).length+' câbles','ok');
+}
+function _updStartUI(){
+  var b=document.getElementById('btn-reset-start');if(!b)return;
+  b.style.opacity=START_SNAP?'':'.5';
+  b.title=START_SNAP
+    ?"Revenir à l'état de départ figé à "+START_SNAP_AT.toLocaleTimeString().slice(0,5)+" et remettre tous les objectifs à zéro"
+    :"Aucun état de départ figé : cliquez d'abord sur « Figer le départ »";
+}
+function resetToStart(){
+  if(!START_SNAP){notif("📌 Aucun état de départ : cliquez d'abord sur « Figer le départ »",'err');return;}
+  if(!confirm("Réinitialiser le réseau à l'état de départ figé ?\n\n"+
+    "• les appareils et câbles ajoutés seront supprimés\n"+
+    "• les appareils et câbles supprimés seront remis\n"+
+    "• les configurations reviendront à leurs valeurs de départ\n"+
+    "• tous les objectifs repartent de zéro\n\nCtrl+Z permet d'annuler."))return;
+  snapHistory();
+  var snap=JSON.parse(START_SNAP);
+  // Les appareils encore présents gardent leur position actuelle
+  Object.keys(snap.devs).forEach(function(id){
+    var cur=S.devs[id];if(cur){snap.devs[id].x=cur.x;snap.devs[id].y=cur.y;}
+  });
+  S.devs=snap.devs;S.links=snap.links;
+  S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();S.animPhase=null;
+  S.score=0;ACTIVITY_RESULTS={};
+  render();noSel();checkAllObjectives();updScore();
+  notif("↺ Réseau remis à l'état de départ — objectifs remis à zéro",'ok');
+}
+
 function renderScoreDetails(){
   var panel=document.getElementById('score-details');
   if(!panel)return;
@@ -4531,6 +4571,7 @@ var GenModule = (function() {
       if(d.type==='server'&&!d.serverFiles)d.serverFiles={};
     });
     render();
+    freezeStart(true);
     // Restaurer l'évaluation
     EvalModule.setConfig(sc.activity);
     // Restaurer le pwd
