@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.5
+#  DOC PROF  v1.6
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.5'
+    doc._subtitle    = 'Documentation v1.6'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -195,9 +195,11 @@ def build_prof(out_path):
     story += [
         Paragraph('2.1 Onglet 1 — Construire le réseau', H2),
         Paragraph(
-            'La palette propose sept types d\'appareils : <b>PC</b>, <b>Serveur</b>, <b>Switch</b>, '
-            '<b>Routeur</b>, <b>Box WiFi</b> (routeur WiFi avec DHCP intégré), <b>Internet</b> '
-            'et l\'outil <b>Câble</b>. Faites glisser les appareils sur le canevas, puis configurez '
+            'La palette propose quatre modèles de terminaux — <b>PC fixe</b> (câble), <b>PC portable</b> '
+            '(câble et WiFi), <b>Téléphone</b> et <b>Tablette</b> (WiFi uniquement) — ainsi que '
+            '<b>Serveur</b>, <b>Switch</b>, <b>Routeur</b>, <b>Box WiFi</b> (routeur WiFi avec DHCP intégré), '
+            '<b>Internet</b> et l\'outil <b>Câble</b>. Chaque appareil apparaît sous forme de carte '
+            'illustrée. Faites glisser les appareils sur le canevas, puis configurez '
             'leurs propriétés (IP, masque, passerelle, DNS, services HTTP/DNS/DHCP, SSID WiFi) '
             'dans le panneau de droite.',
             BODY),
@@ -206,6 +208,14 @@ def build_prof(out_path):
         Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC.', BODY_L),
         Paragraph('• <b>Ctrl+Z / Ctrl+Y</b> : annuler / rétablir. <b>Ctrl+C / Ctrl+V</b> : copier / coller un appareil.', BODY_L),
         Paragraph('• <b>Ctrl+S</b> : sauvegarder la session dans le navigateur.', BODY_L),
+        Paragraph('• Le <b>score</b> en haut à droite se met à jour à chaque modification du réseau : '
+                  'corrigez le réseau pour vérifier que vos objectifs rapportent bien leurs points.', BODY_L),
+        Paragraph('• <b>Figer le départ</b> mémorise le réseau actuel comme état de départ '
+                  '(fait automatiquement à l\'import d\'un scénario). <b>Réinitialiser</b> y revient après vos '
+                  'essais : appareils et câbles ajoutés supprimés, éléments supprimés remis, configurations '
+                  'restaurées, objectifs remis à zéro. Les positions sont conservées ; Ctrl+Z annule.', BODY_L),
+        callout('L\'export reprend le réseau affiché : après avoir testé vos corrections, '
+                'cliquez sur <b>Réinitialiser</b> avant d\'exporter.', WARN, '⚠'),
         Spacer(1, 6),
     ]
 
@@ -315,7 +325,7 @@ def build_prof(out_path):
         ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP.'],
         ['3', 'Configurer l\'évaluation', 'Onglet 2 : objectifs, pannes, score de maîtrise.'],
         ['4', 'Générer',                  'Onglet 3 : SCORM, HTML ou énoncé imprimable.'],
-        ['5', 'Tester',                   'Bouton "Aperçu élève" ou ouvrir le .html exporté.'],
+        ['5', 'Tester',                   'Corriger le réseau puis Réinitialiser, ou bouton "Aperçu élève".'],
         ['6', 'Déployer sur Moodle',      'Importez le .zip SCORM dans votre cours.'],
         ['7', 'Sauvegarder le scénario',  'Onglet 3 → Exporter le scénario (.json) pour réutiliser.'],
     ]]
@@ -358,7 +368,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.5
+#  DOC ELEVE  v1.6
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -367,7 +377,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.5'
+    doc._subtitle    = 'Guide élève v1.6'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
