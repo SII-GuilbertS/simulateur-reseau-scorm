@@ -38,6 +38,14 @@
 
 - [ ] **Table ARP animée** *(aussi dans priorité haute)* — voir ci-dessus.
 
+- [ ] **Connexion WiFi réelle côté terminal (SSID + mot de passe)** — aujourd'hui seule la Box a un SSID et un mot de passe : tracer une liaison WiFi suffit à connecter l'appareil, le mot de passe n'est jamais vérifié, et la panne `ssid_wrong` ne coupe rien (elle renomme seulement la Box, cf. `reseau-lycee.json`). À faire :
+  1. Section « Connexion WiFi » (SSID + mot de passe) dans les propriétés des terminaux capables de WiFi (portable, téléphone, tablette, PC sans modèle, serveur), pas sur le PC fixe.
+  2. Liaison WiFi fonctionnelle seulement si SSID identique à celui de la Box et mot de passe correct (sauf réseau ouvert) ; sinon liaison en pointillé rouge, `ping`/`dhcp` répondent « Non connecté au WiFi : SSID inconnu / mot de passe incorrect ».
+  3. Pré-remplir SSID et mot de passe de la Box quand l'enseignant trace la liaison ; il les vide ou les fausse pour en faire un exercice.
+  4. Compatibilité : un terminal sans ces champs (anciens scénarios, packages déployés) reste connecté.
+  5. `ssid_wrong` coupe vraiment les terminaux ; nouvelle panne « Mot de passe WiFi incorrect » sur un terminal ; l'objectif `wifi_link` vérifie aussi l'association.
+  6. Pré-remplir les terminaux WiFi de `reseau-maison.json` et `reseau-lycee.json`, revérifier le barème du lycée (sous le seuil avant réparation, 100 après), mettre à jour `sim-tests.js` et `SCENARIOS` dans `builder.spec.js`.
+
 - [ ] **Capture de trames (Wireshark simplifié)** — panneau `📡 Trames` dans le panneau bas, listant les échanges ARP / ICMP / DNS / HTTP en clair au fil des commandes. Très parlant pédagogiquement.
 
 - [ ] **VLAN basique** — segmenter un switch en deux VLANs (access port / trunk). Objectif typique BTS SIO. Nécessite de modifier `cablePath` et `lanSeg`.

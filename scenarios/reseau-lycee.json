@@ -50,7 +50,7 @@
       },
       "d5": {
         "id": "d5",
-        "type": "pc",
+        "type": "pc", "kind": "desktop",
         "name": "PC-Salle1",
         "x": 410, "y": 540,
         "mac": "AA:BB:CC:DD:EE:05",
@@ -62,7 +62,7 @@
       },
       "d6": {
         "id": "d6",
-        "type": "pc",
+        "type": "pc", "kind": "desktop",
         "name": "PC-Salle2",
         "x": 610, "y": 540,
         "mac": "AA:BB:CC:DD:EE:06",
@@ -95,7 +95,7 @@
       },
       "d8": {
         "id": "d8",
-        "type": "pc",
+        "type": "pc", "kind": "tablet",
         "name": "Tablette-Eleve",
         "x": 760, "y": 80,
         "mac": "AA:BB:CC:DD:EE:08",

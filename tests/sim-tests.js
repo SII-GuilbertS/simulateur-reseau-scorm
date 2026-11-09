@@ -915,6 +915,86 @@ test('isRouter reconnaît le wifi_router créé par mkDev', function() {
   ok(isRouter(S.devs[id]), 'isRouter doit retourner true pour un wifi_router');
 });
 
+/* ── Modèles de terminaux (d.kind) ── */
+suite('Modèles de terminaux — connexions imposées par le modèle');
+
+function linkCount(id, wifi) {
+  return Object.values(S.links).filter(function(l) {
+    return (l.from === id || l.to === id) && ((l.type === 'wifi') === !!wifi);
+  }).length;
+}
+
+test('mkDev pc avec kind : modèle, nom et icône', function() {
+  resetNet();
+  var id = mkDev('pc', 10, 10, 'phone');
+  eq(S.devs[id].kind, 'phone');
+  eq(S.devs[id].name, 'Téléphone 1');
+  eq(sandbox.devIcon(S.devs[id]), '📱');
+  eq(S.devs[id].type, 'pc');
+});
+test('mkDev ignore un kind inconnu ou sur un autre type', function() {
+  resetNet();
+  notOk(S.devs[mkDev('pc', 10, 10, 'grille-pain')].kind);
+  notOk(S.devs[mkDev('server', 10, 10, 'laptop')].kind);
+});
+test('PC fixe : câble vers un switch accepté', function() {
+  resetNet();
+  var pc = mkDev('pc', 10, 10, 'desktop'), sw = mkSwitch();
+  ok(addLink(pc, sw));
+});
+test('PC fixe → Box WiFi : liaison par câble, pas en WiFi', function() {
+  resetNet();
+  var pc = mkDev('pc', 10, 10, 'desktop'), box = mkWifiRouter();
+  var lid = addLink(pc, box);
+  ok(lid);
+  notOk(S.links[lid].type === 'wifi');
+});
+test('Téléphone : câble vers un switch refusé', function() {
+  resetNet();
+  var ph = mkDev('pc', 10, 10, 'phone'), sw = mkSwitch();
+  eq(addLink(ph, sw), null);
+  eq(Object.keys(S.links).length, 0);
+});
+test('Tablette → Box WiFi : liaison WiFi acceptée', function() {
+  resetNet();
+  var tb = mkDev('pc', 10, 10, 'tablet'), box = mkWifiRouter();
+  var lid = addLink(box, tb);
+  ok(lid);
+  eq(S.links[lid].type, 'wifi');
+});
+test('PC portable : 1 câble + 1 WiFi', function() {
+  resetNet();
+  var lp = mkDev('pc', 10, 10, 'laptop'), sw = mkSwitch(), box = mkWifiRouter();
+  ok(addLink(lp, sw));
+  ok(addLink(lp, box));
+  eq(linkCount(lp, false), 1);
+  eq(linkCount(lp, true), 1);
+});
+test('PC sans modèle (ancien scénario) : comportement historique', function() {
+  resetNet();
+  var pc = mkDev('pc', 10, 10), sw = mkSwitch(), box = mkWifiRouter();
+  notOk(S.devs[pc].kind);
+  ok(addLink(pc, sw));
+  var lid = addLink(pc, box);
+  eq(S.links[lid].type, 'wifi');
+});
+test('setPcKind : passer en téléphone supprime le câble', function() {
+  resetNet();
+  var pc = mkDev('pc', 10, 10, 'laptop'), sw = mkSwitch(), box = mkWifiRouter();
+  addLink(pc, sw); addLink(pc, box);
+  ok(sandbox.setPcKind(pc, 'phone'));
+  eq(S.devs[pc].kind, 'phone');
+  eq(linkCount(pc, false), 0);
+  eq(linkCount(pc, true), 1);
+});
+test('setPcKind : passer en PC fixe supprime le WiFi', function() {
+  resetNet();
+  var pc = mkDev('pc', 10, 10, 'phone'), box = mkWifiRouter();
+  addLink(pc, box);
+  ok(sandbox.setPcKind(pc, 'desktop'));
+  eq(linkCount(pc, true), 0);
+});
+
 /* ── checkObjectiveStatic — nouveaux types (point 7) ── */
 suite('checkObjectiveStatic — wifi_link');
 

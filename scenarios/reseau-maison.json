@@ -47,7 +47,7 @@
       },
       "d4": {
         "id": "d4",
-        "type": "pc",
+        "type": "pc", "kind": "desktop",
         "name": "PC-Bureau",
         "x": 660, "y": 500,
         "mac": "AA:BB:CC:DD:EE:04",
@@ -59,7 +59,7 @@
       },
       "d5": {
         "id": "d5",
-        "type": "pc",
+        "type": "pc", "kind": "laptop",
         "name": "Laptop",
         "x": 580, "y": 80,
         "mac": "AA:BB:CC:DD:EE:05",
@@ -70,7 +70,7 @@
       },
       "d6": {
         "id": "d6",
-        "type": "pc",
+        "type": "pc", "kind": "phone",
         "name": "Smartphone",
         "x": 880, "y": 160,
         "mac": "AA:BB:CC:DD:EE:06",

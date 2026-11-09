@@ -53,7 +53,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **209 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **219 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -68,7 +68,7 @@ Suite de **209 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 209/209 tests passés — SUCCÈS
+# ✅ 219/219 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`

@@ -8,20 +8,20 @@
       "d1": { "id": "d1", "type": "switch", "name": "Switch-College", "x": 367, "y": 262, "mac": "AA:BB:CC:10:00:01", "ifaces": [], "staticRoutes": [] },
 
       "d2": { "id": "d2", "type": "switch", "name": "SW-A101", "x": 286, "y": 42, "mac": "AA:BB:CC:10:00:02", "ifaces": [], "staticRoutes": [] },
-      "d3": { "id": "d3", "type": "pc", "name": "A101-P1", "x": 18, "y": 160, "mac": "AA:BB:CC:10:00:03", "ifaces": [{ "name": "eth0", "ip": "10.1.101.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
-      "d4": { "id": "d4", "type": "pc", "name": "A101-P2", "x": 152, "y": 160, "mac": "AA:BB:CC:10:00:04", "ifaces": [{ "name": "eth0", "ip": "10.1.101.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d3": { "id": "d3", "type": "pc", "kind": "desktop", "name": "A101-P1", "x": 18, "y": 160, "mac": "AA:BB:CC:10:00:03", "ifaces": [{ "name": "eth0", "ip": "10.1.101.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d4": { "id": "d4", "type": "pc", "kind": "desktop", "name": "A101-P2", "x": 152, "y": 160, "mac": "AA:BB:CC:10:00:04", "ifaces": [{ "name": "eth0", "ip": "10.1.101.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
 
       "d5": { "id": "d5", "type": "switch", "name": "SW-A204", "x": 286, "y": 384, "mac": "AA:BB:CC:10:00:05", "ifaces": [], "staticRoutes": [] },
-      "d6": { "id": "d6", "type": "pc", "name": "A204-P1", "x": 18, "y": 502, "mac": "AA:BB:CC:10:00:06", "ifaces": [{ "name": "eth0", "ip": "10.1.204.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
-      "d7": { "id": "d7", "type": "pc", "name": "A204-P2", "x": 152, "y": 502, "mac": "AA:BB:CC:10:00:07", "ifaces": [{ "name": "eth0", "ip": "10.1.204.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d6": { "id": "d6", "type": "pc", "kind": "desktop", "name": "A204-P1", "x": 18, "y": 502, "mac": "AA:BB:CC:10:00:06", "ifaces": [{ "name": "eth0", "ip": "10.1.204.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d7": { "id": "d7", "type": "pc", "kind": "desktop", "name": "A204-P2", "x": 152, "y": 502, "mac": "AA:BB:CC:10:00:07", "ifaces": [{ "name": "eth0", "ip": "10.1.204.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
 
       "d8": { "id": "d8", "type": "switch", "name": "SW-B105", "x": 448, "y": 42, "mac": "AA:BB:CC:10:00:08", "ifaces": [], "staticRoutes": [] },
-      "d9": { "id": "d9", "type": "pc", "name": "B105-P1", "x": 582, "y": 160, "mac": "AA:BB:CC:10:00:09", "ifaces": [{ "name": "eth0", "ip": "10.2.105.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
-      "d10": { "id": "d10", "type": "pc", "name": "B105-P2", "x": 716, "y": 160, "mac": "AA:BB:CC:10:00:0A", "ifaces": [{ "name": "eth0", "ip": "10.2.105.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d9": { "id": "d9", "type": "pc", "kind": "desktop", "name": "B105-P1", "x": 582, "y": 160, "mac": "AA:BB:CC:10:00:09", "ifaces": [{ "name": "eth0", "ip": "10.2.105.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d10": { "id": "d10", "type": "pc", "kind": "desktop", "name": "B105-P2", "x": 716, "y": 160, "mac": "AA:BB:CC:10:00:0A", "ifaces": [{ "name": "eth0", "ip": "10.2.105.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
 
       "d11": { "id": "d11", "type": "switch", "name": "SW-B210", "x": 448, "y": 384, "mac": "AA:BB:CC:10:00:0B", "ifaces": [], "staticRoutes": [] },
-      "d12": { "id": "d12", "type": "pc", "name": "B210-P1", "x": 582, "y": 502, "mac": "AA:BB:CC:10:00:0C", "ifaces": [{ "name": "eth0", "ip": "10.2.210.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
-      "d13": { "id": "d13", "type": "pc", "name": "B210-P2", "x": 716, "y": 502, "mac": "AA:BB:CC:10:00:0D", "ifaces": [{ "name": "eth0", "ip": "10.2.210.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] }
+      "d12": { "id": "d12", "type": "pc", "kind": "desktop", "name": "B210-P1", "x": 582, "y": 502, "mac": "AA:BB:CC:10:00:0C", "ifaces": [{ "name": "eth0", "ip": "10.2.210.1", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] },
+      "d13": { "id": "d13", "type": "pc", "kind": "desktop", "name": "B210-P2", "x": 716, "y": 502, "mac": "AA:BB:CC:10:00:0D", "ifaces": [{ "name": "eth0", "ip": "10.2.210.2", "mask": "255.0.0.0", "gateway": "", "dns": "" }], "staticRoutes": [] }
     },
     "links": {
       "l1": { "id": "l1", "from": "d1", "to": "d2" },

@@ -250,7 +250,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
   <!-- ── Palette ──────────────────────────────────── -->
   <div class="pal" id="palette">
     <div class="psep">Appareils</div>
-    <div class="pi" id="pi-pc"     draggable="true" ondragstart="palDS(event,'pc')"     title="PC">        <div class="pi-icon">🖥️</div><span>PC</span></div>
+    <div class="pi" id="pi-pc-desktop" draggable="true" ondragstart="palDS(event,'pc:desktop')" title="PC fixe — câble uniquement"><div class="pi-icon">🖥️</div><span>PC fixe</span></div>
+    <div class="pi" id="pi-pc-laptop"  draggable="true" ondragstart="palDS(event,'pc:laptop')"  title="PC portable — câble ou WiFi"><div class="pi-icon">💻</div><span>Portable</span></div>
+    <div class="pi" id="pi-pc-phone"   draggable="true" ondragstart="palDS(event,'pc:phone')"   title="Téléphone — WiFi uniquement"><div class="pi-icon">📱</div><span>Téléphone</span></div>
+    <div class="pi" id="pi-pc-tablet"  draggable="true" ondragstart="palDS(event,'pc:tablet')"  title="Tablette — WiFi uniquement"><div class="pi-icon">📲</div><span>Tablette</span></div>
     <div class="pi" id="pi-server" draggable="true" ondragstart="palDS(event,'server')" title="Serveur">   <div class="pi-icon">🖧</div><span>Serveur</span></div>
     <div class="pi" id="pi-switch" draggable="true" ondragstart="palDS(event,'switch')" title="Switch">    <div class="pi-icon">🔀</div><span>Switch</span></div>
     <div class="pi" id="pi-router"   draggable="true" ondragstart="palDS(event,'router')"   title="Routeur">  <div class="pi-icon">📡</div><span>Routeur</span></div>

@@ -123,6 +123,58 @@ var DT={
   wifi_router:{label:'Box WiFi',icon:'📶',bg:'#f0f4ff',bd:'#667eea',tc:'#4c51bf'},
   internet:{label:'Internet', icon:'🌐',bg:'#e0f2fe',bd:'#0ea5e9',tc:'#0369a1'}
 };
+// Modèles de terminal (d.kind sur un appareil de type 'pc') : l'icône fixe les connexions possibles.
+// Un 'pc' sans kind (anciens scénarios) garde le comportement historique : 1 câble + 1 WiFi.
+var PC_KINDS={
+  desktop:{label:'PC fixe',    icon:'🖥️',cable:true, wifi:false},
+  laptop: {label:'PC portable',icon:'💻',cable:true, wifi:true,short:'Portable'},
+  phone:  {label:'Téléphone',  icon:'📱',cable:false,wifi:true},
+  tablet: {label:'Tablette',   icon:'📲',cable:false,wifi:true}
+};
+function pcKind(d){return d&&d.type==='pc'&&d.kind&&PC_KINDS[d.kind]?PC_KINDS[d.kind]:null;}
+function devIcon(d){var k=pcKind(d);return k?k.icon:(DT[d.type]?DT[d.type].icon:'');}
+function devLabel(d){var k=pcKind(d);return k?k.label:(DT[d.type]?DT[d.type].label:d.type);}
+function canCable(d){var k=pcKind(d);return !k||k.cable;}
+function canWifi(d){var k=pcKind(d);return !k||k.wifi;}
+// Liens existants devenus interdits pour l'appareil (après changement de modèle)
+function forbiddenLinks(id){
+  var d=S.devs[id];if(!d)return [];
+  return Object.keys(S.links).filter(function(lid){
+    var l=S.links[lid];if(l.from!==id&&l.to!==id)return false;
+    return l.type==='wifi'?!canWifi(d):!canCable(d);
+  });
+}
+// Ligne « Modèle » du panneau de propriétés d'un PC (mode configuration)
+function pcKindRowHTML(id){
+  var d=S.devs[id];if(!d||d.type!=='pc')return '';
+  var h='<div class="pr"><label>Modèle</label><select onchange="onPcKindChange(\''+id+'\',this.value)">';
+  if(!d.kind)h+='<option value="" selected>🖥️ PC (câble + WiFi)</option>';
+  Object.keys(PC_KINDS).forEach(function(k){
+    var p=PC_KINDS[k];
+    h+='<option value="'+k+'"'+(d.kind===k?' selected':'')+'>'+p.icon+' '+p.label+
+      ' ('+(p.cable&&p.wifi?'câble + WiFi':p.cable?'câble':'WiFi')+')</option>';
+  });
+  return h+'</select></div>';
+}
+function onPcKindChange(id,kind){
+  if(typeof snapHistory==='function')snapHistory();
+  setPcKind(id,kind);
+  render();showProps(id);
+  setTimeout(function(){checkAllObjectives();},50);
+}
+function setPcKind(id,kind){
+  var d=S.devs[id];if(!d||d.type!=='pc')return false;
+  var old=d.kind;
+  if(kind)d.kind=kind;else delete d.kind;
+  var bad=forbiddenLinks(id);
+  if(bad.length){
+    var msg=d.name+' ('+devLabel(d)+') ne peut pas garder '+(bad.length>1?'ses '+bad.length+' liaisons actuelles':'sa liaison actuelle')+
+      ' ('+(canWifi(d)?'câble':'WiFi')+' non autorisé). Supprimer '+(bad.length>1?'ces liaisons':'cette liaison')+' ?';
+    if(typeof confirm==='function'&&!confirm(msg)){if(old)d.kind=old;else delete d.kind;return false;}
+    bad.forEach(function(lid){delete S.links[lid];});
+  }
+  return true;
+}
 var VMASKS=['255.255.255.0','255.255.0.0','255.0.0.0',
   '255.255.255.128','255.255.255.192','255.255.255.224',
   '255.255.255.240','255.255.255.248','255.255.255.252'];
@@ -234,10 +286,11 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 /* ─────────────────────────────────────────────────────
    DEVICE / LINK MANAGEMENT
 ───────────────────────────────────────────────────── */
-function mkDev(type,x,y){
+function mkDev(type,x,y,kind){
   var id='d'+(S.nid++);
-  var cnt={};Object.values(S.devs).forEach(function(d){cnt[d.type]=(cnt[d.type]||0)+1;});
-  var num=(cnt[type]||0)+1;
+  if(type!=='pc'||!PC_KINDS[kind])kind=undefined;
+  var num=Object.values(S.devs).filter(function(d){return d.type===type&&(type!=='pc'||d.kind===kind);}).length+1;
+  var label=kind?(PC_KINDS[kind].short||PC_KINDS[kind].label):DT[type].label;
   var ifaces=[];
   if(type==='router'||type==='internet'||type==='wifi_router'){
     ifaces=type==='wifi_router'?
@@ -248,7 +301,7 @@ function mkDev(type,x,y){
   } else {
     ifaces=[{name:'eth0',ip:'',mask:'255.255.255.0',gateway:'',dns:''}];
   }
-  S.devs[id]={id:id,type:type,name:DT[type].label+' '+num,x:x,y:y,
+  S.devs[id]={id:id,type:type,name:label+' '+num,x:x,y:y,
     mac:macOf(id),ifaces:ifaces,
     http:{on:false,title:'Ma page web',content:'Bienvenue sur ce serveur !',htmlMode:false},
     dns:{on:false,records:{}},
@@ -258,6 +311,7 @@ function mkDev(type,x,y){
     autoRouteEnabled:((type==='router'||type==='internet'||type==='wifi_router')?true:undefined),
     ssid:(type==='wifi_router'?'MonWiFi':undefined),
     wifiPass:(type==='wifi_router'?'':undefined)};
+  if(kind)S.devs[id].kind=kind;
   return id;
 }
 
@@ -274,8 +328,13 @@ function addLink(a,b){
   if(dup)return null;
   // PC/Serveur : 1 câble + 1 WiFi ; auto-tag liaison WiFi
   var da=S.devs[a],db=S.devs[b];
-  var isWifi=(da&&da.type==='wifi_router'&&db&&(db.type==='pc'||db.type==='server'))
-            ||(db&&db.type==='wifi_router'&&da&&(da.type==='pc'||da.type==='server'));
+  // Un PC fixe relié à une Box WiFi l'est par câble (port LAN), pas en WiFi
+  var isWifi=(da&&da.type==='wifi_router'&&db&&(db.type==='pc'||db.type==='server')&&canWifi(db))
+            ||(db&&db.type==='wifi_router'&&da&&(da.type==='pc'||da.type==='server')&&canWifi(da));
+  if(!isWifi){
+    var nc=[da,db].find(function(d){return d&&!canCable(d);});
+    if(nc){notif('⚠️ '+nc.name+' ('+devLabel(nc)+') ne se connecte qu\'en WiFi, à une Box WiFi','err');return null;}
+  }
   function cableCount(id){return Object.values(S.links).filter(function(l){return (l.from===id||l.to===id)&&l.type!=='wifi';}).length;}
   function wifiCount(id){return Object.values(S.links).filter(function(l){return (l.from===id||l.to===id)&&l.type==='wifi';}).length;}
   if(isWifi){
@@ -585,7 +644,7 @@ function renderDevs(){
       '<rect x="'+(d.x+2)+'" y="'+(d.y+3)+'" width="'+DW+'" height="'+DH+'" rx="10" fill="rgba(0,0,0,.07)"/>'+
       '<rect x="'+d.x+'" y="'+d.y+'" width="'+DW+'" height="'+DH+'" rx="10"'+
         ' fill="'+dt.bg+'" stroke="'+bd+'" stroke-width="'+sw+'" filter="url(#sh)"/>'+
-      '<text x="'+(d.x+14)+'" y="'+(d.y+30)+'" font-size="19" font-family="Segoe UI">'+dt.icon+'</text>'+
+      '<text x="'+(d.x+14)+'" y="'+(d.y+30)+'" font-size="19" font-family="Segoe UI">'+devIcon(d)+'</text>'+
       '<text x="'+(d.x+DW/2+5)+'" y="'+(d.y+23)+'" text-anchor="middle" font-size="12" font-weight="700"'+
         ' fill="'+dt.tc+'" font-family="Segoe UI,Arial">'+esc(truncSVG(d.name,14))+'</text>'+
       subH+
@@ -607,6 +666,7 @@ function palDS(e,type){if(S.mode==='simulation'){e.preventDefault();return;}e.da
 function cwDrop(e){
   e.preventDefault();if(S.mode==='simulation')return;
   var type=e.dataTransfer.getData('dvtype');if(!type)return;
+  var kind;if(type.indexOf(':')>0){kind=type.split(':')[1];type=type.split(':')[0];}
   var r=document.getElementById('canvas').getBoundingClientRect();
   var x=e.clientX-r.left,y=e.clientY-r.top;
   if(type==='frame'){
@@ -617,7 +677,7 @@ function cwDrop(e){
     var id=mkAnnotText(Math.max(4,x-40),Math.max(4,y+6));
     S.sel=id;render();showProps(id);return;
   }
-  var id=mkDev(type,Math.max(4,x-DW/2),Math.max(4,y-DH/2));
+  var id=mkDev(type,Math.max(4,x-DW/2),Math.max(4,y-DH/2),kind);
   S.sel=id;render();showProps(id);
   setTimeout(function(){checkAllObjectives();},50);
 }
@@ -723,7 +783,7 @@ function setMode(m){
   document.getElementById('btn-cfg').classList.toggle('active',m==='config');
   document.getElementById('btn-sim').classList.toggle('active',m==='simulation');
   var simMode=(m==='simulation');
-  ['pc','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){
+  ['pc','pc-desktop','pc-laptop','pc-phone','pc-tablet','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){
     var el=document.getElementById('pi-'+t);
     if(el){el.classList.toggle('disabled',simMode);el.draggable=!simMode;}
   });
