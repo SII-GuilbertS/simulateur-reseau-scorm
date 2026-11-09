@@ -114,7 +114,7 @@ function applyNetworkData(data){
 /* ─────────────────────────────────────────────────────
    CONSTANTS
 ───────────────────────────────────────────────────── */
-var DW=126,DH=80;
+var DW=126,DH=112;
 var DT={
   pc:      {label:'PC',       icon:'🖥️',bg:'#ebf8ff',bd:'#4299e1',tc:'#2b6cb0'},
   server:  {label:'Serveur',  icon:'🖧', bg:'#f0fff4',bd:'#48bb78',tc:'#276749'},
@@ -156,7 +156,7 @@ function palIcons(){
     'pi-server':'server','pi-switch':'switch','pi-router':'router','pi-wifi_router':'wifi_router'};
   Object.keys(m).forEach(function(id){
     var el=document.querySelector('#'+id+' .pi-icon');
-    if(el&&el.innerHTML!==undefined)el.innerHTML='<img src="'+DEV_IMG[m[id]]+'" alt="" width="30" height="30" draggable="false" style="display:block;object-fit:contain">';
+    if(el&&el.innerHTML!==undefined)el.innerHTML='<img src="'+DEV_IMG[m[id]]+'" alt="" width="44" height="44" draggable="false" style="display:block;object-fit:contain">';
   });
 }
 // Tout changement dans la fiche Propriétés (SSID, DHCP, HTTP, DNS...) relance la vérification des objectifs
@@ -606,11 +606,12 @@ function renderLinks(){
 }
 
 function renderInternetSVG(d,isSel,isCF){
-  var cx=d.x+DW/2, cy=d.y+30;
+  var cx=d.x+DW/2, cy=d.y+40;
   var bd=isCF?'#fbd38d':(isSel?'#2b6cb0':'#0369a1');
   var sw=isSel||isCF?3.5:2;
   var h='<g id="gd'+d.id+'" onmousedown="devMD(event,\''+d.id+'\')" oncontextmenu="devRC(event,\''+d.id+'\')" style="cursor:pointer">';
   h+='<rect x="'+d.x+'" y="'+d.y+'" width="'+DW+'" height="'+DH+'" fill="transparent" stroke="none"/>';
+  h+='<g transform="translate('+cx+' '+cy+') scale(1.3) translate('+(-cx)+' '+(-cy)+')">';
   // Halo
   h+='<circle cx="'+cx+'" cy="'+cy+'" r="31" fill="#e0f2fe" opacity="0.55"/>';
   // Corps planète
@@ -626,18 +627,19 @@ function renderInternetSVG(d,isSel,isCF){
   h+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="7.5" ry="22" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>';
   // Anneau orbital
   h+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="32" ry="9" fill="none" stroke="'+bd+'" stroke-width="'+sw+'" transform="rotate(-22 '+cx+' '+cy+')" opacity="0.88"/>';
+  h+='</g>';
   // Étoiles décoratives
   h+='<circle cx="'+(d.x+7)+'"  cy="'+(d.y+9)+'"  r="2"   fill="#7dd3fc" opacity="0.7"/>';
   h+='<circle cx="'+(d.x+17)+'" cy="'+(d.y+4)+'"  r="1.5" fill="#bae6fd" opacity="0.55"/>';
   h+='<circle cx="'+(d.x+DW-9)+'" cy="'+(d.y+7)+'"  r="2"   fill="#7dd3fc" opacity="0.65"/>';
   h+='<circle cx="'+(d.x+DW-19)+'" cy="'+(d.y+13)+'" r="1.2" fill="#bae6fd" opacity="0.5"/>';
   // Nom
-  h+='<text x="'+cx+'" y="'+(d.y+64)+'" text-anchor="middle" font-size="12" font-weight="700" fill="'+bd+'" font-family="Segoe UI,Arial">'+esc(d.name)+'</text>';
+  h+='<text x="'+cx+'" y="'+(d.y+92)+'" text-anchor="middle" font-size="12.5" font-weight="700" fill="'+bd+'" font-family="Segoe UI,Arial">'+esc(d.name)+'</text>';
   // IPs des interfaces
   var _ips=(d.ifaces||[]).filter(function(fi){return fi.ip;}).map(function(fi){return fi.ip;});
-  if(_ips.length)h+='<text x="'+cx+'" y="'+(d.y+75)+'" text-anchor="middle" font-size="7.5" fill="#0369a1" font-family="Courier New,monospace">'+esc(_ips.join(' / '))+'</text>';
+  if(_ips.length)h+='<text x="'+cx+'" y="'+(d.y+104)+'" text-anchor="middle" font-size="8.5" fill="#0369a1" font-family="Courier New,monospace">'+esc(_ips.join(' / '))+'</text>';
   // Ring câble mode
-  if(isCF)h+='<circle cx="'+cx+'" cy="'+cy+'" r="29" fill="none" stroke="#fbd38d" stroke-width="2.5" stroke-dasharray="5,3" opacity=".7"/>';
+  if(isCF)h+='<circle cx="'+cx+'" cy="'+cy+'" r="40" fill="none" stroke="#fbd38d" stroke-width="2.5" stroke-dasharray="5,3" opacity=".7"/>';
   h+='</g>';
   return h;
 }
@@ -669,33 +671,31 @@ function renderDevs(){
     }
     var svc='';if(d.type==='server'){if(d.http&&d.http.on)svc+='HTTP ';if(d.dns&&d.dns.on)svc+='DNS ';}
     if(d.type==='wifi_router'&&d.ssid)svc='📶 '+d.ssid;
-    // Carte "flat" : tuile d'icône à gauche, nom + type à droite, adresses dessous
-    var nL=subLines.length,y0=svc?(nL>1?55:58):(nL>1?58:62);
+    // Carte "flat" verticale : grande icône en haut, nom, puis adresses et services
+    var nL=subLines.length,nB=nL+(svc?1:0),y0=83+(3-nB)*5.5;
     var subH='';
     subLines.forEach(function(sl,si){
       subH+='<text x="'+(d.x+DW/2)+'" y="'+(d.y+y0+si*11)+'" text-anchor="middle" font-size="9"'+
         ' fill="'+dt.tc+'" font-family="Courier New,monospace">'+esc(sl)+'</text>';
     });
-    var img=devImg(d);
+    var img=devImg(d),cx=d.x+DW/2;
     h+=
       '<g id="gd'+d.id+'" onmousedown="devMD(event,\''+d.id+'\')" oncontextmenu="devRC(event,\''+d.id+'\')" style="cursor:pointer">'+
-      '<title>'+esc(d.name)+'&#10;'+esc(subFull)+'</title>'+
-      '<rect x="'+d.x+'" y="'+(d.y+3)+'" width="'+DW+'" height="'+DH+'" rx="14" fill="'+dt.bd+'" opacity=".22"/>'+
-      '<rect x="'+d.x+'" y="'+d.y+'" width="'+DW+'" height="'+DH+'" rx="14"'+
+      '<title>'+esc(devLabel(d))+' — '+esc(d.name)+'&#10;'+esc(subFull)+'</title>'+
+      '<rect x="'+d.x+'" y="'+(d.y+3)+'" width="'+DW+'" height="'+DH+'" rx="16" fill="'+dt.bd+'" opacity=".22"/>'+
+      '<rect x="'+d.x+'" y="'+d.y+'" width="'+DW+'" height="'+DH+'" rx="16"'+
         ' fill="#fff" stroke="'+bd+'" stroke-width="'+(isSel||isCF?3:1.5)+'"/>'+
-      '<rect x="'+(d.x+7)+'" y="'+(d.y+7)+'" width="38" height="38" rx="10" fill="'+dt.bg+'"/>'+
-      (img?'<image href="'+img+'" x="'+(d.x+9)+'" y="'+(d.y+9)+'" width="34" height="34" preserveAspectRatio="xMidYMid meet" pointer-events="none"/>'
-          :'<text x="'+(d.x+26)+'" y="'+(d.y+33)+'" text-anchor="middle" font-size="19" font-family="Segoe UI">'+devIcon(d)+'</text>')+
-      '<text x="'+(d.x+51)+'" y="'+(d.y+23)+'" font-size="12" font-weight="700"'+
-        (d.name.length>9?' textLength="62" lengthAdjust="spacingAndGlyphs"':'')+
-        ' fill="'+dt.tc+'" font-family="Segoe UI,Arial">'+esc(truncSVG(d.name,13))+'</text>'+
-      '<text x="'+(d.x+51)+'" y="'+(d.y+37)+'" font-size="9" fill="'+dt.tc+'" opacity=".7"'+
-        ' font-family="Segoe UI,Arial">'+esc(truncSVG(devLabel(d),13))+'</text>'+
+      '<rect x="'+(cx-29)+'" y="'+(d.y+6)+'" width="58" height="52" rx="14" fill="'+dt.bg+'"/>'+
+      (img?'<image href="'+img+'" x="'+(cx-24)+'" y="'+(d.y+8)+'" width="48" height="48" preserveAspectRatio="xMidYMid meet" pointer-events="none"/>'
+          :'<text x="'+cx+'" y="'+(d.y+44)+'" text-anchor="middle" font-size="30" font-family="Segoe UI">'+devIcon(d)+'</text>')+
+      '<text x="'+cx+'" y="'+(d.y+71)+'" text-anchor="middle" font-size="12.5" font-weight="700"'+
+        (d.name.length>15?' textLength="112" lengthAdjust="spacingAndGlyphs"':'')+
+        ' fill="'+dt.tc+'" font-family="Segoe UI,Arial">'+esc(truncSVG(d.name,19))+'</text>'+
       subH+
-      (svc?'<text x="'+(d.x+DW/2)+'" y="'+(d.y+y0+nL*11+1)+'" text-anchor="middle" font-size="9" font-weight="600"'+
-        ' fill="#38a169" font-family="Segoe UI,Arial">'+esc(svc.trim())+'</text>':'')+
-      '<circle cx="'+(d.x+DW-11)+'" cy="'+(d.y+12)+'" r="5" fill="'+dot+'" stroke="#fff" stroke-width="1.5"/>'+
-      (isCF?'<rect x="'+(d.x-5)+'" y="'+(d.y-5)+'" width="'+(DW+10)+'" height="'+(DH+10)+'" rx="18" fill="none" stroke="#f6ad55" stroke-width="2.5" stroke-dasharray="6,4"/>':'')+
+      (svc?'<text x="'+cx+'" y="'+(d.y+y0+nL*11)+'" text-anchor="middle" font-size="9" font-weight="600"'+
+        ' fill="#38a169" font-family="Segoe UI,Arial">'+esc(truncSVG(svc.trim(),22))+'</text>':'')+
+      '<circle cx="'+(d.x+DW-12)+'" cy="'+(d.y+12)+'" r="5.5" fill="'+dot+'" stroke="#fff" stroke-width="1.5"/>'+
+      (isCF?'<rect x="'+(d.x-5)+'" y="'+(d.y-5)+'" width="'+(DW+10)+'" height="'+(DH+10)+'" rx="20" fill="none" stroke="#f6ad55" stroke-width="2.5" stroke-dasharray="6,4"/>':'')+
       '</g>';
   });
   document.getElementById('layer-devs').innerHTML=h;
