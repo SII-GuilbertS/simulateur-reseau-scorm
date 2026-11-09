@@ -286,7 +286,7 @@ function showPropsSimu(id){
   function badge(color,text){
     return '<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.72em;font-weight:700;background:'+color+';color:#fff;margin-left:4px">'+text+'</span>';
   }
-  var h='<div class="devbadge" style="background:'+dt.bg+';color:'+dt.tc+';border:1.5px solid '+dt.bd+'">'+devIcon(d)+' '+esc(d.name)+'</div>';
+  var h='<div class="devbadge" style="background:'+dt.bg+';color:'+dt.tc+';border:1.5px solid '+dt.bd+'">'+devIconHTML(d,20)+' '+esc(d.name)+'</div>';
   h+='<div style="font-size:.72em;color:#718096;margin:2px 0 8px 2px">'+esc(devLabel(d))+'</div>';
   if(d.mac)h+=row('Adresse MAC',d.mac,true);
   if(d.type==='pc'||d.type==='server'){
@@ -429,7 +429,7 @@ function showProps(id){
   var d=S.devs[id];if(!d){noSel();return;}
 
   var dt=DT[d.type];
-  var h='<div class="devbadge" style="background:'+dt.bg+';color:'+dt.tc+';border:1.5px solid '+dt.bd+'">'+devIcon(d)+' '+esc(d.name)+'</div>';
+  var h='<div class="devbadge" style="background:'+dt.bg+';color:'+dt.tc+';border:1.5px solid '+dt.bd+'">'+devIconHTML(d,20)+' '+esc(d.name)+'</div>';
 
   // Nom
   h+='<div class="psection">Identification</div>';
