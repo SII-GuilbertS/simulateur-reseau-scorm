@@ -143,7 +143,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#">Simulateur Réseau IPv4<span class="mono">v1.7</span></a>
+    <a class="brand" href="#">Simulateur Réseau IPv4<span class="mono">v1.8</span></a>
     <nav aria-label="Sections de la page">
       <a href="#exemples">Exemples</a>
       <a href="#builder">Interface enseignant</a>
@@ -194,7 +194,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
   <section class="band" id="exemples">
     <div class="wrap">
       <h2>Quatre exemples à tester</h2>
-      <p class="lead">Chaque scénario s’ouvre dans la vue élève. Téléchargez son fichier JSON pour l’importer dans l’interface enseignant et l’adapter à votre classe.</p>
+      <p class="lead">Chaque scénario s’ouvre dans la vue élève avec un score de 0 : chaque réparation se prouve ensuite par un ping, un site web ou un nslookup. Téléchargez son fichier JSON pour l’importer dans l’interface enseignant et l’adapter à votre classe.</p>
 
       <div class="scenarios">
         <article class="scenario">
@@ -202,7 +202,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
             <span class="level">4e / 3e</span>
             <h3>Réseau Maison : panne WiFi</h3>
             <p>Le Laptop et le Smartphone semblent connectés au WiFi, mais PC-Bureau n’accède plus à Internet.</p>
-            <ul class="facts"><li><b>6</b> appareils</li><li><b>10</b> objectifs</li><li><b>1</b> panne</li><li>seuil <b>60 %</b></li></ul>
+            <ul class="facts"><li><b>6</b> appareils</li><li><b>7</b> objectifs</li><li><b>1</b> panne</li><li>seuil <b>60 %</b></li></ul>
           </div>
           <div class="actions">
             <a class="btn primary small" href="demo/reseau-maison/index.html">Tester</a>
@@ -215,7 +215,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
             <span class="level">Collège · cycle 4</span>
             <h3>Réseau du collège : adressage par salle</h3>
             <p>Les adresses IP suivent le bâtiment, la salle et le poste. Un PC est débranché, un autre est mal configuré et un poste reste à ajouter.</p>
-            <ul class="facts"><li><b>13</b> appareils</li><li><b>5</b> objectifs</li><li><b>2</b> pannes</li><li>seuil <b>60 %</b></li></ul>
+            <ul class="facts"><li><b>13</b> appareils</li><li><b>8</b> objectifs</li><li><b>2</b> pannes</li><li>seuil <b>60 %</b></li></ul>
           </div>
           <div class="actions">
             <a class="btn primary small" href="demo/reseau-college/index.html">Tester</a>
@@ -228,7 +228,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
             <span class="level">Terminale / BTS</span>
             <h3>Réseau Entreprise : serveur web et DNS en panne</h3>
             <p>Depuis ce matin, les employés n’arrivent plus à joindre le serveur web de l’entreprise.</p>
-            <ul class="facts"><li><b>7</b> appareils</li><li><b>13</b> objectifs</li><li><b>2</b> pannes</li><li>seuil <b>60 %</b></li></ul>
+            <ul class="facts"><li><b>7</b> appareils</li><li><b>7</b> objectifs</li><li><b>2</b> pannes</li><li>seuil <b>60 %</b></li></ul>
           </div>
           <div class="actions">
             <a class="btn primary small" href="demo/reseau-entreprise/index.html">Tester</a>
@@ -240,8 +240,8 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
           <div>
             <span class="level">Terminale NSI / BTS SIO</span>
             <h3>Réseau Lycée : diagnostic et réparation</h3>
-            <p>Les tablettes ne se connectent plus au WiFi et PC-Salle2 est injoignable. Ce scénario couvre les 14 types d’objectifs.</p>
-            <ul class="facts"><li><b>10</b> appareils</li><li><b>17</b> objectifs</li><li><b>2</b> pannes</li><li>seuil <b>65 %</b></li></ul>
+            <p>Plus d’Internet, des tablettes privées de WiFi, un intranet muet : sept pannes à réparer et un poste à ajouter. Ce scénario couvre les 14 types d’objectifs.</p>
+            <ul class="facts"><li><b>10</b> appareils</li><li><b>20</b> objectifs</li><li><b>7</b> pannes</li><li>seuil <b>65 %</b></li></ul>
           </div>
           <div class="actions">
             <a class="btn primary small" href="demo/reseau-lycee/index.html">Tester</a>
@@ -305,12 +305,12 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
         <a class="doc" href="doc-prof.pdf">
           <h3>Guide enseignant</h3>
           <p>Créer une activité avec le builder et la déployer sur Moodle.</p>
-          <span class="mono">doc-prof.pdf · v1.7</span>
+          <span class="mono">doc-prof.pdf · v1.8</span>
         </a>
         <a class="doc" href="doc-eleve.pdf">
           <h3>Guide élève</h3>
           <p>Prendre en main l’interface et les commandes du terminal.</p>
-          <span class="mono">doc-eleve.pdf · v1.7</span>
+          <span class="mono">doc-eleve.pdf · v1.8</span>
         </a>
       </div>
     </div>
@@ -319,7 +319,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
 
 <footer>
   <div class="wrap">
-    <span>Simulateur Réseau IPv4 · <a href="https://github.com/SII-GuilbertS/simulateur-reseau-scorm/releases/tag/v1.7">version 1.7</a> · novembre 2026</span>
+    <span>Simulateur Réseau IPv4 · <a href="https://github.com/SII-GuilbertS/simulateur-reseau-scorm/releases/tag/v1.8">version 1.8</a> · novembre 2026</span>
     <span>Réalisé par <a href="mailto:sylvain.guilbert1@ac-toulouse.fr">Sylvain Guilbert</a> avec l’aide de l’IA Claude</span>
     <a href="https://github.com/SII-GuilbertS/simulateur-reseau-scorm">Code source sur GitHub</a>
     <span>Usage non commercial. Code : <a href="https://github.com/SII-GuilbertS/simulateur-reseau-scorm/blob/master/LICENSE">PolyForm Noncommercial 1.0.0</a>. Guides et scénarios : <a href="https://github.com/SII-GuilbertS/simulateur-reseau-scorm/blob/master/LICENSE-CONTENU.txt">CC BY-NC-SA 4.0</a>.</span>

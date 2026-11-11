@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.7
+#  DOC PROF  v1.8
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.7'
+    doc._subtitle    = 'Documentation v1.8'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -365,7 +365,12 @@ def build_prof(out_path):
     story += [
         Spacer(1, 6),
         callout('Tous les scénarios démarrent à 0 : chaque point se gagne en réparant, en construisant ou en le prouvant '
-                'par une commande. reseau-lycee.json couvre les <b>14 types d\'objectifs</b>.', TIP, '💡'),
+                'par une commande. Chaque réparation est suivie de son test (« Test : » ping, site web ou nslookup), '
+                'et chaque panne est placée juste avant sa réparation dans la liste. '
+                'reseau-lycee.json couvre les <b>14 types d\'objectifs</b>.', TIP, '💡'),
+        Spacer(1, 4),
+        Paragraph('Conseil pour vos propres activités : faites suivre chaque objectif de réparation ou de '
+                  'construction d\'un objectif de test, pour que l\'élève prouve que sa correction fonctionne.', BODY),
         Spacer(1, 4),
     ]
 
@@ -419,7 +424,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.7
+#  DOC ELEVE  v1.8
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -428,7 +433,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.7'
+    doc._subtitle    = 'Guide élève v1.8'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
