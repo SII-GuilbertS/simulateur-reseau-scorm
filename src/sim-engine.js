@@ -1190,7 +1190,7 @@ function simHTTP(srcId,rawURL,quiet){
 /* ─────────────────────────────────────────────────────
    SVG RENDERING
 ───────────────────────────────────────────────────── */
-function render(){renderFrames();renderLinks();renderDevs();renderTexts();renderHint();updSelects();scheduleObjectiveCheck();}
+function render(){renderFrames();renderLinks();renderDevs();renderTexts();renderHint();updSelects();scheduleObjectiveCheck();deskSync();}
 
 function renderLinks(){
   var h='';
@@ -1367,6 +1367,7 @@ function devMD(e,id){
     if(_d.type!=='switch'){S.termDev=id;setTermDev(id);showTab('term');}
     S.sel=id;render();showPropsSimu(id);
     if(!_propsVisible)toggleProps();
+    deskDblCheck(id);
     return;
   }
   if(S.tool==='delete'){delDev(id);render();noSel();return;}
@@ -1485,10 +1486,11 @@ function setMode(m){
   // Afficher le panneau bas en simulation — ou toujours si une activité est configurée
   var _keepBot=typeof ACTIVITY_CONFIG!=='undefined'&&ACTIVITY_CONFIG&&ACTIVITY_CONFIG.objectives&&ACTIVITY_CONFIG.objectives.length;
   document.querySelector('.bot').style.display=(simMode||_keepBot)?'flex':'none';
+  if(!simMode)deskCloseAll();
   if(simMode){
     setTool('select');
     saveToSession(); // auto-save à chaque passage en simulation
-    tpr('Mode Simulation activé — cliquez sur un appareil ou sélectionnez-le ci-dessus.','info');
+    tpr('Mode Simulation activé — double-cliquez sur un appareil pour ouvrir son bureau, ou sélectionnez-le ci-dessus.','info');
   }
 }
 
@@ -1650,12 +1652,15 @@ function updPrompt(){
   document.getElementById('tprompt').textContent=(d?d.name.toLowerCase().replace(/\s+/g,'-'):'guest')+'@réseau > ';
 }
 
+// Sortie du terminal : le bandeau du bas (#tout) ou, pendant une commande lancée
+// depuis le bureau d'un appareil, la sortie de cette fenêtre (voir deskTermRun).
+var _termOut=null;
 function tpr(txt,cls){
-  var o=document.getElementById('tout');
+  var o=_termOut||document.getElementById('tout');
   var div=document.createElement('div');div.className='tl '+(cls||'');div.textContent=txt;
   o.appendChild(div);o.scrollTop=o.scrollHeight;
 }
-function termClr(){document.getElementById('tout').innerHTML='';}
+function termClr(){(_termOut||document.getElementById('tout')).innerHTML='';}
 
 function termExec(){
   var inp=document.getElementById('tinput');var raw=inp.value.trim();inp.value='';
@@ -1664,29 +1669,268 @@ function termExec(){
   if(!_termHistory.length||_termHistory[_termHistory.length-1]!==raw){
     _termHistory.push(raw);if(_termHistory.length>50)_termHistory.shift();
   }
+  termRun(raw,S.termDev);
+}
+
+// Exécute une commande sur un appareil ; la sortie va dans tpr().
+function termRun(raw,devId){
   tpr('> '+raw,'cmd');
-  if(!S.termDev){tpr('⚠️  Aucun appareil sélectionné — choisissez-en un ci-dessus.','err');return;}
-  var d=S.devs[S.termDev];if(!d){tpr('⚠️  Appareil introuvable','err');return;}
+  if(!devId){tpr('⚠️  Aucun appareil sélectionné — choisissez-en un ci-dessus.','err');return;}
+  var d=S.devs[devId];if(!d){tpr('⚠️  Appareil introuvable','err');return;}
   var parts=raw.split(/\s+/),cmd=parts[0].toLowerCase();
   switch(cmd){
     case 'ping':
       if(!parts[1]){tpr('Usage : ping <IP ou domaine>','err');break;}
-      doPing(S.termDev,parts[1]);break;
-    case 'ipconfig':case 'ifconfig':doIPCfg(S.termDev);break;
+      doPing(devId,parts[1]);break;
+    case 'ipconfig':case 'ifconfig':doIPCfg(devId);break;
     case 'nslookup':
       if(!parts[1]){tpr('Usage : nslookup <domaine>','err');break;}
-      doNSL(S.termDev,parts[1]);break;
+      doNSL(devId,parts[1]);break;
     case 'traceroute':case 'tracert':
       if(!parts[1]){tpr('Usage : traceroute <IP ou domaine>','err');break;}
-      doTrace(S.termDev,parts[1]);break;
-    case 'arp':doARP(S.termDev);break;
-    case 'netstat':doNetstat(S.termDev);break;
-    case 'dhcp':doDHCP(S.termDev);break;
-    case 'route':doRoute(S.termDev);break;
+      doTrace(devId,parts[1]);break;
+    case 'arp':doARP(devId);break;
+    case 'netstat':doNetstat(devId);break;
+    case 'dhcp':doDHCP(devId);break;
+    case 'route':doRoute(devId);break;
     case 'clear':case 'cls':termClr();break;
     case 'help':doHelp();break;
     default:tpr('Commande inconnue : "'+parts[0]+'". Tapez help.','err');
   }
+}
+
+/* ─────────────────────────────────────────────────────
+   BUREAU DES APPAREILS (mode simulation)
+   Double-clic sur un appareil : une fenêtre flottante s'ouvre avec ses applications.
+   Chaque appareil garde sa session de terminal et sa page de navigateur.
+───────────────────────────────────────────────────── */
+var DESK={wins:{},sess:{},z:900,last:{id:null,t:0},ready:false};
+var DESK_APPS={
+  term:{icon:'📟',label:'Invite de commandes'},
+  brow:{icon:'🌐',label:'Navigateur'}
+};
+function deskApps(d){
+  if(!d||d.type==='switch'||d.type==='internet')return [];
+  var a=['term'];
+  if(d.type==='pc'||d.type==='server')a.push('brow');
+  return a;
+}
+function deskPrompt(d){return d.name.toLowerCase().replace(/\s+/g,'-')+'@réseau > ';}
+function deskSess(id){
+  if(!DESK.sess[id]){
+    var out=document.createElement('div');out.className='tout dterm-out';
+    var bc=document.createElement('div');bc.className='bcont dbrow-out';
+    bc.innerHTML='<div class="bph">Saisissez une adresse puis « Aller »…</div>';
+    DESK.sess[id]={out:out,hist:[],hi:-1,draft:'',url:'',bc:bc};
+  }
+  return DESK.sess[id];
+}
+function deskInit(){
+  if(DESK.ready)return;DESK.ready=true;
+  var st=document.createElement('style');st.id='desk-css';
+  st.textContent=
+    '.dwin{position:fixed;width:520px;height:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);background:#fff;border:1px solid #8796a8;border-radius:9px;box-shadow:0 14px 36px rgba(0,0,0,.3);display:flex;flex-direction:column;overflow:hidden;z-index:900;resize:both;min-width:260px;min-height:200px}'+
+    '.dwin.focus{border-color:#2b6cb0}'+
+    '.dwin.phone{width:300px;height:470px;border:7px solid #1a202c;border-radius:24px}'+
+    '.dwin-t{display:flex;align-items:center;gap:6px;padding:4px 5px 4px 10px;background:#2d3748;color:#e2e8f0;cursor:move;touch-action:none;font-size:12.5px;font-weight:600;flex-shrink:0;user-select:none}'+
+    '.dwin.focus .dwin-t{background:linear-gradient(135deg,#1a365d,#2b6cb0)}'+
+    '.dwin-tt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}'+
+    '.dwin-ip{font-family:"Courier New",monospace;font-weight:400;color:#68d391;font-size:11.5px;white-space:nowrap}'+
+    '.dwin-bs{margin-left:auto;display:flex;gap:3px;flex-shrink:0}'+
+    '.dwin-bs button{width:24px;height:22px;border:none;border-radius:5px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:13px;line-height:1;padding:0}'+
+    '.dwin-bs button:hover{background:rgba(255,255,255,.28)}.dwin-bs button.dw-x:hover{background:#e53e3e}'+
+    '.dwin-bs button:disabled{opacity:.3;cursor:default}'+
+    '.dwin-b{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}'+
+    '.desk{flex:1;min-height:0;overflow:auto;background:linear-gradient(155deg,#2c5282 0%,#1a365d 55%,#234e52 100%);padding:14px;display:grid;grid-template-columns:repeat(auto-fill,88px);gap:8px;align-content:start}'+
+    '.dico{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 3px;border-radius:9px;color:#fff;font-size:11.5px;line-height:1.25;text-align:center;cursor:pointer;background:none;border:1px solid transparent;font-family:inherit}'+
+    '.dico:hover,.dico:focus-visible{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28);outline:none}'+
+    '.dico .di{font-size:30px;line-height:1;width:50px;height:50px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.12);border-radius:12px}'+
+    '.dbar{background:#171f2b;color:#cbd5e0;font-size:11px;padding:4px 10px;display:flex;gap:12px;flex-shrink:0;font-family:"Courier New",monospace}'+
+    '.dbar .ok{color:#68d391}.dbar .ko{color:#fc8181}'+
+    '.abar{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 10px;background:#edf2f7;border-bottom:1px solid #cbd5e0;font-size:12px;font-weight:600;color:#4a5568;flex-shrink:0}'+
+    '.aclose{margin-left:auto;border:1px solid #cbd5e0;background:#fff;color:#2d3748;border-radius:5px;padding:2px 9px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit}'+
+    '.aclose:hover{background:#e53e3e;border-color:#e53e3e;color:#fff}'+
+    '.abody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#1a202c;color:#e2e8f0}'+
+    '.abody .tout{user-select:text}'+
+    '.abody .bbar{display:flex;gap:5px;align-items:center;padding:5px 6px;background:#2d3748;flex-shrink:0}'+
+    '.abody .bbar input{flex:1;min-width:0;border:1px solid #4a5568;border-radius:12px;padding:3px 10px;font-family:"Courier New",monospace;font-size:12px;background:#1a202c;color:#e2e8f0}'+
+    '.abody .bbar button{border:none;border-radius:6px;background:#2b6cb0;color:#fff;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer}'+
+    '.abody .bcont{user-select:text}'+
+    '.desk-dock{position:fixed;display:flex;gap:6px;flex-wrap:wrap;z-index:899}'+
+    '.desk-chip{background:#2d3748;color:#e2e8f0;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.25);font-family:inherit}'+
+    '.desk-chip:hover{background:#2b6cb0}'+
+    '.desk-papps{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}'+
+    '.desk-papps .dpl{font-size:.7em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}'+
+    '.desk-papps button{display:flex;align-items:center;gap:7px;border:1px solid #e2e8f0;background:#f7fafc;border-radius:7px;padding:5px 9px;font-size:.8em;cursor:pointer;text-align:left;color:#2d3748;font-family:inherit}'+
+    '.desk-papps button:hover{border-color:#63b3ed;background:#ebf8ff}';
+  document.head.appendChild(st);
+  var dock=document.createElement('div');dock.className='desk-dock';dock.id='desk-dock';document.body.appendChild(dock);
+  window.addEventListener('resize',deskDock);
+}
+// Double-clic détecté sur deux mousedown successifs : le schéma est redessiné à chaque clic,
+// donc l'événement dblclick natif n'atteint pas l'appareil.
+function deskDblCheck(id){
+  var now=Date.now(),l=DESK.last;
+  if(l.id===id&&now-l.t<450){DESK.last={id:null,t:0};deskOpen(id);return true;}
+  DESK.last={id:id,t:now};return false;
+}
+function deskOpen(id,app){
+  var d=S.devs[id];
+  if(!d||S.mode!=='simulation'||!deskApps(d).length)return;
+  deskInit();
+  var w=DESK.wins[id];
+  if(!w){
+    var el=document.createElement('div');
+    el.className='dwin'+(pcKind(d)&&!pcKind(d).cable?' phone':'');
+    el.id='dwin-'+id;el.setAttribute('role','dialog');
+    el.innerHTML='<div class="dwin-t"><span class="dwin-tt"></span><span class="dwin-ip"></span><span class="dwin-bs">'+
+      '<button type="button" class="dw-home" title="Revenir au bureau" aria-label="Revenir au bureau">⌂</button>'+
+      '<button type="button" class="dw-min" title="Réduire" aria-label="Réduire">–</button>'+
+      '<button type="button" class="dw-x" title="Fermer le bureau" aria-label="Fermer le bureau">×</button></span></div>'+
+      '<div class="dwin-b"></div>';
+    document.body.appendChild(el);
+    var cw=document.querySelector('.cw'),r=cw?cw.getBoundingClientRect():{left:0,top:0,width:window.innerWidth,height:window.innerHeight};
+    var n=Object.keys(DESK.wins).length;
+    var W=el.offsetWidth,H=el.offsetHeight;
+    el.style.left=Math.max(8,Math.min(window.innerWidth-W-8,r.left+40+n*32))+'px';
+    el.style.top=Math.max(8,Math.min(window.innerHeight-H-8,r.top+30+n*28))+'px';
+    w=DESK.wins[id]={el:el,app:null};
+    el.addEventListener('mousedown',function(){deskFocus(id);});
+    el.querySelector('.dw-home').onclick=function(){w.app=null;deskRender(id);};
+    el.querySelector('.dw-min').onclick=function(){el.style.display='none';deskDock();};
+    el.querySelector('.dw-x').onclick=function(){deskClose(id);};
+    el.querySelector('.dwin-b').addEventListener('click',function(e){
+      if(e.target.closest('.aclose')){w.app=null;deskRender(id);return;}
+      var b=e.target.closest('[data-app]');if(b){w.app=b.getAttribute('data-app');deskRender(id);}
+    });
+    deskDrag(el,el.querySelector('.dwin-t'));
+    addLog('Bureau de '+d.name+' ouvert','info');
+  }
+  if(app&&deskApps(d).indexOf(app)!==-1)w.app=app;
+  w.el.style.display='';
+  deskRender(id);deskFocus(id);deskDock();
+}
+function deskClose(id){
+  var w=DESK.wins[id];if(!w)return;
+  w.el.remove();delete DESK.wins[id];deskDock();
+}
+function deskCloseAll(){Object.keys(DESK.wins).forEach(deskClose);}
+function deskFocus(id){
+  Object.keys(DESK.wins).forEach(function(k){DESK.wins[k].el.classList.toggle('focus',k===id);});
+  if(DESK.wins[id])DESK.wins[id].el.style.zIndex=++DESK.z;
+}
+function deskDrag(el,h){
+  h.addEventListener('pointerdown',function(e){
+    if(e.target.closest('button'))return;
+    var sx=e.clientX,sy=e.clientY,ox=el.offsetLeft,oy=el.offsetTop;
+    h.setPointerCapture(e.pointerId);
+    function mv(ev){
+      el.style.left=Math.max(0,Math.min(window.innerWidth-80,ox+ev.clientX-sx))+'px';
+      el.style.top=Math.max(0,Math.min(window.innerHeight-30,oy+ev.clientY-sy))+'px';
+    }
+    function up(){h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);}
+    h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);
+  });
+}
+function deskDock(){
+  var dock=document.getElementById('desk-dock');if(!dock)return;
+  var ids=Object.keys(DESK.wins).filter(function(k){return DESK.wins[k].el.style.display==='none';});
+  dock.innerHTML=ids.map(function(k){
+    var d=S.devs[k];return '<button type="button" class="desk-chip" onclick="deskOpen(\''+k+'\')">'+devIcon(d)+' '+esc(d.name)+'</button>';
+  }).join('');
+  var cw=document.querySelector('.cw');
+  if(cw){var r=cw.getBoundingClientRect();dock.style.left=(r.left+10)+'px';dock.style.top=(r.bottom-44)+'px';}
+}
+function deskRender(id){
+  var w=DESK.wins[id],d=S.devs[id];if(!w||!d)return;
+  var fi=mainIface(d),ip=fi&&fi.ip?fi.ip:'';
+  var app=w.app?DESK_APPS[w.app]:null;
+  w.el.setAttribute('aria-label','Bureau de '+d.name);
+  w.el.querySelector('.dwin-tt').textContent=app?app.icon+' '+app.label+' — '+d.name:devIcon(d)+' Bureau de '+d.name;
+  w.el.querySelector('.dwin-ip').textContent=ip;
+  w.el.querySelector('.dw-home').disabled=!w.app;
+  var b=w.el.querySelector('.dwin-b');
+  if(!app){
+    b.innerHTML='<div class="desk">'+deskApps(d).map(function(a){
+        return '<button type="button" class="dico" data-app="'+a+'"><span class="di">'+DESK_APPS[a].icon+'</span>'+DESK_APPS[a].label+'</button>';
+      }).join('')+'</div>'+
+      '<div class="dbar"><span>'+esc(d.name)+'</span><span class="'+(ip?'ok':'ko')+'">'+esc(ip||'pas d\'adresse IP')+'</span></div>';
+    return;
+  }
+  b.innerHTML='<div class="abar"><span>'+app.icon+' '+app.label+'</span>'+
+    '<button type="button" class="aclose" title="Fermer l\'application et revenir au bureau">✕ Fermer</button></div><div class="abody"></div>';
+  var body=b.querySelector('.abody'),s=deskSess(id);
+  if(w.app==='term'){
+    body.appendChild(s.out);
+    var tin=document.createElement('div');tin.className='tin';
+    tin.innerHTML='<span class="tprompt"></span><input class="tinput dterm-in" type="text" autocomplete="off" spellcheck="false"'+
+      ' placeholder="ping 192.168.1.1 | ipconfig | nslookup www.site.fr | help" aria-label="Commande">';
+    tin.querySelector('.tprompt').textContent=deskPrompt(d);
+    body.appendChild(tin);
+    var inp=tin.querySelector('input');
+    inp.addEventListener('keydown',function(e){deskTermKey(e,id,inp);});
+    s.out.onclick=function(){if(!window.getSelection||!String(window.getSelection()))inp.focus();};
+    s.out.scrollTop=s.out.scrollHeight;
+    setTimeout(function(){inp.focus();},0);
+  } else if(w.app==='brow'){
+    var bar=document.createElement('form');bar.className='bbar';
+    bar.innerHTML='<input class="dbrow-url" type="text" autocomplete="off" spellcheck="false" placeholder="http://www.monserveur.fr  ou  192.168.1.100" aria-label="Adresse"><button type="submit">→ Aller</button>';
+    var u=bar.querySelector('input');u.value=s.url;
+    bar.addEventListener('submit',function(e){e.preventDefault();s.url=u.value.trim();deskBrowse(id);});
+    body.appendChild(bar);body.appendChild(s.bc);
+    setTimeout(function(){u.focus();},0);
+  }
+}
+function deskTermKey(e,id,inp){
+  var s=deskSess(id);
+  if(e.key==='Enter'){
+    e.preventDefault();var raw=inp.value.trim();inp.value='';s.hi=-1;s.draft='';
+    if(!raw)return;
+    if(!s.hist.length||s.hist[s.hist.length-1]!==raw){s.hist.push(raw);if(s.hist.length>50)s.hist.shift();}
+    deskTermRun(id,raw);return;
+  }
+  if(e.key==='ArrowUp'){
+    e.preventDefault();if(!s.hist.length)return;
+    if(s.hi===-1)s.draft=inp.value;
+    if(s.hi<s.hist.length-1){s.hi++;inp.value=s.hist[s.hist.length-1-s.hi];}
+    return;
+  }
+  if(e.key==='ArrowDown'){
+    e.preventDefault();if(s.hi===-1)return;
+    s.hi--;inp.value=s.hi===-1?s.draft:s.hist[s.hist.length-1-s.hi];
+  }
+}
+function deskTermRun(id,raw){
+  var s=deskSess(id),prevOut=_termOut,prevDev=S.termDev;
+  _termOut=s.out;S.termDev=id;
+  try{termRun(raw,id);}
+  finally{_termOut=prevOut;S.termDev=prevDev;}
+}
+function deskBrowse(id){
+  var s=deskSess(id);
+  if(typeof browGo==='function')browGo(id,s.url,s.bc);
+}
+// Ajoute les applications de l'appareil en tête de sa fiche (mode simulation).
+function deskPropsApps(id){
+  var d=S.devs[id],apps=deskApps(d),pb=document.getElementById('props-body');
+  if(!apps.length||!pb||S.mode!=='simulation')return;
+  var div=document.createElement('div');div.className='desk-papps';
+  div.innerHTML='<span class="dpl">Applications · double-clic sur l\'appareil</span>'+apps.map(function(a){
+    return '<button type="button" onclick="deskOpen(\''+id+'\',\''+a+'\')">'+DESK_APPS[a].icon+' '+DESK_APPS[a].label+'</button>';
+  }).join('');
+  deskInit();
+  pb.insertBefore(div,pb.firstChild?pb.firstChild.nextSibling:null);
+}
+// Après chaque rendu du schéma : fermer les bureaux des appareils supprimés, mettre à jour les titres.
+function deskSync(){
+  var ids=Object.keys(DESK.wins);if(!ids.length)return;
+  ids.forEach(function(id){
+    var d=S.devs[id];
+    if(!d||!deskApps(d).length||S.mode!=='simulation'){deskClose(id);return;}
+    var w=DESK.wins[id],fi=mainIface(d);
+    w.el.querySelector('.dwin-ip').textContent=fi&&fi.ip?fi.ip:'';
+    if(!w.app){var bar=w.el.querySelector('.dbar');if(bar)deskRender(id);}
+  });
 }
 
 function doPing(devId,target){

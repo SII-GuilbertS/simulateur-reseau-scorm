@@ -317,6 +317,7 @@ function showPropsSimu(id){
     }
   }
   document.getElementById('props-body').innerHTML=h;
+  deskPropsApps(id);
 }
 
 function showProps(id){
@@ -515,10 +516,13 @@ function showProps(id){
   document.getElementById('props-body').innerHTML=h;
 }
 
-function browGo(){
-  var devId=document.getElementById('bd-sel').value;
-  var url=document.getElementById('burl').value.trim();
-  var bc=document.getElementById('bcont');
+// Sans argument : navigateur du bandeau du bas. Avec arguments : navigateur du bureau d'un appareil.
+function browGo(devId,url,bc){
+  if(bc===undefined){
+    devId=document.getElementById('bd-sel').value;
+    url=document.getElementById('burl').value.trim();
+    bc=document.getElementById('bcont');
+  }
   if(!devId){bc.innerHTML='<div class="berr">⚠️ Choisissez un appareil source.</div>';return;}
   if(!url){bc.innerHTML='<div class="berr">⚠️ Entrez une URL.</div>';return;}
   var res=simHTTP(devId,url);

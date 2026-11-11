@@ -101,7 +101,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 28 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 30 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -110,7 +110,8 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, le DHCP depuis la fiche d'un poste, la connexion WiFi (SSID suivi dans le builder, mot de passe
+le pointeur câble et les touches Échap et Suppr, le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic en mode simulation : terminal et
+navigateur en fenêtre, une session par appareil, chez l'élève et dans le builder), la connexion WiFi (SSID suivi dans le builder, mot de passe
 faux puis corrigé chez l'élève), l'assistant
 « Nouvelle activité » et la fenêtre Variante jusqu'à l'élève, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
@@ -119,6 +120,16 @@ Non couverts : vrai Moodle, drag & drop et câblage, le reste de l'énoncé impr
 d'adressage est vérifié), Firefox. Elle n'est pas dans le
 hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à jour `SCENARIOS` dans
 `builder.spec.js`. À lancer avant chaque push qui touche au builder, aux exports ou aux scénarios.
+
+## Bureau des appareils (mode simulation)
+
+En mode simulation, un double-clic sur un appareil ouvre son bureau : une fenêtre flottante avec
+les icônes de ses applications (pour l'instant Invite de commandes et Navigateur). Le code est dans
+`src/sim-engine.js` (bloc `BUREAU DES APPAREILS`, fonctions `desk*`), donc partagé par le builder et
+l'élève ; son CSS est injecté au premier affichage. Chaque appareil garde sa session (historique,
+sortie, page). Une commande lancée depuis une fenêtre passe par `termRun(raw, devId)`, avec
+`_termOut` pointant vers la sortie de la fenêtre ; le navigateur appelle `browGo(devId, url, conteneur)`.
+Le bandeau du bas (Terminal, Navigateur, Journal, Paquets, Activité) est conservé pour l'instant.
 
 ## Scénarios
 

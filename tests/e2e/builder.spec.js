@@ -129,6 +129,35 @@ async function studentBrowse(scope, deviceName, url) {
   await scope.locator('button[onclick="browGo()"]').click();
 }
 
+/* Bureau d'un appareil (mode simulation) : double-clic, puis l'icône de l'application.
+   Rend la fenêtre de l'appareil. */
+async function openDeskApp(scope, deviceName, appLabel) {
+  const id = await deviceId(scope, deviceName);
+  await scope.locator(`#gd${id}`).dblclick();
+  const win = scope.locator(`#dwin-${id}`);
+  await expect(win).toBeVisible();
+  const home = win.locator('.dw-home');
+  if (await home.isEnabled()) await home.click();
+  await win.locator('.dico', { hasText: appLabel }).click();
+  await expect(win.locator('.abar')).toContainText(appLabel);
+  return win;
+}
+
+async function deskTerminal(scope, deviceName, command) {
+  const win = await openDeskApp(scope, deviceName, 'Invite de commandes');
+  await win.locator('.dterm-in').fill(command);
+  await win.locator('.dterm-in').press('Enter');
+  await expect(win.locator('.dterm-out')).toContainText('> ' + command);
+  return win;
+}
+
+async function deskBrowse(scope, deviceName, url) {
+  const win = await openDeskApp(scope, deviceName, 'Navigateur');
+  await win.locator('.dbrow-url').fill(url);
+  await win.locator('.dbrow-url').press('Enter');
+  return win;
+}
+
 /* reseau-maison : l'élève corrige la passerelle puis prouve que tout fonctionne. */
 async function solveMaison(scope) {
   await setGateway(scope, 'PC-Bureau', '192.168.1.1');
@@ -256,9 +285,53 @@ test.describe('Vue élève (export HTML)', () => {
     await finish(page);
     await expect.poll(() => page.dialogs.at(-1)).toContain('RÉUSSI');
   });
+
+  test('bureau des appareils : terminal et navigateur en fenêtre valident l\'activité, une session par appareil', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const file = await exportFile(page, 'html', info.outputPath('maison-bureau.html'));
+    await page.goto(pathToFileURL(file).href);
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await studentScore(page, 35);
+    await page.locator('#btn-sim').click();
+
+    await deskTerminal(page, 'Laptop', 'dhcp');
+    await deskTerminal(page, 'Laptop', 'ping 8.8.8.8');
+    const laptop = await deskBrowse(page, 'Laptop', 'www.exemple.fr');
+    await expect(laptop.locator('.bpage h1')).toBeVisible();
+    await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
+    const pc = await deskTerminal(page, 'PC-Bureau', 'ping 8.8.8.8');
+    await deskBrowse(page, 'PC-Bureau', 'www.exemple.fr');
+    await studentScore(page, 100);
+
+    // Chaque appareil a sa propre sortie ; le bandeau du bas n'a rien reçu.
+    await pc.locator('.aclose').click();
+    await openDeskApp(page, 'PC-Bureau', 'Invite de commandes');
+    await expect(pc.locator('.dterm-out')).toContainText('> ping 192.168.1.1');
+    await expect(pc.locator('.dterm-out')).not.toContainText('> dhcp');
+    await expect(page.locator('#tout')).not.toContainText('> ping 8.8.8.8');
+
+    // Fermer l'application garde la fenêtre ; × ferme le bureau ; le mode Conception ferme tout.
+    await pc.locator('.aclose').click();
+    await expect(pc.locator('.dico')).toHaveCount(2);
+    await pc.locator('.dw-x').click();
+    await expect(pc).toHaveCount(0);
+    await expect(page.locator('.dwin')).toHaveCount(1);
+    await page.locator('#btn-cfg').click();
+    await expect(page.locator('.dwin')).toHaveCount(0);
+  });
 });
 
 test.describe('Builder', () => {
+  test('bureau des appareils dans le builder : terminal en fenêtre, adresse dans le titre', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('#btn-sim').click();
+    const before = await builderScore(page).textContent();
+    const win = await deskTerminal(page, 'PC-Bureau', 'ipconfig');
+    await expect(win.locator('.dterm-out')).toContainText('192.168.1.');
+    await expect(win.locator('.dwin-ip')).toHaveText(/^192\.168\.1\.\d+$/);
+    await expect(builderScore(page)).toHaveText(before);
+  });
+
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
     // Réseau du builder sans pannes, mais score de l'élève : les réparations ne comptent pas.
     await openBuilderWith(page, 'reseau-entreprise');
