@@ -396,7 +396,8 @@ def build_prof(out_path):
         ['Ctrl+S',          'Sauvegarder la session'],
         ['Ctrl+Z / Ctrl+Y', 'Annuler / Rétablir'],
         ['Ctrl+C / Ctrl+V', 'Copier / Coller un appareil sélectionné'],
-        ['Suppr',           'Supprimer l\'appareil ou le câble sélectionné'],
+        ['Échap',           'Revenir à l\'outil Sélection (annule un câble en cours)'],
+        ['Suppr',           'Supprimer l\'appareil, le câble, le cadre ou le texte sélectionné'],
         ['F11',             'Basculer en plein écran'],
     ]
     kb_p = [[Paragraph(r[0], MONO if i>0 else CELL_B), Paragraph(r[1], CELL)]

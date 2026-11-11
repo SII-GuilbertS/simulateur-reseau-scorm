@@ -2354,6 +2354,43 @@ test('poste ajouté et nommé en minuscules : ping au terminal validé puis rev�
   ok(done(1), 'toujours valide après revérification');
 });
 
+/* ── Touche Suppr : effacer la sélection ── */
+suite('Suppr — effacer l\'élément sélectionné');
+
+test('appareil sélectionné : effacé avec ses câbles', function() {
+  resetNet(); S.mode = 'config';
+  var pc = mkPC('192.168.1.10'), sw = mkSwitch(); link(pc, sw);
+  S.sel = pc;
+  ok(sandbox.deleteSelection());
+  notOk(S.devs[pc]); eq(Object.keys(S.links).length, 0); eq(S.sel, null);
+});
+
+test('câble sélectionné : seul le câble est effacé', function() {
+  resetNet(); S.mode = 'config';
+  var pc = mkPC('192.168.1.10'), sw = mkSwitch(), l = link(pc, sw);
+  S.sel = l;
+  ok(sandbox.deleteSelection());
+  notOk(S.links[l]); ok(S.devs[pc]); ok(S.devs[sw]);
+});
+
+test('cadre et texte sélectionnés : effacés', function() {
+  resetNet(); S.mode = 'config';
+  S.frames = { f9: { id:'f9', x:0, y:0, w:100, h:100, label:'Salle' } };
+  S.texts  = { t9: { id:'t9', x:0, y:0, text:'Note' } };
+  S.sel = 'f9'; ok(sandbox.deleteSelection()); notOk(S.frames.f9);
+  S.sel = 't9'; ok(sandbox.deleteSelection()); notOk(S.texts.t9);
+  S.frames = {}; S.texts = {};
+});
+
+test('mode Simulation ou rien de sélectionné : rien n\'est effacé', function() {
+  resetNet();
+  var pc = mkPC('192.168.1.10');
+  S.sel = pc; S.mode = 'simulation';
+  notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
+  S.mode = 'config'; S.sel = null;
+  notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
+});
+
 /* ── SCORM ── */
 suite('SCORM — échanges avec le LMS');
 

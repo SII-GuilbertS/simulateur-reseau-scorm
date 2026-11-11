@@ -46,14 +46,14 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 3. Onglet **Évaluation** : ajouter les objectifs et les pannes
 4. Onglet **Générer** : exporter le SCORM (Moodle) ou le HTML (test local)
 
-**Raccourcis clavier :** `Ctrl+1/2/3` (onglets), `Ctrl+S` (sauvegarde session), `Suppr` (supprimer sélection), `F11` (plein écran).
+**Raccourcis clavier :** `Ctrl+1/2/3` (onglets), `Ctrl+S` (sauvegarde session), `Échap` (retour à l'outil Sélection, depuis n'importe quel outil, en annulant un câble en cours), `Suppr` (effacer l'appareil, le câble, le cadre ou le texte sélectionné ; `Ctrl+Z` l'annule dans le builder), `F11` (plein écran). En mode câble, le pointeur prend la forme du câble.
 
 ---
 
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **306 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **310 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -68,7 +68,7 @@ Suite de **306 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 306/306 tests passés — SUCCÈS
+# ✅ 310/310 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`

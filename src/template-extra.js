@@ -627,10 +627,6 @@ window.addEventListener('load',function(){
     document.querySelector('.bot').style.display='none'; // masqué en mode config par défaut
   }
   window.addEventListener('keydown',function(e){
-    if(e.key==='Escape'&&S.cableFrom){S.cableFrom=null;hidePrev();render();}
-    if((e.key==='Delete'||e.key==='Backspace')&&S.sel&&S.devs[S.sel]&&!e.target.matches('input,textarea')){
-      delDev(S.sel);render();noSel();
-    }
     if(e.key==='F11'){e.preventDefault();toggleFullscreen();}
   });
   window.addEventListener('beforeunload',function(){saveToSession();if(_api&&_apiOk){sSet('cmi.core.score.raw',String(S.score));sCom();}});

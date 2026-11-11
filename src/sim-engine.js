@@ -1315,12 +1315,31 @@ function setTool(t){
   S.tool=t;S.cableFrom=null;hidePrev();
   ['select','link','delete','clear'].forEach(function(x){var b=document.getElementById('t-'+x);if(b)b.classList.toggle('active',x===t);});
   ['sel','link','del'].forEach(function(x){var b=document.getElementById('pi-'+x);if(b)b.classList.toggle('active',x==='sel'?t==='select':x==='link'?t==='link':t==='delete');});
-  document.getElementById('cw').style.cursor=(t==='link'?'crosshair':'default');
+  var cw=document.getElementById('cw');
+  if(cw){cw.style.cursor='';cw.classList.toggle('tool-link',t==='link');}
   render();
 }
 
+/* Suppr : efface l'élément sélectionné (appareil, câble, cadre ou texte), en mode Configuration. */
+function deleteSelection(){
+  var id=S.sel;
+  if(!id||S.mode!=='config')return false;
+  if(S.devs[id]){snapHistory();delDev(id);}
+  else if(S.links[id]){snapHistory();delete S.links[id];}
+  else if(S.frames&&S.frames[id]){snapHistory();delete S.frames[id];}
+  else if(S.texts&&S.texts[id]){snapHistory();delete S.texts[id];}
+  else return false;
+  S.sel=null;render();noSel();
+  return true;
+}
+/* Clavier, builder et élève : Échap revient à l'outil Sélection, quel que soit l'outil, et
+   annule un câble ou un déplacement en cours ; Suppr (ou Retour arrière) efface la sélection,
+   sauf pendant une saisie. */
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape'&&S.mode==='config'){setTool('select');}
+  var t=e.target||{};
+  var typing=t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable;
+  if(e.key==='Escape'){S.drag=null;setTool('select');return;}
+  if((e.key==='Delete'||e.key==='Backspace')&&!typing&&deleteSelection())e.preventDefault();
 });
 
 function setMode(m){

@@ -576,6 +576,65 @@ test.describe('Builder', () => {
     await expect(page.locator('.activ-obj', { hasText: 'Ping depuis le nouveau poste' })).toHaveClass(/done/);
   });
 
+  test('outil Câble : pointeur câble ; Échap revient à la sélection ; Suppr efface (builder et élève)', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const cw = page.locator('#cw');
+    const canvasCursor = () => page.locator('#canvas').evaluate((el) => getComputedStyle(el).cursor);
+    const devCursor = (id) => page.locator(`#gd${id}`).evaluate((el) => getComputedStyle(el).cursor);
+    const laptop = await deviceId(page, 'Laptop');
+
+    // Outil Câble (palette du builder) : pointeur câble sur le canevas et sur les appareils
+    await page.locator('#pi-link').click();
+    await expect(cw).toHaveClass(/tool-link/);
+    expect(await canvasCursor()).toContain('url(');
+    expect(await devCursor(laptop)).toContain('url(');
+
+    // Câble commencé, puis Échap : outil Sélection, câble annulé
+    await page.locator(`#gd${laptop}`).click();
+    await page.keyboard.press('Escape');
+    await expect(cw).not.toHaveClass(/tool-link/);
+    await expect(page.locator('#pi-sel')).toHaveClass(/active/);
+    expect(await page.evaluate(() => [S.tool, S.cableFrom])).toEqual(['select', null]);
+    expect(await canvasCursor()).not.toContain('url(');
+
+    // Outil Supprimer puis Échap : retour à la sélection
+    await page.locator('#pi-del').click();
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => S.tool)).toBe('select');
+
+    // Suppr pendant une saisie : rien n'est effacé
+    await page.locator(`#gd${laptop}`).click();
+    const name = page.locator('#props-body input').first();
+    await name.focus();
+    await page.keyboard.press('Delete');
+    expect(await page.evaluate((id) => !!S.devs[id], laptop)).toBe(true);
+
+    // Suppr : appareil sélectionné effacé, Ctrl+Z le remet
+    await page.locator(`#gd${laptop}`).click();
+    await page.keyboard.press('Delete');
+    expect(await page.evaluate((id) => !!S.devs[id], laptop)).toBe(false);
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => !!S.devs[id], laptop)).toBe(true);
+
+    // Suppr sur un câble sélectionné
+    const lid = await page.evaluate(() => Object.keys(S.links)[0]);
+    await page.evaluate((id) => selLink(id), lid);
+    await page.keyboard.press('Delete');
+    expect(await page.evaluate((id) => !!S.links[id], lid)).toBe(false);
+
+    // Côté élève : mêmes comportements
+    const file = await exportFile(page, 'html', info.outputPath('maison-clavier.html'));
+    await page.goto(pathToFileURL(file).href);
+    await page.locator('#t-link').click();
+    expect(await canvasCursor()).toContain('url(');
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => S.tool)).toBe('select');
+    const pc = await deviceId(page, 'Smartphone');
+    await page.locator(`#gd${pc}`).click();
+    await page.keyboard.press('Delete');
+    expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(false);
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));
