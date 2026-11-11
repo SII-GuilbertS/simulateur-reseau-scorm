@@ -162,145 +162,232 @@
   "activity": {
     "title": "Réseau Lycée — Diagnostic et réparation",
     "level": "Terminale NSI / BTS SIO",
-    "instructions": "Le réseau du lycée présente plusieurs dysfonctionnements ce matin. Les tablettes ne parviennent plus à se connecter au WiFi et PC-Salle2 est injoignable sur le réseau local.\n\n🔍 Votre mission :\n1. En mode Simulation, testez la connectivité de chaque poste (ping, ipconfig, nslookup).\n2. Identifiez les deux pannes cachées dans le réseau.\n3. Corrigez les problèmes en mode Configuration.\n4. Validez l'accès à l'intranet depuis PC-Salle1 et depuis la Tablette-Eleve (DHCP).\n\n🌐 Intranet : lycee.local\n📶 SSID attendu : WiFi-Lycee\n💡 Commandes : ipconfig, ping <IP>, nslookup <domaine>, dhcp",
+    "instructions": "Le réseau du lycée présente de nombreux dysfonctionnements ce matin : plus d'accès à Internet, les tablettes ne se connectent plus au WiFi, PC-Salle2 est injoignable et l'intranet ne répond plus. Une nouvelle salle doit aussi accueillir le poste PC-Salle3.\n\n🔍 Votre mission :\n1. En mode Simulation, testez la connectivité de chaque poste (ping, ipconfig, nslookup, navigateur).\n2. Trouvez et corrigez les pannes en mode Configuration (câbles, WiFi, services, adresses).\n3. Ajoutez le poste PC-Salle3 relié au Switch-Principal : adresse libre entre 192.168.1.20 et 192.168.1.49, passerelle et DNS du réseau.\n4. Déclarez-le dans le DNS sous le nom pc-salle3.lycee.local, puis vérifiez tout avec les commandes.\n\n🌐 Intranet : lycee.local\n📶 SSID attendu : WiFi-Lycee\n💡 Commandes : ipconfig, ping <IP>, nslookup <domaine>, dhcp",
     "masteryscore": 65,
     "displayMode": "full",
     "objectives": [
       {
         "id": 1,
-        "label": "Internet est connecté au Routeur-Principal",
+        "label": "Internet est de nouveau relié au Routeur-Principal",
         "check": "cable_exists",
-        "params": {"devA": "Internet", "devB": "Routeur-Principal"},
-        "points": 4,
-        "hint": "Vérifiez le câble entre Internet et le Routeur-Principal"
+        "params": {
+          "devA": "Internet",
+          "devB": "Routeur-Principal"
+        },
+        "points": 5,
+        "hint": "ping 8.8.8.8 échoue depuis tous les postes ? Regardez les câbles autour du Routeur-Principal"
       },
       {
         "id": 2,
-        "label": "Le SSID de la Box WiFi est 'WiFi-Lycee'",
-        "check": "ssid_configured",
-        "params": {"dev": "Box-WiFi-Eleves", "ssid": "WiFi-Lycee"},
-        "points": 20,
-        "hint": "Dans les propriétés de Box-WiFi-Eleves, vérifiez/corrigez le nom SSID"
+        "label": "Test : PC-Salle1 accède à Internet (ping 8.8.8.8)",
+        "check": "ping_success",
+        "params": {
+          "from": "PC-Salle1",
+          "to": "8.8.8.8"
+        },
+        "points": 5,
+        "hint": "Terminal de PC-Salle1 : ping 8.8.8.8"
       },
       {
         "id": 3,
-        "label": "Le service DHCP de la Box WiFi est actif",
-        "check": "service_active",
-        "params": {"dev": "Box-WiFi-Eleves", "service": "dhcp"},
-        "points": 4,
-        "hint": "Activez ou vérifiez que le DHCP est bien activé dans les propriétés de la Box-WiFi-Eleves"
+        "label": "PC-Salle2 a de nouveau l'adresse 192.168.1.11",
+        "check": "ip_configured",
+        "params": {
+          "dev": "PC-Salle2",
+          "ip": "192.168.1.11"
+        },
+        "points": 5,
+        "hint": "PC-Salle2 est injoignable : comparez son adresse (ipconfig) avec le réseau 192.168.1.0/24"
       },
       {
         "id": 4,
-        "label": "La Tablette-Eleve est connectée en WiFi à la Box",
-        "check": "wifi_link",
-        "params": {"devA": "Tablette-Eleve", "devB": "Box-WiFi-Eleves"},
-        "points": 4,
-        "hint": "Reliez la Tablette-Eleve à la Box-WiFi-Eleves via une liaison WiFi"
+        "label": "Test : PC-Salle2 joint le Serveur-Web (ping)",
+        "check": "ping_success",
+        "params": {
+          "from": "PC-Salle2",
+          "to": "{Serveur-Web}"
+        },
+        "points": 5,
+        "hint": "Terminal de PC-Salle2 : ping 192.168.1.100"
       },
       {
         "id": 5,
-        "label": "PC-Salle1 a l'adresse IP 192.168.1.10",
-        "check": "ip_configured",
-        "params": {"dev": "PC-Salle1", "ip": "192.168.1.10"},
-        "points": 3,
-        "hint": "Vérifiez et corrigez l'IP de PC-Salle1 : elle doit être 192.168.1.10"
+        "label": "Le service HTTP du Serveur-Web est actif",
+        "check": "service_active",
+        "params": {
+          "dev": "Serveur-Web",
+          "service": "http"
+        },
+        "points": 5,
+        "hint": "L'intranet ne répond plus ? Vérifiez les services du Serveur-Web"
       },
       {
         "id": 6,
-        "label": "La passerelle de PC-Salle1 est correcte (192.168.1.1)",
-        "check": "gateway_configured",
-        "params": {"dev": "PC-Salle1", "gateway": "192.168.1.1"},
-        "points": 3,
-        "hint": "La passerelle de PC-Salle1 doit pointer vers le Routeur-Principal : 192.168.1.1"
+        "label": "Test : PC-Salle1 ouvre l'intranet lycee.local",
+        "check": "http_success",
+        "params": {
+          "from": "PC-Salle1",
+          "url": "lycee.local"
+        },
+        "points": 5,
+        "hint": "Onglet Navigateur : choisissez PC-Salle1 et entrez lycee.local"
       },
       {
         "id": 7,
-        "label": "PC-Salle1 utilise Serveur-DNS comme résolveur (192.168.1.50)",
-        "check": "dns_configured",
-        "params": {"dev": "PC-Salle1", "dns": "192.168.1.50"},
-        "points": 3,
-        "hint": "Configurez 192.168.1.50 (Serveur-DNS) comme serveur DNS de PC-Salle1"
+        "label": "Le SSID de la Box WiFi est 'WiFi-Lycee'",
+        "check": "ssid_configured",
+        "params": {
+          "dev": "Box-WiFi-Eleves",
+          "ssid": "WiFi-Lycee"
+        },
+        "points": 5,
+        "hint": "Propriétés de Box-WiFi-Eleves : comparez le SSID avec celui attendu"
       },
       {
         "id": 8,
-        "label": "Le Switch-Serveurs est présent dans la topologie",
-        "check": "device_added",
-        "params": {"newdev": "Switch-Serveurs", "type": "switch"},
-        "points": 2,
-        "hint": "Vérifiez que le Switch-Serveurs est bien représenté dans le schéma réseau"
+        "label": "Le service DHCP de la Box WiFi est actif",
+        "check": "service_active",
+        "params": {
+          "dev": "Box-WiFi-Eleves",
+          "service": "dhcp"
+        },
+        "points": 5,
+        "hint": "La tablette n'obtient pas d'adresse ? Vérifiez les services de la Box"
       },
       {
         "id": 9,
-        "label": "PC-Salle2 a une adresse IP correcte (192.168.1.11)",
-        "check": "ip_configured",
-        "params": {"dev": "PC-Salle2", "ip": "192.168.1.11"},
-        "points": 20,
-        "hint": "Vérifiez l'IP de PC-Salle2 — elle a peut-être été mal configurée !"
+        "label": "La Tablette-Eleve est reliée en WiFi à la Box",
+        "check": "wifi_link",
+        "params": {
+          "devA": "Tablette-Eleve",
+          "devB": "Box-WiFi-Eleves"
+        },
+        "points": 5,
+        "hint": "Rétablissez la liaison WiFi entre la Tablette-Eleve et la Box"
       },
       {
         "id": 10,
-        "label": "Le service DNS du Serveur-DNS est actif",
-        "check": "service_active",
-        "params": {"dev": "Serveur-DNS", "service": "dns"},
-        "points": 4,
-        "hint": "Dans les propriétés du Serveur-DNS, vérifiez que le service DNS est activé"
+        "label": "Test : la Tablette-Eleve obtient une adresse par DHCP",
+        "check": "dhcp_success",
+        "params": {
+          "from": "Tablette-Eleve"
+        },
+        "points": 5,
+        "hint": "Terminal de la Tablette-Eleve : dhcp"
       },
       {
         "id": 11,
-        "label": "Le service HTTP du Serveur-Web est actif",
-        "check": "service_active",
-        "params": {"dev": "Serveur-Web", "service": "http"},
-        "points": 4,
-        "hint": "Dans les propriétés du Serveur-Web, vérifiez que le service HTTP est activé"
+        "label": "Test : la Tablette-Eleve ouvre l'intranet lycee.local",
+        "check": "http_success",
+        "params": {
+          "from": "Tablette-Eleve",
+          "url": "lycee.local"
+        },
+        "points": 5,
+        "hint": "Onglet Navigateur : choisissez la Tablette-Eleve et entrez lycee.local"
       },
       {
         "id": 12,
-        "label": "Enregistrement DNS : lycee.local → 192.168.1.100",
-        "check": "dns_record",
-        "params": {"dev": "Serveur-DNS", "domain": "lycee.local", "ip": "192.168.1.100"},
-        "points": 6,
-        "hint": "Vérifiez dans les propriétés du Serveur-DNS que lycee.local pointe vers 192.168.1.100"
+        "label": "Le Routeur-Principal connaît le réseau WiFi (192.168.2.0)",
+        "check": "route_exists",
+        "params": {
+          "dev": "Routeur-Principal",
+          "dest": "192.168.2.0"
+        },
+        "points": 5,
+        "hint": "Table de routage du Routeur-Principal (route) : la route vers 192.168.2.0 passe par la Box, vérifiez l'adresse de la Box côté réseau local"
       },
       {
         "id": 13,
-        "label": "Le Routeur-Principal connaît le réseau WiFi (192.168.2.0/24)",
-        "check": "route_exists",
-        "params": {"dev": "Routeur-Principal", "dest": "192.168.2.0"},
-        "points": 6,
-        "hint": "Vérifiez la table de routage du Routeur-Principal : il doit avoir une route vers 192.168.2.0 (calculée via RIP automatique)"
+        "label": "Le poste PC-Salle3 est ajouté avec une adresse libre entre .20 et .49",
+        "check": "device_added",
+        "params": {
+          "newdev": "PC-Salle3",
+          "type": "pc",
+          "ip": "192.168.1.20-49",
+          "mask": "255.255.255.0"
+        },
+        "points": 5,
+        "hint": "Glissez un PC, nommez-le PC-Salle3, reliez-le au Switch-Principal et choisissez une adresse libre"
       },
       {
         "id": 14,
-        "label": "PC-Salle1 joindre Serveur-Web (ping réussi)",
+        "label": "Test : PC-Salle3 joint le Serveur-Web (ping)",
         "check": "ping_success",
-        "params": {"from": "PC-Salle1", "to": "Serveur-Web"},
-        "points": 4,
-        "hint": "En mode Simulation, terminal de PC-Salle1 : ping 192.168.1.100"
+        "params": {
+          "from": "PC-Salle3",
+          "to": "{Serveur-Web}"
+        },
+        "points": 5,
+        "hint": "Terminal de PC-Salle3 : ping 192.168.1.100"
       },
       {
         "id": 15,
-        "label": "PC-Salle1 accède à lycee.local (navigateur HTTP)",
-        "check": "http_success",
-        "params": {"from": "PC-Salle1", "url": "lycee.local"},
-        "points": 6,
-        "hint": "Dans le navigateur intégré : sélectionnez PC-Salle1 et saisissez lycee.local"
+        "label": "PC-Salle3 utilise le routeur de son réseau comme passerelle",
+        "check": "gateway_configured",
+        "params": {
+          "dev": "PC-Salle3",
+          "gateway": "@routeur"
+        },
+        "points": 5,
+        "hint": "Quelle est l'adresse du Routeur-Principal sur le réseau des salles ?",
+        "showConstraint": true
       },
       {
         "id": 16,
-        "label": "PC-Salle1 résout lycee.local (DNS)",
-        "check": "dns_success",
-        "params": {"from": "PC-Salle1", "domain": "lycee.local"},
-        "points": 3,
-        "hint": "En mode Simulation, terminal de PC-Salle1 : nslookup lycee.local"
+        "label": "Test : PC-Salle3 accède à Internet (ping 8.8.8.8)",
+        "check": "ping_success",
+        "params": {
+          "from": "PC-Salle3",
+          "to": "8.8.8.8"
+        },
+        "points": 5,
+        "hint": "Terminal de PC-Salle3 : ping 8.8.8.8"
       },
       {
         "id": 17,
-        "label": "La Tablette-Eleve obtient une IP via DHCP",
-        "check": "dhcp_success",
-        "params": {"from": "Tablette-Eleve"},
-        "points": 4,
-        "hint": "En mode Simulation, terminal de Tablette-Eleve : tapez 'dhcp' pour demander une adresse automatiquement"
+        "label": "PC-Salle3 utilise le Serveur-DNS",
+        "check": "dns_configured",
+        "params": {
+          "dev": "PC-Salle3",
+          "dns": "{Serveur-DNS}"
+        },
+        "points": 5,
+        "hint": "Reprenez le DNS configuré sur PC-Salle1"
+      },
+      {
+        "id": 18,
+        "label": "Test : PC-Salle3 ouvre l'intranet lycee.local",
+        "check": "http_success",
+        "params": {
+          "from": "PC-Salle3",
+          "url": "lycee.local"
+        },
+        "points": 5,
+        "hint": "Onglet Navigateur : choisissez PC-Salle3 et entrez lycee.local"
+      },
+      {
+        "id": 19,
+        "label": "Le DNS associe pc-salle3.lycee.local à PC-Salle3",
+        "check": "dns_record",
+        "params": {
+          "dev": "Serveur-DNS",
+          "domain": "pc-salle3.lycee.local",
+          "ip": "{PC-Salle3}"
+        },
+        "points": 5,
+        "hint": "Propriétés du Serveur-DNS : ajoutez l'enregistrement pc-salle3.lycee.local avec l'adresse choisie"
+      },
+      {
+        "id": 20,
+        "label": "Test : PC-Salle1 résout pc-salle3.lycee.local (nslookup)",
+        "check": "dns_success",
+        "params": {
+          "from": "PC-Salle1",
+          "domain": "pc-salle3.lycee.local"
+        },
+        "points": 5,
+        "hint": "Terminal de PC-Salle1 : nslookup pc-salle3.lycee.local"
       }
     ],
     "faults": [
@@ -315,7 +402,66 @@
         "type": "ssid_wrong",
         "dev": "Box-WiFi-Eleves",
         "badValue": "WiFi-Invite"
+      },
+      {
+        "id": 3,
+        "type": "missing_cable",
+        "devA": "Internet",
+        "devB": "Routeur-Principal"
+      },
+      {
+        "id": 4,
+        "type": "service_down",
+        "dev": "Box-WiFi-Eleves",
+        "service": "dhcp"
+      },
+      {
+        "id": 5,
+        "type": "missing_cable",
+        "devA": "Tablette-Eleve",
+        "devB": "Box-WiFi-Eleves"
+      },
+      {
+        "id": 6,
+        "type": "service_down",
+        "dev": "Serveur-Web",
+        "service": "http"
+      },
+      {
+        "id": 7,
+        "type": "bad_ip",
+        "dev": "Box-WiFi-Eleves",
+        "badValue": "192.168.10.254"
       }
+    ],
+    "evalOrder": [
+      "f:3",
+      "o:1",
+      "o:2",
+      "f:1",
+      "o:3",
+      "o:4",
+      "f:6",
+      "o:5",
+      "o:6",
+      "f:2",
+      "o:7",
+      "f:4",
+      "o:8",
+      "f:5",
+      "o:9",
+      "o:10",
+      "o:11",
+      "f:7",
+      "o:12",
+      "o:13",
+      "o:14",
+      "o:15",
+      "o:16",
+      "o:17",
+      "o:18",
+      "o:19",
+      "o:20"
     ]
   }
 }

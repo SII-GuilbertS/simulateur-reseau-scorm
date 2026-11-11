@@ -53,7 +53,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **285 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **293 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -68,7 +68,7 @@ Suite de **285 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 285/285 tests passés — SUCCÈS
+# ✅ 293/293 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
@@ -85,27 +85,31 @@ Ces tests ne remplacent pas un essai sur un vrai Moodle, et ne couvrent ni le dr
 
 ### Scénarios prêts à l'emploi (`scenarios/`)
 
-Quatre scénarios JSON complets couvrant l'ensemble des 14 types d'objectifs et des 7 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
+Quatre scénarios JSON complets couvrant les 14 types d'objectifs et 5 des 7 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
+
+Tous démarrent avec un score de **0** : chaque point se gagne en réparant une panne, en construisant ce qui est demandé ou en prouvant par une commande (ping, nslookup, navigateur, dhcp) que le réseau fonctionne. Les tests vérifient ce score de départ pour chaque fichier de `scenarios/`.
+
+Chaque réparation ou construction est **suivie de son test** (ping, ouverture d'un site, nslookup), préfixé « Test : » dans le libellé, et chaque panne est placée dans la liste du builder juste avant l'objectif qui la répare (`evalOrder`).
 
 #### `scenarios/reseau-maison.json`
 **Réseau Maison — Panne WiFi** — niveau 4e/3e
 
-Topologie : Box WiFi (DHCP, SSID `WiFi-Maison`), Switch, PC-Bureau (câble), Laptop et Smartphone (WiFi).
+Topologie : Box WiFi (DHCP, SSID `WiFi-Maison`), Switch, PC-Bureau (câble), Laptop et Smartphone (WiFi). L'appareil Internet sert le DNS public (8.8.8.8) et le site `www.exemple.fr`.
 Panne : mauvaise passerelle sur PC-Bureau (`192.168.99.1` au lieu de `192.168.1.1`).
-10 objectifs — 100 points — seuil 60 %.
+7 objectifs — 100 points — seuil 60 %. L'élève compare le Laptop (DHCP, ping et site) au PC-Bureau, corrige la passerelle puis le prouve par un ping et l'ouverture du site.
 
-Objectifs couverts : `cable_exists`, `ssid_configured`, `service_active(dhcp)`, `ip_configured`, `gateway_configured`, `dns_configured`, `wifi_link`.
+Objectifs couverts : `dhcp_success`, `ping_success`, `http_success`, `gateway_configured`.
 
 ---
 
 #### `scenarios/reseau-entreprise.json`
 **Réseau Entreprise — Serveur Web et DNS en panne** — niveau Terminale/BTS
 
-Topologie : Routeur, Switch LAN, 3 PC (Alice, Bob, Charlie), Serveur (HTTP + DNS désactivé).
+Topologie : Routeur, Switch LAN, 3 PC (Alice, Bob, Charlie), Serveur (HTTP + DNS).
 Pannes : service DNS désactivé sur le Serveur + mauvaise passerelle sur PC-Bob.
-13 objectifs — 100 points — seuil 60 %.
+7 objectifs — 100 points — seuil 60 %. Chaque panne est réparée puis vérifiée : résolution du nom et accès au site depuis PC-Alice et PC-Bob après la relance du DNS, accès Internet de PC-Bob après la correction de sa passerelle.
 
-Objectifs couverts : `cable_exists`, `device_added`, `ip_configured`, `service_active`, `dns_record`, `gateway_configured`, `dns_configured`, `route_exists`, `ping_success`, `http_success`, `dns_success`.
+Objectifs couverts : `ping_success`, `service_active`, `dns_success`, `http_success`, `gateway_configured`.
 
 ---
 
@@ -113,10 +117,11 @@ Objectifs couverts : `cable_exists`, `device_added`, `ip_configured`, `service_a
 **Réseau Lycée — Diagnostic et réparation** — niveau Terminale NSI/BTS SIO
 
 Topologie : Routeur-Principal, 2 Switches, PC-Salle1, PC-Salle2, Box-WiFi-Élèves (DHCP WiFi), Tablette-Élève, Serveur-DNS, Serveur-Web.
-Pannes : IP incorrecte sur PC-Salle2 + SSID incorrect sur la Box WiFi.
-17 objectifs — 100 points — seuil 65 %.
+Pannes (7) : câble Internet débranché, SSID incorrect, DHCP de la Box arrêté, liaison WiFi de la tablette coupée, IP incorrecte sur PC-Salle2, adresse de la Box erronée (le routeur perd la route vers le réseau WiFi), service HTTP du Serveur-Web arrêté.
+Construction : l'élève ajoute PC-Salle3 (adresse libre entre `.20` et `.49`, passerelle du routeur, DNS du Serveur-DNS) et l'enregistrement `pc-salle3.lycee.local`.
+20 objectifs de 5 points — 100 points — seuil 65 %. Chaque réparation est suivie de son test, sauf le SSID et la route : le simulateur ne tient pas encore compte du SSID, et son ping n'utilise pas les tables de routage.
 
-Objectifs couverts : **tous les 14 types** (`cable_exists`, `ssid_configured`, `service_active`, `wifi_link`, `ip_configured`, `gateway_configured`, `dns_configured`, `device_added`, `service_active`, `dns_record`, `route_exists`, `ping_success`, `http_success`, `dns_success`, `dhcp_success`).
+Objectifs couverts : **tous les 14 types** (`cable_exists`, `ssid_configured`, `service_active`, `wifi_link`, `dhcp_success`, `ip_configured`, `route_exists`, `http_success`, `device_added`, `gateway_configured`, `dns_configured`, `ping_success`, `dns_record`, `dns_success`).
 
 ---
 
@@ -126,9 +131,9 @@ Objectifs couverts : **tous les 14 types** (`cable_exists`, `ssid_configured`, `
 Topologie : Switch-College, 4 salles encadrées (bâtiments A et B, 2 salles chacun) avec un switch et 2 PC par salle, en IP fixes.
 Plan d'adressage : `10.<bâtiment>.<salle>.<poste>`, masque `255.0.0.0` (bâtiment A = 1, B = 2).
 Pannes : câble débranché sur A204-P2 + IP incorrecte sur B105-P2. L'élève ajoute aussi le poste B210-P3.
-5 objectifs — 100 points — seuil 60 %.
+8 objectifs — 100 points — seuil 60 %. Chaque correction et le nouveau poste sont vérifiés par un ping depuis un voisin de salle.
 
-Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`.
+Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`, `ping_success`.
 
 ---
 

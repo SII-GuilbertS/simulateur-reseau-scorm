@@ -60,9 +60,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 285/285
+## Tests : `node tests/sim-tests.js` → doit afficher 293/293
 
-Suite de 285 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 293 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -73,8 +73,8 @@ LAN/WiFi/routé/internet, `simDNS`, `simHTTP`, `simDHCP`), routage (`getRoutingT
 joker, références `{Appareil}`, passerelle cohérente, plan d'adressage (`addressPlan`), `checkDynamicObjective` : 4 types dynamiques, objectifs perdus quand la configuration casse,
 contrainte affichée à l'élève), mode panne (`applyFaults` : 7 types, formats plat
 et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
-sauvegarde et reprise, et pour chaque fichier de `scenarios/` : cohérence, score de 100 une fois le
-réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Non couverts : rendu de
+sauvegarde et reprise, et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
+de 100 une fois le réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Non couverts : rendu de
 l'interface et `EvalModule`/`GenModule` du builder (exports).
 
 Les règles d'évaluation sont dans `src/sim-engine.js`, partagées par le builder et l'élève
@@ -110,12 +110,16 @@ hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à 
 
 - `scenarios/` — 4 scénarios JSON clés-en-main, prêts à importer via l'onglet 3 (**Générer →
   Importer un scénario**) :
-  - `reseau-maison.json` — panne WiFi, niveau 4e/3e, 10 objectifs
-  - `reseau-entreprise.json` — serveur web/DNS en panne, niveau Terminale/BTS, 13 objectifs
+  - `reseau-maison.json` — panne WiFi, niveau 4e/3e, 7 objectifs
+  - `reseau-entreprise.json` — serveur web/DNS en panne, niveau Terminale/BTS, 7 objectifs
   - `reseau-lycee.json` — diagnostic complet couvrant les 14 types d'objectifs, niveau
-    Terminale NSI/BTS SIO, 17 objectifs
+    Terminale NSI/BTS SIO, 20 objectifs
   - `reseau-college.json` — adressage IP fixe par salle, salles en encadrés, niveau collège,
-    5 objectifs
+    8 objectifs
+
+  Dans chaque scénario, une réparation ou une construction est suivie de son test (objectif dont le
+  libellé commence par « Test : »), et `evalOrder` place chaque panne juste avant sa réparation. Garder
+  cette règle, et le score de 0 à l'ouverture, en modifiant ou en ajoutant un scénario.
 
 ## Documentation
 
@@ -141,7 +145,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 285/285
+node tests/sim-tests.js    # → 293/293
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -188,6 +192,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 285 tests Node.js |
+| `tests/sim-tests.js` | Suite de 293 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

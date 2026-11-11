@@ -2428,45 +2428,105 @@ function openScenario(data, withFaults) {
   } finally { sandbox.STARTER_NETWORK = null; }
 }
 
-/* Réalise les actions de l'élève qu'exige chaque objectif dynamique. */
+/* Réalise les actions de l'élève qu'exige chaque objectif dynamique :
+   les demandes DHCP d'abord, puisqu'un appareil sans adresse ne peut rien tester. */
 function playObjectives(objectives) {
   sandbox.checkAllObjectives();
-  objectives.forEach(function(o) {
+  var dhcpFirst = objectives.filter(function(o) { return o.check === 'dhcp_success'; })
+    .concat(objectives.filter(function(o) { return o.check !== 'dhcp_success'; }));
+  dhcpFirst.forEach(function(o) {
     var p = o.params || {};
     var from = devByName(p.from);
     if(!from) return;
-    if(o.check === 'ping_success') {
-      var target = devByName(p.to);
-      term(from.id, 'ping ' + (target ? mainIface(target).ip : p.to));
-    }
+    if(o.check === 'ping_success') term(from.id, 'ping ' + (sandbox.pingTargetIP(p.to) || p.to));
     if(o.check === 'dns_success')  term(from.id, 'nslookup ' + p.domain);
     if(o.check === 'dhcp_success') term(from.id, 'dhcp');
     if(o.check === 'http_success') browse(from.id, p.url);
   });
 }
 
+/* Première adresse qui convient à un motif d'objectif (exacte, plage ou joker). */
+function firstUsableIP(devId, pattern, mask) {
+  if(!sandbox.ipPatternIsFlexible(pattern)) return pattern;
+  var seg = pattern.split('.');
+  var r = /^(\d+)-(\d+)$/.exec(seg[3]), lo = r ? +r[1] : 1, hi = r ? +r[2] : 254;
+  for(var n = lo; n <= hi; n++) {
+    var ip = seg.slice(0, 3).join('.') + '.' + n;
+    if(sandbox.ipMatchesPattern(ip, pattern) && sandbox.ipUsableBy(devId, ip, mask)) return ip;
+  }
+  return '';
+}
+/* Valeur concrète d'une adresse attendue : « {Appareil} » ou passerelle « @routeur ». */
+function concreteAddr(spec, dev) {
+  if(!spec) return '';
+  var n = sandbox.refName(spec);
+  if(n !== null) return mainIface(devByName(n)).ip;
+  if(spec === '@routeur') {
+    var fi = mainIface(dev), gw = '';
+    Object.values(S.devs).forEach(function(r) {
+      if(!gw && sandbox.isRouter(r)) r.ifaces.forEach(function(f) {
+        if(!gw && f.ip && sandbox.sameNet(fi.ip, fi.mask, f.ip)) gw = f.ip;
+      });
+    });
+    return gw;
+  }
+  return spec;
+}
+
 /* Le réseau du scénario sert de corrigé. Restent à faire : relancer les services
-   coupés et créer les appareils que l'élève doit ajouter. */
+   coupés et construire ce que l'élève doit ajouter (poste, câble, adresses, DNS). */
 function applySolution(data) {
   data.activity.faults.forEach(function(f) {
     var p = f.params || f;
     if(f.type === 'service_down') devByName(p.dev)[p.service].on = true;
   });
-  var created = {};
-  data.activity.objectives.forEach(function(o) {
+  var objs = data.activity.objectives, created = {};
+  objs.forEach(function(o) {
     var p = o.params || {};
     if(o.check === 'device_added' && p.newdev && !devByName(p.newdev)) {
       var id = mkDev(p.type || 'pc', 10, 10);
       S.devs[id].name = p.newdev;
       created[p.newdev] = id;
+      var fi = mainIface(S.devs[id]);
+      fi.mask = p.mask || '255.255.255.0';
+      if(p.ip) fi.ip = firstUsableIP(id, p.ip, fi.mask);
     }
   });
-  data.activity.objectives.forEach(function(o) {
+  objs.forEach(function(o) {
+    var p = o.params || {};
+    if(o.check === 'ip_configured' && created[p.dev] && !mainIface(S.devs[created[p.dev]]).ip)
+      mainIface(S.devs[created[p.dev]]).ip = firstUsableIP(created[p.dev], p.ip, '255.255.255.0');
+  });
+  objs.forEach(function(o) {
     var p = o.params || {};
     if(o.check === 'cable_exists' && (created[p.devA] || created[p.devB]))
       link(devByName(p.devA).id, devByName(p.devB).id);
-    if(o.check === 'ip_configured' && created[p.dev])
-      mainIface(S.devs[created[p.dev]]).ip = p.ip;
+  });
+  // Poste ajouté sans câble demandé : relié au switch d'un appareil du même réseau.
+  Object.keys(created).forEach(function(name) {
+    var id = created[name], fi = mainIface(S.devs[id]);
+    if(Object.values(S.links).some(function(l) { return l.from === id || l.to === id; })) return;
+    var peer = Object.values(S.devs).find(function(d) {
+      var f = mainIface(d);
+      return d.id !== id && f && f.ip && sandbox.sameNet(fi.ip, fi.mask, f.ip) && !sandbox.isRouter(d);
+    });
+    var sw = peer && sandbox.nbrs(peer.id).map(function(n) { return S.devs[n]; })
+      .find(function(d) { return d && d.type === 'switch'; });
+    if(sw) link(id, sw.id);
+  });
+  objs.forEach(function(o) {
+    var p = o.params || {}, d = created[p.dev] && S.devs[created[p.dev]];
+    var a = o.check === 'device_added' && created[p.newdev] && S.devs[created[p.newdev]];
+    if(a && p.gateway) mainIface(a).gateway = concreteAddr(p.gateway, a);
+    if(d && o.check === 'gateway_configured') mainIface(d).gateway = concreteAddr(p.gateway, d);
+    if(d && o.check === 'dns_configured') mainIface(d).dns = concreteAddr(p.dns, d);
+  });
+  objs.forEach(function(o) {
+    var p = o.params || {};
+    if(o.check === 'dns_record' && p.domain) {
+      var srv = devByName(p.dev), dom = p.domain.toLowerCase().trim();
+      if(!srv.dns.records[dom]) srv.dns.records[dom] = concreteAddr(p.ip, null);
+    }
   });
   sandbox.autoRoute();
 }
@@ -2503,6 +2563,13 @@ allScenarios.forEach(function(file) {
     });
   });
 
+  test('ordre de la liste : chaque objectif et chaque panne y figurent une fois', function() {
+    if(!activity.evalOrder) return;
+    var keys = activity.objectives.map(function(o) { return 'o:' + o.id; })
+      .concat(activity.faults.map(function(f) { return 'f:' + f.id; }));
+    eq(activity.evalOrder.slice().sort().join(','), keys.sort().join(','));
+  });
+
   test('objectifs et pannes ne citent que des appareils existants ou à ajouter', function() {
     var known = new Set(Object.values(net.devs).map(function(d) { return d.name; }));
     activity.objectives.forEach(function(o) {
@@ -2512,8 +2579,15 @@ allScenarios.forEach(function(file) {
       ['dev','devA','devB','from'].forEach(function(k) {
         if(params[k]) assert(known.has(params[k]), where + ' : appareil inconnu « ' + params[k] + ' »');
       });
-      if(params.to && !IPV4.test(params.to))
-        assert(known.has(params.to), where + ' : cible inconnue « ' + params.to + ' »');
+      if(params.to && !IPV4.test(params.to)) {
+        var target = sandbox.refName(params.to) !== null ? sandbox.refName(params.to) : params.to;
+        assert(known.has(target), where + ' : cible inconnue « ' + params.to + ' »');
+      }
+      // Adresses désignées par un appareil : « {Nom} »
+      ['ip','dns','gateway'].forEach(function(k) {
+        var n = params[k] && sandbox.refName(params[k]);
+        if(n) assert(known.has(n), where + ' : appareil inconnu « ' + params[k] + ' »');
+      });
     }
     activity.objectives.forEach(function(o) { check(o.params || {}, 'objectif ' + o.id); });
     activity.faults.forEach(function(f) { check(f.params || f, 'panne ' + f.id); });
@@ -2547,6 +2621,15 @@ allScenarios.forEach(function(file) {
     var before = JSON.stringify([S.devs, S.links]);
     openScenario(data, true);
     assert(JSON.stringify([S.devs, S.links]) !== before, 'réseau identique avec et sans pannes');
+  });
+
+  test('à l\'ouverture, aucun point n\'est acquis (score 0)', function() {
+    openScenario(data, true);
+    sandbox.checkAllObjectives();
+    var free = data.activity.objectives.filter(function(o) { return done(o.id); })
+      .map(function(o) { return '#' + o.id + ' ' + o.check; });
+    eq(free.join(', '), '');
+    eq(S.score, 0);
   });
 
   test('sans corriger les pannes, l\'élève reste sous le seuil', function() {

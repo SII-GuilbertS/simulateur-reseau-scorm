@@ -15,7 +15,9 @@
           {"name": "eth0", "ip": "10.0.0.1", "mask": "255.255.255.0"},
           {"name": "eth1", "ip": "8.8.8.8",  "mask": "255.0.0.0"}
         ],
-        "staticRoutes": []
+        "staticRoutes": [],
+        "dns": {"on": true, "records": {"www.exemple.fr": "8.8.8.8"}},
+        "http": {"on": true, "title": "Exemple", "content": "Bienvenue sur www.exemple.fr : votre connexion à Internet fonctionne.", "htmlMode": false}
       },
       "d2": {
         "id": "d2",
@@ -32,7 +34,7 @@
         "dhcp": {
           "on": true,
           "start": "192.168.1.100", "end": "192.168.1.200",
-          "mask": "255.255.255.0", "gateway": "192.168.1.1", "dns": ""
+          "mask": "255.255.255.0", "gateway": "192.168.1.1", "dns": "8.8.8.8"
         },
         "staticRoutes": []
       },
@@ -53,7 +55,7 @@
         "mac": "AA:BB:CC:DD:EE:04",
         "ifaces": [
           {"name": "eth0", "ip": "192.168.1.10", "mask": "255.255.255.0",
-           "gateway": "192.168.1.1", "dns": "192.168.1.1"}
+           "gateway": "192.168.1.1", "dns": "8.8.8.8"}
         ],
         "staticRoutes": []
       },
@@ -93,89 +95,85 @@
   "activity": {
     "title": "Réseau Maison — Panne WiFi",
     "level": "4ème / 3ème",
-    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Passez en mode Simulation et utilisez le terminal pour diagnostiquer la panne (commandes : ipconfig, ping).\n2. Identifiez l'erreur de configuration sur le PC-Bureau.\n3. Repassez en mode Configuration pour corriger le problème.\n4. Vérifiez que tous les objectifs sont validés.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux attendus pour le réseau 192.168.1.0/24.",
+    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Passez en mode Simulation. Sur le Laptop, obtenez une adresse (dhcp), puis vérifiez qu'il accède à Internet (ping 8.8.8.8) et au site www.exemple.fr (onglet Navigateur).\n2. Sur le PC-Bureau, faites les mêmes tests : il joint la Box, mais pas Internet. Utilisez ipconfig pour comprendre pourquoi.\n3. Repassez en mode Configuration pour corriger le réglage fautif du PC-Bureau.\n4. Refaites les tests : le PC-Bureau doit accéder à Internet et au site.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux que la Box donne au Laptop.",
     "masteryscore": 60,
     "displayMode": "full",
     "objectives": [
       {
         "id": 1,
-        "label": "La Box-WiFi est reliée à Internet (câble WAN)",
-        "check": "cable_exists",
-        "params": {"devA": "Internet", "devB": "Box-WiFi"},
-        "points": 5,
-        "hint": "Vérifiez qu'un câble relie l'appareil Internet à la Box-WiFi"
+        "label": "Le Laptop obtient une adresse IP par DHCP",
+        "check": "dhcp_success",
+        "params": {
+          "from": "Laptop"
+        },
+        "points": 10,
+        "hint": "En mode Simulation, ouvrez le terminal du Laptop et tapez : dhcp"
       },
       {
         "id": 2,
-        "label": "Le Switch-Salon est connecté à la Box-WiFi",
-        "check": "cable_exists",
-        "params": {"devA": "Box-WiFi", "devB": "Switch-Salon"},
+        "label": "Le Laptop accède à Internet (ping 8.8.8.8)",
+        "check": "ping_success",
+        "params": {
+          "from": "Laptop",
+          "to": "8.8.8.8"
+        },
         "points": 5,
-        "hint": "Un câble doit relier la Box-WiFi au Switch-Salon"
+        "hint": "Après avoir obtenu une adresse, terminal du Laptop : ping 8.8.8.8"
       },
       {
         "id": 3,
-        "label": "Le PC-Bureau est connecté au Switch-Salon",
-        "check": "cable_exists",
-        "params": {"devA": "PC-Bureau", "devB": "Switch-Salon"},
+        "label": "Le Laptop ouvre le site www.exemple.fr",
+        "check": "http_success",
+        "params": {
+          "from": "Laptop",
+          "url": "www.exemple.fr"
+        },
         "points": 5,
-        "hint": "Reliez le PC-Bureau au switch avec un câble Ethernet"
+        "hint": "Onglet Navigateur : choisissez le Laptop et entrez www.exemple.fr"
       },
       {
         "id": 4,
-        "label": "Le SSID du WiFi est bien 'WiFi-Maison'",
-        "check": "ssid_configured",
-        "params": {"dev": "Box-WiFi", "ssid": "WiFi-Maison"},
+        "label": "Le PC-Bureau joint la Box (ping 192.168.1.1)",
+        "check": "ping_success",
+        "params": {
+          "from": "PC-Bureau",
+          "to": "192.168.1.1"
+        },
         "points": 5,
-        "hint": "Dans les propriétés de la Box-WiFi, vérifiez le nom du réseau WiFi (SSID)"
+        "hint": "Terminal du PC-Bureau : ping 192.168.1.1"
       },
       {
         "id": 5,
-        "label": "Le service DHCP de la Box-WiFi est activé",
-        "check": "service_active",
-        "params": {"dev": "Box-WiFi", "service": "dhcp"},
-        "points": 5,
-        "hint": "Activez le DHCP dans les propriétés de la Box-WiFi pour distribuer automatiquement les adresses IP"
+        "label": "La passerelle du PC-Bureau est la Box (192.168.1.1)",
+        "check": "gateway_configured",
+        "params": {
+          "dev": "PC-Bureau",
+          "gateway": "192.168.1.1"
+        },
+        "points": 35,
+        "hint": "Comparez la passerelle du PC-Bureau (ipconfig) avec celle que la Box donne au Laptop"
       },
       {
         "id": 6,
-        "label": "Le PC-Bureau a l'adresse IP 192.168.1.10",
-        "check": "ip_configured",
-        "params": {"dev": "PC-Bureau", "ip": "192.168.1.10"},
-        "points": 10,
-        "hint": "Dans les propriétés du PC-Bureau (mode Configuration), saisissez l'IP 192.168.1.10"
+        "label": "Test : le PC-Bureau accède à Internet (ping 8.8.8.8)",
+        "check": "ping_success",
+        "params": {
+          "from": "PC-Bureau",
+          "to": "8.8.8.8"
+        },
+        "points": 20,
+        "hint": "Une fois la passerelle corrigée, terminal du PC-Bureau : ping 8.8.8.8"
       },
       {
         "id": 7,
-        "label": "La passerelle du PC-Bureau est 192.168.1.1 (la Box)",
-        "check": "gateway_configured",
-        "params": {"dev": "PC-Bureau", "gateway": "192.168.1.1"},
-        "points": 45,
-        "hint": "La passerelle du PC-Bureau doit pointer vers l'IP WiFi de la Box : 192.168.1.1"
-      },
-      {
-        "id": 8,
-        "label": "Le DNS du PC-Bureau est configuré (192.168.1.1)",
-        "check": "dns_configured",
-        "params": {"dev": "PC-Bureau", "dns": "192.168.1.1"},
-        "points": 5,
-        "hint": "Configurez 192.168.1.1 (la Box) comme serveur DNS du PC-Bureau"
-      },
-      {
-        "id": 9,
-        "label": "Le Laptop est connecté en WiFi à la Box",
-        "check": "wifi_link",
-        "params": {"devA": "Laptop", "devB": "Box-WiFi"},
-        "points": 10,
-        "hint": "Reliez le Laptop à la Box-WiFi avec une connexion WiFi (clic droit → Relier en WiFi, ou faites glisser un lien WiFi)"
-      },
-      {
-        "id": 10,
-        "label": "Le Smartphone est connecté en WiFi à la Box",
-        "check": "wifi_link",
-        "params": {"devA": "Smartphone", "devB": "Box-WiFi"},
-        "points": 5,
-        "hint": "Reliez le Smartphone à la Box-WiFi avec une connexion WiFi"
+        "label": "Test : le PC-Bureau ouvre le site www.exemple.fr",
+        "check": "http_success",
+        "params": {
+          "from": "PC-Bureau",
+          "url": "www.exemple.fr"
+        },
+        "points": 20,
+        "hint": "Onglet Navigateur : choisissez le PC-Bureau et entrez www.exemple.fr"
       }
     ],
     "faults": [
@@ -185,6 +183,16 @@
         "dev": "PC-Bureau",
         "badValue": "192.168.99.1"
       }
+    ],
+    "evalOrder": [
+      "o:1",
+      "o:2",
+      "o:3",
+      "o:4",
+      "f:1",
+      "o:5",
+      "o:6",
+      "o:7"
     ]
   }
 }

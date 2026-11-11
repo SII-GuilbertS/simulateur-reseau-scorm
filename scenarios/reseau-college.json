@@ -52,15 +52,120 @@
     "masteryscore": 60,
     "displayMode": "full",
     "objectives": [
-      { "id": 1, "label": "Le PC débranché est de nouveau relié au switch de sa salle", "check": "cable_exists", "params": { "devA": "A204-P2", "devB": "SW-A204" }, "points": 20, "hint": "Cherchez dans les salles le PC qui n'a pas de câble, puis reliez-le au switch de sa salle." },
-      { "id": 2, "label": "L'adresse IP du PC mal configuré est corrigée", "check": "ip_configured", "params": { "dev": "B105-P2", "ip": "10.2.105.2" }, "points": 20, "hint": "Comparez le nom et la salle de chaque PC avec son adresse IP : quel nombre ne correspond pas ?" },
-      { "id": 3, "label": "Le poste B210-P3 est ajouté", "check": "device_added", "params": { "newdev": "B210-P3", "type": "pc" }, "points": 20, "hint": "Glissez un PC depuis la palette dans la salle 210, puis changez son nom dans ses propriétés." },
-      { "id": 4, "label": "Le poste B210-P3 est relié au switch de sa salle", "check": "cable_exists", "params": { "devA": "B210-P3", "devB": "SW-B210" }, "points": 20, "hint": "Avec l'outil Câble, reliez le poste au switch de la salle." },
-      { "id": 5, "label": "Le poste B210-P3 a la bonne adresse IP", "check": "ip_configured", "params": { "dev": "B210-P3", "ip": "10.2.210.3" }, "points": 20, "hint": "Appliquez la règle : collège, bâtiment, salle, poste." }
+      {
+        "id": 1,
+        "label": "Le PC débranché est de nouveau relié au switch de sa salle",
+        "check": "cable_exists",
+        "params": {
+          "devA": "A204-P2",
+          "devB": "SW-A204"
+        },
+        "points": 15,
+        "hint": "Cherchez dans les salles le PC qui n'a pas de câble, puis reliez-le au switch de sa salle."
+      },
+      {
+        "id": 2,
+        "label": "Test : A204-P1 joint A204-P2 (ping 10.1.204.2)",
+        "check": "ping_success",
+        "params": {
+          "from": "A204-P1",
+          "to": "10.1.204.2"
+        },
+        "points": 10,
+        "hint": "En mode Simulation, terminal de A204-P1 : ping 10.1.204.2"
+      },
+      {
+        "id": 3,
+        "label": "L'adresse IP du PC mal configuré est corrigée",
+        "check": "ip_configured",
+        "params": {
+          "dev": "B105-P2",
+          "ip": "10.2.105.2"
+        },
+        "points": 15,
+        "hint": "Comparez le nom et la salle de chaque PC avec son adresse IP : quel nombre ne correspond pas ?"
+      },
+      {
+        "id": 4,
+        "label": "Test : B105-P1 joint B105-P2 (ping 10.2.105.2)",
+        "check": "ping_success",
+        "params": {
+          "from": "B105-P1",
+          "to": "10.2.105.2"
+        },
+        "points": 10,
+        "hint": "Terminal de B105-P1 : ping 10.2.105.2"
+      },
+      {
+        "id": 5,
+        "label": "Le poste B210-P3 est ajouté",
+        "check": "device_added",
+        "params": {
+          "newdev": "B210-P3",
+          "type": "pc"
+        },
+        "points": 10,
+        "hint": "Glissez un PC depuis la palette dans la salle 210, puis changez son nom dans ses propriétés."
+      },
+      {
+        "id": 6,
+        "label": "Le poste B210-P3 est relié au switch de sa salle",
+        "check": "cable_exists",
+        "params": {
+          "devA": "B210-P3",
+          "devB": "SW-B210"
+        },
+        "points": 10,
+        "hint": "Avec l'outil Câble, reliez le poste au switch de la salle."
+      },
+      {
+        "id": 7,
+        "label": "Le poste B210-P3 a la bonne adresse IP",
+        "check": "ip_configured",
+        "params": {
+          "dev": "B210-P3",
+          "ip": "10.2.210.3"
+        },
+        "points": 15,
+        "hint": "Appliquez la règle : collège, bâtiment, salle, poste."
+      },
+      {
+        "id": 8,
+        "label": "Test : B210-P1 joint le nouveau poste B210-P3 (ping 10.2.210.3)",
+        "check": "ping_success",
+        "params": {
+          "from": "B210-P1",
+          "to": "10.2.210.3"
+        },
+        "points": 15,
+        "hint": "Terminal de B210-P1 : ping 10.2.210.3"
+      }
     ],
     "faults": [
-      { "id": 1, "type": "missing_cable", "devA": "A204-P2", "devB": "SW-A204" },
-      { "id": 2, "type": "bad_ip", "dev": "B105-P2", "badValue": "10.1.105.2" }
+      {
+        "id": 1,
+        "type": "missing_cable",
+        "devA": "A204-P2",
+        "devB": "SW-A204"
+      },
+      {
+        "id": 2,
+        "type": "bad_ip",
+        "dev": "B105-P2",
+        "badValue": "10.1.105.2"
+      }
+    ],
+    "evalOrder": [
+      "f:1",
+      "o:1",
+      "o:2",
+      "f:2",
+      "o:3",
+      "o:4",
+      "o:5",
+      "o:6",
+      "o:7",
+      "o:8"
     ]
   }
 }

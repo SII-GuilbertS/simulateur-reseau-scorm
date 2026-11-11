@@ -352,10 +352,10 @@ def build_prof(out_path):
     ]
     sc_rows = [
         ['Fichier', 'Titre', 'Niveau', 'Obj. / Seuil'],
-        ['scenarios/reseau-maison.json',    'Réseau Maison — Panne WiFi',           '4e / 3e',       '10 / 60%'],
-        ['scenarios/reseau-college.json',   'Réseau du collège — Adressage par salle', 'Collège',    '5 / 60%'],
-        ['scenarios/reseau-entreprise.json','Réseau Entreprise — Serveur en panne', 'Term. / BTS',   '13 / 60%'],
-        ['scenarios/reseau-lycee.json',     'Réseau Lycée — Diagnostic complet',    'NSI / BTS SIO', '17 / 65%'],
+        ['scenarios/reseau-maison.json',    'Réseau Maison — Panne WiFi',           '4e / 3e',       '7 / 60%'],
+        ['scenarios/reseau-college.json',   'Réseau du collège — Adressage par salle', 'Collège',    '8 / 60%'],
+        ['scenarios/reseau-entreprise.json','Réseau Entreprise — Serveur en panne', 'Term. / BTS',   '7 / 60%'],
+        ['scenarios/reseau-lycee.json',     'Réseau Lycée — Diagnostic complet',    'NSI / BTS SIO', '20 / 65%'],
     ]
     sw = [58*mm, 52*mm, 24*mm, CONTENT_W-134*mm]
     srows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
@@ -364,7 +364,8 @@ def build_prof(out_path):
     story.append(table_obj(srows_p, sw))
     story += [
         Spacer(1, 6),
-        callout('reseau-lycee.json couvre les <b>14 types d\'objectifs</b> et les <b>7 types de pannes</b>.', TIP, '💡'),
+        callout('Tous les scénarios démarrent à 0 : chaque point se gagne en réparant, en construisant ou en le prouvant '
+                'par une commande. reseau-lycee.json couvre les <b>14 types d\'objectifs</b>.', TIP, '💡'),
         Spacer(1, 4),
     ]
 

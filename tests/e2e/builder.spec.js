@@ -16,11 +16,12 @@ const LMS = 'http://lms.test';
 const scenarioPath = (name) => path.join(ROOT, 'scenarios', name + '.json');
 const readScenario = (name) => JSON.parse(fs.readFileSync(scenarioPath(name), 'utf8'));
 
-/* Score affiché à l'élève à l'ouverture de l'export, pannes appliquées et rien de corrigé. */
+/* Score affiché à l'élève à l'ouverture de l'export, pannes appliquées et rien de corrigé :
+   tout point se gagne en réparant, en construisant ou en le prouvant par une commande. */
 const SCENARIOS = [
-  { name: 'reseau-maison', startScore: 55, mastery: 60 },
-  { name: 'reseau-entreprise', startScore: 51, mastery: 60 },
-  { name: 'reseau-lycee', startScore: 43, mastery: 65 },
+  { name: 'reseau-maison', startScore: 0, mastery: 60 },
+  { name: 'reseau-entreprise', startScore: 0, mastery: 60 },
+  { name: 'reseau-lycee', startScore: 0, mastery: 65 },
   { name: 'reseau-college', startScore: 0, mastery: 60 },
 ];
 
@@ -110,6 +111,35 @@ async function setGateway(scope, deviceName, value) {
   const input = scope.locator('.pr', { hasText: 'Passerelle' }).locator('input').first();
   await input.fill(value);
   await input.press('Tab');
+}
+
+/* Terminal côté élève : l'appareil se choisit dans la liste du terminal. */
+async function studentTerminal(scope, deviceName, command) {
+  await scope.locator('.bt', { hasText: 'Terminal' }).click();
+  await scope.locator('#td-sel').selectOption({ label: deviceName });
+  await scope.locator('#tinput').fill(command);
+  await scope.locator('#tinput').press('Enter');
+}
+
+/* Navigateur côté élève : appareil choisi dans la liste, puis l'adresse du site. */
+async function studentBrowse(scope, deviceName, url) {
+  await scope.locator('.bt', { hasText: 'Navigateur' }).click();
+  await scope.locator('#bd-sel').selectOption({ label: deviceName });
+  await scope.locator('#burl').fill(url);
+  await scope.locator('button[onclick="browGo()"]').click();
+}
+
+/* reseau-maison : l'élève corrige la passerelle puis prouve que tout fonctionne. */
+async function solveMaison(scope) {
+  await setGateway(scope, 'PC-Bureau', '192.168.1.1');
+  await studentScore(scope, 35);
+  await studentTerminal(scope, 'Laptop', 'dhcp');
+  await studentTerminal(scope, 'Laptop', 'ping 8.8.8.8');
+  await studentBrowse(scope, 'Laptop', 'www.exemple.fr');
+  await studentTerminal(scope, 'PC-Bureau', 'ping 192.168.1.1');
+  await studentTerminal(scope, 'PC-Bureau', 'ping 8.8.8.8');
+  await studentBrowse(scope, 'PC-Bureau', 'www.exemple.fr');
+  await studentScore(scope, 100);
 }
 
 /* Pas de contrôle de l'icône : elle change au premier recalcul du score. */
@@ -209,14 +239,13 @@ test.describe('Import et export de chaque scénario', () => {
 });
 
 test.describe('Vue élève (export HTML)', () => {
-  test('réparer la panne de reseau-maison donne 100, conservé après rechargement', async ({ page }, info) => {
+  test('réparer la panne de reseau-maison et le prouver donne 100, conservé après rechargement', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     const file = await exportFile(page, 'html', info.outputPath('maison.html'));
     await page.goto(pathToFileURL(file).href);
-    await studentScore(page, 55);
+    await studentScore(page, 0);
 
-    await setGateway(page, 'PC-Bureau', '192.168.1.1');
-    await studentScore(page, 100);
+    await solveMaison(page);
 
     await page.reload();
     await studentScore(page, 100);
@@ -231,33 +260,37 @@ test.describe('Vue élève (export HTML)', () => {
 
 test.describe('Builder', () => {
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
-    await openBuilderWith(page, 'reseau-lycee');
-    await expect(builderScore(page)).toHaveText('📊 Score : 77 / 100 pts');
+    // Réseau du builder sans pannes : DNS actif (20) et passerelle de PC-Bob (20) déjà acquis.
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(builderScore(page)).toHaveText('📊 Score : 40 / 100 pts');
     await page.locator('#btn-sim').click();
 
-    await runInTerminal(page, 'PC-Salle2', 'nslookup LYCEE.LOCAL');
+    await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
     await expect(page.locator('#tout')).toContainText('192.168.1.100');
-    await expect(builderScore(page)).toHaveText('📊 Score : 77 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 40 / 100 pts');
 
-    await runInTerminal(page, 'PC-Salle1', 'nslookup LYCEE.LOCAL');
-    await expect(builderScore(page)).toHaveText('📊 Score : 80 / 100 pts');
+    await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
+    await expect(builderScore(page)).toHaveText('📊 Score : 50 / 100 pts');
   });
 
-  /* Variantes de reseau-lycee où l'élève réussirait sans rien faire. Les objectifs statiques valent
-     83 points, dont 6 pour la route de Routeur-Principal, et la panne de PC-Salle1 en retire 3.
-     Ces scores exigent donc les pannes, les routes et le respect de la case « routage automatique ». */
-  const MINOR_FAULT = { id: 1, type: 'bad_gateway', dev: 'PC-Salle1', badValue: '10.0.0.9' };
+  /* Variantes de reseau-lycee où l'élève réussirait sans rien faire (seuil abaissé à 20).
+     Sans panne, les objectifs statiques déjà vrais valent 35 points (7 × 5), dont 5 pour la route
+     de Routeur-Principal ; la panne mineure (service HTTP arrêté) en retire 5. Ces scores exigent
+     donc les pannes, les routes et le respect de la case « routage automatique ». */
+  const MINOR_FAULT = { id: 1, type: 'service_down', dev: 'Serveur-Web', service: 'http' };
   const TOO_EASY = [
-    { label: 'sans panne', faults: [], score: 83 },
-    { label: 'avec une panne mineure', faults: [MINOR_FAULT], score: 80 },
-    { label: 'routage automatique décoché, sans panne', faults: [], manualRouter: true, score: 77 },
-    { label: 'routage automatique décoché, avec panne', faults: [MINOR_FAULT], manualRouter: true, score: 74 },
+    { label: 'sans panne', faults: [], score: 35 },
+    { label: 'avec une panne mineure', faults: [MINOR_FAULT], score: 30 },
+    { label: 'routage automatique décoché, sans panne', faults: [], manualRouter: true, score: 30 },
+    { label: 'routage automatique décoché, avec panne', faults: [MINOR_FAULT], manualRouter: true, score: 25 },
   ];
 
   for (const { label, faults, manualRouter, score } of TOO_EASY) {
     test(`avertissement à l'export si l'élève réussit d'office (${label}) : même score que l'activité`, async ({ page }, info) => {
       const data = readScenario('reseau-lycee');
       data.activity.faults = faults;
+      delete data.activity.evalOrder;
+      data.activity.masteryscore = 20;
       if (manualRouter) {
         Object.values(data.network.devs).find((d) => d.name === 'Routeur-Principal').autoRouteEnabled = false;
       }
@@ -270,7 +303,7 @@ test.describe('Builder', () => {
 
       expect(page.dialogs.length).toBe(1);
       expect(page.dialogs[0]).toContain('il réussirait sans rien corriger');
-      expect(page.dialogs[0]).toContain(`aurait déjà ${score} / 100 pour un seuil de 65 %`);
+      expect(page.dialogs[0]).toContain(`aurait déjà ${score} / 100 pour un seuil de 20 %`);
 
       // Le score annoncé au professeur est bien celui que l'élève verra.
       await page.goto(pathToFileURL(file).href);
@@ -286,6 +319,8 @@ test.describe('Builder', () => {
   test('annuler l\'avertissement n\'exporte rien', async ({ page }, info) => {
     const data = readScenario('reseau-lycee');
     data.activity.faults = [];
+    delete data.activity.evalOrder;
+    data.activity.masteryscore = 20;
     const scenario = info.outputPath('trop-facile.json');
     fs.writeFileSync(scenario, JSON.stringify(data));
     await page.goto(BUILDER_URL);
@@ -318,7 +353,7 @@ test.describe('Builder', () => {
   test('adresse en plage : contrainte générée, rédigée à la main, puis affichée à l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-college');
     await page.locator('.bld-tab[data-tab="2"]').click();
-    const card = page.locator('[data-objid="5"]');
+    const card = page.locator('[data-objid="7"]');
     await card.locator('.obj-card-hdr').click();
     const chk = card.locator('.obj-cons input[type="checkbox"]');
     const text = card.locator('.obj-cons textarea');
@@ -327,8 +362,8 @@ test.describe('Builder', () => {
     await expect(chk).not.toBeChecked();
 
     await card.locator('.ipf select').selectOption('range');
-    await card.locator('#ipr-e-5-ip').fill('20');
-    await card.locator('#ipr-e-5-ip').press('Tab');
+    await card.locator('#ipr-e-7-ip').fill('20');
+    await card.locator('#ipr-e-7-ip').press('Tab');
     await expect(chk).toBeChecked();
     await expect(text).toHaveValue('B210-P3 : adresse IP au choix entre 10.2.210.3 et 10.2.210.20 (adresse libre)');
     await expect(card.locator('.obj-cons-meta')).toContainText('généré à partir des paramètres');
@@ -339,8 +374,8 @@ test.describe('Builder', () => {
     await expect(card.locator('.obj-cons-meta')).toContainText('rédigé à la main');
 
     // Paramètres modifiés après coup : le texte manuel est gardé, mais signalé.
-    await card.locator('#ipr-e-5-ip').fill('30');
-    await card.locator('#ipr-e-5-ip').press('Tab');
+    await card.locator('#ipr-e-7-ip').fill('30');
+    await card.locator('#ipr-e-7-ip').press('Tab');
     await expect(text).toHaveValue(mine);
     await expect(card.locator('.obj-cons-warn')).toContainText('10.2.210.30');
 
@@ -359,11 +394,11 @@ test.describe('Builder', () => {
   test('ping vers une adresse au choix : alerte, puis cible désignée par l\'appareil', async ({ page }) => {
     await openBuilderWith(page, 'reseau-college');
     await page.locator('.bld-tab[data-tab="2"]').click();
-    const ipCard = page.locator('[data-objid="5"]');
+    const ipCard = page.locator('[data-objid="7"]');
     await ipCard.locator('.obj-card-hdr').click();
     await ipCard.locator('.ipf select').selectOption('range');
-    await ipCard.locator('#ipr-e-5-ip').fill('20');
-    await ipCard.locator('#ipr-e-5-ip').press('Tab');
+    await ipCard.locator('#ipr-e-7-ip').fill('20');
+    await ipCard.locator('#ipr-e-7-ip').press('Tab');
 
     await page.locator('button[onclick="EvalModule.addObjective()"]').click();
     const card = page.locator('#ev-list .obj-card[data-objid]').last();
@@ -394,11 +429,11 @@ test.describe('Builder', () => {
   test('plan d\'adressage : à compléter dans l\'énoncé, rempli dans le corrigé, désactivable', async ({ page, context }, info) => {
     await openBuilderWith(page, 'reseau-college');
     await page.locator('.bld-tab[data-tab="2"]').click();
-    const card = page.locator('[data-objid="5"]');
+    const card = page.locator('[data-objid="7"]');
     await card.locator('.obj-card-hdr').click();
     await card.locator('.ipf select').selectOption('range');
-    await card.locator('#ipr-e-5-ip').fill('20');
-    await card.locator('#ipr-e-5-ip').press('Tab');
+    await card.locator('#ipr-e-7-ip').fill('20');
+    await card.locator('#ipr-e-7-ip').press('Tab');
     await page.locator('.bld-tab[data-tab="3"]').click();
 
     const open = async (selector) => {
@@ -447,21 +482,23 @@ test.describe('Builder', () => {
     await expect(page.locator('#ev-obj-count')).toHaveText(String(activity.objectives.length));
     await expect(page.locator('#ev-fault-count')).toHaveText(String(activity.faults.length));
 
-    // Sans ordre enregistré : les objectifs, puis les pannes (pastilles rouges P1, P2…)
-    const p1 = page.locator('[data-fltid="1"]');
-    await expect(p1.locator('.obj-num.fault')).toHaveText('P1');
-    expect((await keys()).indexOf('f:1')).toBe(activity.objectives.length);
+    // L'ordre du scénario : chaque panne (pastille rouge) juste avant sa réparation
+    expect(await keys()).toEqual(activity.evalOrder);
+    const fault = page.locator('[data-fltid="1"]');
+    await expect(fault.locator('.obj-num.fault')).toHaveText('P2');   // 2e panne de la liste
 
-    // Flèches : la panne remonte entre deux objectifs
-    await p1.locator('.ev-move button[title="Monter"]').click();
-    await p1.locator('.ev-move button[title="Monter"]').click();
-    expect((await keys()).indexOf('f:1')).toBe(activity.objectives.length - 2);
+    // Flèches : la panne remonte de deux crans
+    const start = (await keys()).indexOf('f:1');
+    await fault.locator('.ev-move button[title="Monter"]').click();
+    await fault.locator('.ev-move button[title="Monter"]').click();
+    expect((await keys()).indexOf('f:1')).toBe(start - 2);
 
     // Glisser-déposer : le 2e objectif passe au-dessus du 1er et devient le n° 1
     const last = activity.objectives[1];
     await page.locator(`[data-objid="${last.id}"] .ev-handle`)
       .dragTo(page.locator('[data-objid="1"]'), { targetPosition: { x: 60, y: 4 } });
-    expect((await keys())[0]).toBe(`o:${last.id}`);
+    const objOrder = (await keys()).filter((k) => k[0] === 'o');
+    expect(objOrder[0]).toBe(`o:${last.id}`);
     await expect(page.locator(`[data-objid="${last.id}"] .obj-num`)).toHaveText('1');
     await page.locator('#ev-list').screenshot({ path: info.outputPath('liste.png') });
 
@@ -509,7 +546,7 @@ test.describe('Builder', () => {
     // Placé au-dessus du « Poste ajouté » : nom gardé, signalé introuvable, alerte.
     const up = () => page.locator(`[data-objid="${id}"] .ev-move button[title="Monter"]`).click();
     const keys = () => page.locator('#ev-list .obj-card').evaluateAll((els) => els.map((e) => e.dataset.key));
-    while ((await keys()).indexOf(`o:${id}`) > (await keys()).indexOf('o:3')) await up();
+    while ((await keys()).indexOf(`o:${id}`) > (await keys()).indexOf('o:5')) await up();
     const moved = page.locator(`[data-objid="${id}"]`);
     await moved.locator('.obj-card-hdr').click();
     await expect(moved.locator('select[onchange*="param_from"] option:checked')).toHaveText('B210-P3 (introuvable)');
@@ -555,7 +592,9 @@ test.describe('Builder', () => {
 
     await page.goto(BUILDER_URL);
     await page.locator('#gen-import-file').setInputFiles(file);
-    await expect(builderScore(page)).toHaveText('📊 Score : 77 / 100 pts');
+    // Objectifs statiques déjà vrais dans le réseau du builder, hors route : le builder ne
+    // recalcule pas les routes à l'import (le score de départ de l'élève, lui, le fait).
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
   });
 });
 
@@ -574,24 +613,23 @@ test.describe('Package SCORM dans un LMS simulé', () => {
     expect(manifest).toContain('href="index.html"');
   });
 
-  test('sans réparation : statut failed et note de 55 transmis au LMS', async ({ page }) => {
+  test('sans réparation : statut failed et note de 0 transmis au LMS', async ({ page }) => {
     const sco = await openInLms(page, page.zipFile);
-    await studentScore(sco, 55);
+    await studentScore(sco, 0);
     expect((await readCmi(page))['cmi.core.lesson_status']).toBe('incomplete');
 
     await finish(sco);
     await expect.poll(() => page.dialogs.at(-1)).toContain('À améliorer');
     const cmi = await readCmi(page);
     expect(cmi['cmi.core.lesson_status']).toBe('failed');
-    expect(cmi['cmi.core.score.raw']).toBe('55');
+    expect(cmi['cmi.core.score.raw']).toBe('0');
     expect(await page.evaluate(() => window.lmsCalls)).toContain('Finish');
   });
 
   test('reprise : quitter, revenir sur un autre poste, terminer avec passed et 100', async ({ page, browser, problems }, info) => {
     const sco = await openInLms(page, page.zipFile);
-    await studentScore(sco, 55);
-    await setGateway(sco, 'PC-Bureau', '192.168.1.1');
-    await studentScore(sco, 100);
+    await studentScore(sco, 0);
+    await solveMaison(sco);
     await leaveActivity(page);
 
     const saved = await readCmi(page);
