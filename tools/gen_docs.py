@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm, cm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import (
+from reportlab.platypus import (CondPageBreak, 
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     PageBreak, HRFlowable
 )
@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.9
+#  DOC PROF  v1.9.1
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.9'
+    doc._subtitle    = 'Documentation v1.9.1'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -210,8 +210,10 @@ def build_prof(out_path):
         Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC.', BODY_L),
         Paragraph('• <b>Ctrl+Z / Ctrl+Y</b> : annuler / rétablir. <b>Ctrl+C / Ctrl+V</b> : copier / coller un appareil.', BODY_L),
         Paragraph('• <b>Ctrl+S</b> : sauvegarder la session dans le navigateur.', BODY_L),
-        Paragraph('• Le <b>score</b> en haut à droite se met à jour à chaque modification du réseau : '
-                  'corrigez le réseau pour vérifier que vos objectifs rapportent bien leurs points.', BODY_L),
+        Paragraph('• Le <b>score</b> en haut à droite est <b>celui de l\'élève</b> : le réseau du builder est le '
+                  'corrigé, mais les pannes de l\'onglet 2 sont appliquées pour le calcul. Une activité bien '
+                  'construite affiche 0 à l\'import ; les commandes de test lancées dans le terminal (ping, '
+                  'nslookup, navigateur) ajoutent leurs points.', BODY_L),
         Paragraph('• <b>Figer le départ</b> mémorise le réseau actuel comme état de départ '
                   '(fait automatiquement à l\'import d\'un scénario). <b>Réinitialiser</b> y revient après vos '
                   'essais : appareils et câbles ajoutés supprimés, éléments supprimés remis, configurations '
@@ -348,8 +350,53 @@ def build_prof(out_path):
         Spacer(1, 4),
     ]
 
+    story += [
+        Paragraph('2.4 Nouvelle activité et variantes', H2),
+        Paragraph(
+            'Le bouton <b>Nouvelle activité</b>, en haut du builder, crée une activité complète à partir d\'un '
+            'modèle : réseau, objectifs, pannes, barème et consignes. Choisissez le type, le thème et le niveau ; '
+            'l\'aperçu montre la liste ordonnée et le résultat d\'une vérification automatique. Tout reste '
+            'modifiable ensuite dans les onglets 1 et 2.',
+            BODY),
+    ]
+    wz_rows = [
+        ['Choix', 'Options', 'Effet'],
+        ['Type', 'Construction', 'L\'élève ajoute un poste, le câble, configure IP, passerelle et DNS ; un test suit chaque étape.'],
+        ['', 'Dépannage', 'Deux à quatre pannes, chacune suivie de sa réparation puis d\'un objectif « Test : ».'],
+        ['', 'Découverte', 'Réseau fonctionnel, exploré avec ping, nslookup, DHCP et le navigateur.'],
+        ['Thème', 'Maison', 'Box WiFi, PC fixes, portable et smartphone en WiFi.'],
+        ['', 'Entreprise', 'Routeur, postes de bureau, serveur intranet (DNS et web).'],
+        ['', 'Salle de classe', 'Routeur, postes élèves, Serveur-Données pour les profils ; l\'ENT est hébergé sur Internet.'],
+        ['Niveau', 'Collège', 'Valeurs données, contraintes affichées, seuil 50 %.'],
+        ['', 'Lycée', 'Adresse à choisir dans une plage, passerelle « routeur du réseau », seuil 60 %.'],
+        ['', 'BTS / Terminale', 'Adresses libres, contraintes masquées, deux réseaux routés, seuil 70 %.'],
+    ]
+    story.append(table_obj([[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B if i == 0 else CELL),
+                             Paragraph(r[2], CELL)] for i, r in enumerate(wz_rows)],
+                           [24*mm, 34*mm, CONTENT_W-58*mm]))
+    story += [
+        Spacer(1, 6),
+        callout('La vérification contrôle trois points : <b>0 point à l\'ouverture</b>, seuil impossible à atteindre '
+                'sans rien réparer ni construire, et chaque objectif atteignable une fois le travail fait. En dépannage, '
+                '<b>Autres appareils</b> tire d\'autres postes en panne.', TIP, '💡'),
+        Paragraph(
+            'Le bouton <b>Variante</b> décline l\'activité en cours (scénario fourni, importé ou créé par '
+            'l\'assistant) sans toucher au réseau :',
+            BODY),
+        Paragraph('• <b>Plus guidée</b> : contraintes affichées sous les objectifs d\'adressage, seuil abaissé de 10 points.', BODY_L),
+        Paragraph('• <b>Plus exigeante</b> : adresses exactes laissées au choix quand rien d\'autre ne les utilise, '
+                  'passerelle « routeur du réseau », contraintes et indices masqués, seuil relevé de 10 points.', BODY_L),
+        Paragraph('• <b>Pannes sur d\'autres appareils</b> : la réparation et ses tests suivent, adresses et libellés compris. '
+                  '<b>Une de moins</b> retire la dernière panne avec sa réparation et ses tests ; <b>une de plus</b> en ajoute '
+                  'une sur un poste à adresse fixe, avec sa réparation et son test.', BODY_L),
+        callout('La variante remplace l\'activité en cours : exportez d\'abord le scénario (bouton de la fenêtre) '
+                'pour garder les deux versions. Ce qui ne peut pas changer est signalé.', WARN, '⚠'),
+        Spacer(1, 4),
+    ]
+
     # 3. Scénarios
     story += [
+        CondPageBreak(60*mm),
         Paragraph('3. Scénarios prêts à l\'emploi', H1), hr(),
         Paragraph(
             'Quatre scénarios JSON complets sont fournis dans le dossier <b>scenarios/</b>. '
@@ -384,7 +431,7 @@ def build_prof(out_path):
     story += [Paragraph('4. Workflow complet', H1), hr()]
     wf_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
         ['1', 'Ouvrir le Builder',        'Double-cliquez sur scorm-builder.html dans Chrome ou Firefox.'],
-        ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP.'],
+        ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP — ou Nouvelle activité pour partir d\'un modèle.'],
         ['3', 'Configurer l\'évaluation', 'Onglet 2 : objectifs, pannes, score de maîtrise.'],
         ['4', 'Générer',                  'Onglet 3 : SCORM, HTML, énoncé imprimable et son corrigé.'],
         ['5', 'Tester',                   'Corriger le réseau puis Réinitialiser, ou bouton "Aperçu élève".'],
@@ -431,7 +478,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.9
+#  DOC ELEVE  v1.9.1
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -440,7 +487,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.9'
+    doc._subtitle    = 'Guide élève v1.9.1'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
