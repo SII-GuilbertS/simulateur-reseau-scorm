@@ -116,6 +116,11 @@ function loadFromSession(){
   if(!json||json===''){
     if(STARTER_NETWORK&&STARTER_NETWORK.devs){
       applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
+      // Configuration fixe mise de côté par le professeur avant de cocher le DHCP : l'élève
+      // ne doit pas la retrouver en décochant la case.
+      Object.values(S.devs).forEach(function(d){
+        (d.ifaces||[]).forEach(function(f){delete f.staticCfg;});
+      });
       if(ACTIVITY_CONFIG)
         applyFaults(ACTIVITY_CONFIG.faults);
       return 'starter';
@@ -359,6 +364,8 @@ function showProps(id){
         h+='<div class="pr"><label>Masque</label><div class="mono" style="color:#718096;font-size:.82em">'+esc(fi.mask||'—')+'</div></div>';
         h+='<div class="pr"><label>Passerelle</label><div class="mono" style="color:#718096;font-size:.82em">'+esc(fi.gateway||'—')+'</div></div>';
       }
+      if(fi.staticCfg&&fi.staticCfg.ip)h+='<div class="pr" style="font-size:.75em;color:#718096">Configuration fixe mise de côté ('+
+        esc(fi.staticCfg.ip)+') : ignorée en DHCP, rétablie si vous décochez la case.</div>';
       // Même effet que la commande dhcp du terminal
       h+='<button class="pb pb-blue" onclick="doDHCP(\''+id+'\')">📡 '+(fi.ip?'Renouveler l\'adresse (DHCP)':'Demander une adresse (DHCP)')+'</button>';
     }

@@ -60,6 +60,10 @@ PC-Bureau » quand une panne débranche ce câble). L'indice proposé suit l'obj
 réécrit ; ↺ revient à la proposition, un champ vide supprime l'indice. De même, la *Description de la panne* est
 pré-remplie (type et appareil) et modifiable.
 
+**Case DHCP d'un poste** : la cocher met de côté l'adresse, le masque, la passerelle et le DNS saisis (ignorés tant
+que le DHCP est coché, sans effet sur la simulation ni sur les objectifs) ; la décocher les remet en place. Cette
+configuration mise de côté n'est pas transmise à l'élève.
+
 **🔀 Variante** : décline l'activité en cours sans toucher au réseau. *Plus guidée* (contraintes affichées,
 seuil −10), *plus exigeante* (adresses exactes laissées au choix quand rien d'autre ne les utilise, passerelle
 « routeur du réseau », contraintes et indices masqués, seuil +10) ; pannes *sur d'autres appareils* (la
@@ -82,7 +86,7 @@ actuelle pour garder les deux versions.
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **381 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **383 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -99,7 +103,7 @@ Suite de **381 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 381/381 tests passés — SUCCÈS
+# ✅ 383/383 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`

@@ -2768,6 +2768,38 @@ test('cocher DHCP sans serveur joignable : pas d\'adresse, pas d\'objectif, pas 
   notOk(done(1));
 });
 
+test('cocher puis décocher DHCP : la configuration fixe revient, ignorée tant que DHCP est coché', function() {
+  setupActivity([objective(1,'ip_configured',{dev:'PC1', ip:'192.168.1.10'},50),
+                 objective(2,'gateway_configured',{dev:'PC1', gateway:'192.168.1.1'},50)]);
+  var pc = mkPC('192.168.1.10','255.255.255.0','192.168.1.1','8.8.8.8','PC1');
+  sandbox.toggleDHCPMode(pc, true);
+  var fi = mainIface(S.devs[pc]);
+  eq([fi.ip, fi.mask, fi.gateway, fi.dns].join('|'), '|||', 'champs vidés en DHCP');
+  eq(sandbox.devByIP('192.168.1.10'), null, 'l\'ancienne adresse n\'est plus celle du poste');
+  sandbox.checkAllObjectives();
+  notOk(done(1), 'adresse fixe mise de côté : non comptée');
+  notOk(done(2), 'passerelle mise de côté : non comptée');
+  sandbox.toggleDHCPMode(pc, false);
+  fi = mainIface(S.devs[pc]);
+  eq([fi.ip, fi.mask, fi.gateway, fi.dns].join('|'), '192.168.1.10|255.255.255.0|192.168.1.1|8.8.8.8');
+  eq(fi.staticCfg, undefined);
+  sandbox.checkAllObjectives();
+  ok(done(1) && done(2), 'comptés de nouveau une fois rétablis');
+});
+
+test('activité élève : la configuration fixe mise de côté par le professeur n\'est pas transmise', function() {
+  resetNet();
+  var pc = mkPC('', '255.255.255.0', '', '', 'PC1');
+  mainIface(S.devs[pc]).dhcpMode = true;
+  mainIface(S.devs[pc]).staticCfg = { ip:'192.168.1.10', mask:'255.255.255.0', gateway:'192.168.1.1', dns:'' };
+  var net = JSON.parse(JSON.stringify({ devs:S.devs, links:S.links, nid:S.nid }));
+  openScenario({ network: net, activity: { objectives: [objective(1,'dhcp_success',{from:'PC1'},100)], faults: [] } }, false);
+  var p1 = devByName('PC1');
+  eq(mainIface(p1).staticCfg, undefined);
+  sandbox.toggleDHCPMode(p1.id, false);
+  eq(mainIface(p1).ip, '', 'décocher ne révèle rien');
+});
+
 /* ── Pont de la box entre WiFi et câble ── */
 suite('Box WiFi — pont entre clients WiFi et côté LAN câblé');
 

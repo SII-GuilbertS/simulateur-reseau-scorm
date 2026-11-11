@@ -1523,8 +1523,22 @@ function prow(devId,idx,label,field,val,ph){
 
 function toggleDHCPMode(devId, enabled){
   var d=S.devs[devId];if(!d||!d.ifaces[0])return;
-  d.ifaces[0].dhcpMode=enabled;
-  if(enabled){d.ifaces[0].ip='';d.ifaces[0].mask='';d.ifaces[0].gateway='';d.ifaces[0].dns='';}
+  var fi=d.ifaces[0],keys=['ip','mask','gateway','dns'];
+  var was=!!fi.dhcpMode;
+  fi.dhcpMode=enabled;
+  // La configuration fixe est mise de côté (staticCfg), jamais lue par la simulation ni
+  // l'évaluation, et remise en place si la case DHCP est décochée.
+  if(enabled&&!was){
+    if(keys.some(function(k){return fi[k];})){
+      fi.staticCfg={};keys.forEach(function(k){fi.staticCfg[k]=fi[k]||'';});
+    }
+    keys.forEach(function(k){fi[k]='';});
+  } else if(enabled){
+    keys.forEach(function(k){fi[k]='';});
+  } else if(was&&fi.staticCfg){
+    keys.forEach(function(k){fi[k]=fi.staticCfg[k]||'';});
+    delete fi.staticCfg;
+  }
   // Comme un vrai poste : activer le DHCP envoie aussitôt une demande d'adresse
   // (même effet que la commande dhcp, y compris pour les objectifs).
   if(enabled)doDHCP(devId);
