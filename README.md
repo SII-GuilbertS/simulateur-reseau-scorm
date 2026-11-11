@@ -95,7 +95,7 @@ node tests/sim-tests.js
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, assistant « Nouvelle activité » et variante jusqu'au score de l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, câble débranché puis rebranché dans le builder, assistant « Nouvelle activité » et variante jusqu'au score de l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois

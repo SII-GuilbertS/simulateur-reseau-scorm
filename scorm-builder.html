@@ -3812,6 +3812,9 @@ document.addEventListener('keydown',function(e){
 
 /* ── Évaluation par objectifs ────────────────────────────── */
 var ACTIVITY_RESULTS={};
+/* Objectifs de configuration que le professeur a cassés dans le builder depuis l'import (ou
+   « Figer » / 🔄) : une fois rétablis, ils comptent, comme une réparation faite par l'élève. */
+var BUILDER_TOUCHED={};
 
 /* Règles d'évaluation : moteur partagé (checkObjectiveStatic, evaluateObjectives...). */
 var STATIC_TYPES=STATIC_OBJ_TYPES;
@@ -3820,13 +3823,17 @@ function checkAllObjectives(){
   var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
   if(!cfg||!cfg.objectives||!cfg.objectives.length)return;
   evaluateObjectives(cfg.objectives);
+  cfg.objectives.forEach(function(o){
+    if(STATIC_TYPES.indexOf(o.check)>=0&&!ACTIVITY_RESULTS[o.id])BUILDER_TOUCHED[o.id]=true;
+  });
   // Le réseau du builder est le corrigé : un objectif de configuration ne compte que s'il est
-  // vrai chez l'élève, pannes de l'onglet 2 appliquées. Le score de départ est donc celui de
-  // l'élève (0 pour une activité bien construite) ; les commandes de test gardent leurs points.
+  // vrai chez l'élève, pannes de l'onglet 2 appliquées, ou si le professeur l'a cassé puis
+  // rétabli. Le score de départ est donc celui de l'élève (0 pour une activité bien construite) ;
+  // les commandes de test et les réparations du professeur gardent leurs points.
   if(cfg.faults&&cfg.faults.length){
     var atStart=studentStartResults(SimModule.getState(),cfg,true);
     cfg.objectives.forEach(function(o){
-      if(STATIC_TYPES.indexOf(o.check)>=0&&!atStart[o.id])ACTIVITY_RESULTS[o.id]=false;
+      if(STATIC_TYPES.indexOf(o.check)>=0&&!atStart[o.id]&&!BUILDER_TOUCHED[o.id])ACTIVITY_RESULTS[o.id]=false;
     });
   }
   updateActivityScore();
@@ -3861,7 +3868,7 @@ function updScore(){
 }
 
 function resetScore(){
-  S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
+  S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};BUILDER_TOUCHED={};
   checkAllObjectives();
   updScore();
   notif('🔄 Score remis à zéro','info');
@@ -3875,7 +3882,7 @@ var START_SNAP=null,START_SNAP_AT=null;
 function freezeStart(silent){
   START_SNAP=JSON.stringify({devs:S.devs,links:S.links});
   START_DEV_IDS=Object.keys(S.devs);
-  START_SNAP_AT=new Date();
+  START_SNAP_AT=new Date();BUILDER_TOUCHED={};
   _updStartUI();
   if(!silent)notif('📌 État de départ figé : '+Object.keys(S.devs).length+' appareils, '+Object.keys(S.links).length+' câbles','ok');
 }
@@ -3921,7 +3928,7 @@ function resetToStart(){
   });
   S.devs=snap.devs;S.links=snap.links;
   S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();S.animPhase=null;
-  S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
+  S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};BUILDER_TOUCHED={};
   render();noSel();checkAllObjectives();updScore();
   notif("↺ Réseau remis à l'état de départ — objectifs remis à zéro",'ok');
 }

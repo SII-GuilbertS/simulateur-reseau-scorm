@@ -734,6 +734,41 @@ test.describe('Builder', () => {
     }
   });
 
+  test('câble débranché : le professeur le rebranche dans le builder, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('#btn-wizard').click();
+    await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
+    await page.locator('.wz-card[data-group="theme"][data-id="maison"]').click();
+    await page.locator('.wz-card[data-group="level"][data-id="college"]').click();
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    const fault = await page.evaluate(() => {
+      const f = EvalModule.getConfig().faults.find((x) => x.type === 'missing_cable'); return f.params || f; });
+    const pts = await page.evaluate(() => EvalModule.getConfig().objectives.find((o) => o.check === 'cable_exists').points);
+    const [pc, sw, box] = [await deviceId(page, fault.devA), await deviceId(page, fault.devB), await deviceId(page, 'Box')];
+    // Le professeur débranche le câble (comme la panne), puis le rebranche à l'outil Câble
+    await page.evaluate(([a, b]) => {
+      Object.keys(S.links).forEach((k) => { const l = S.links[k];
+        if ((l.from === a && l.to === b) || (l.from === b && l.to === a)) delete S.links[k]; });
+      render(); checkAllObjectives();
+    }, [pc, sw]);
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await page.locator('#pi-link').click();
+    await page.locator(`#gd${pc}`).click();
+    await page.locator(`#gd${box}`).click();
+    await page.waitForTimeout(200);
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');   // sur la Box : pas le switch indiqué
+    await page.evaluate(([a, b]) => {
+      Object.keys(S.links).forEach((k) => { const l = S.links[k];
+        if ((l.from === a && l.to === b) || (l.from === b && l.to === a)) delete S.links[k]; });
+      render(); checkAllObjectives();
+    }, [pc, box]);
+    await page.locator(`#gd${pc}`).click();
+    await page.locator(`#gd${sw}`).click();
+    await expect(builderScore(page)).toHaveText(`📊 Score : ${pts} / 100 pts`);
+  });
+
   test('Variante : plus exigeante, panne déplacée, puis réparée chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-entreprise');
     await page.locator('#btn-variant').click();

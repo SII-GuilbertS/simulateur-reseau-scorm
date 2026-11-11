@@ -93,15 +93,17 @@ tant que sa condition reste vraie : les objectifs dynamiques gardent la commande
 `checkDynamicObjective` restent définis deux fois, dans `src/template-extra.js` et dans le JS du
 builder, mais ne font qu'appeler ces fonctions puis afficher le résultat. Le réseau du builder est le
 corrigé : son `checkAllObjectives` ne compte un objectif statique que s'il est vrai pannes appliquées
-(`studentStartResults(net, cfg, true)`), si bien que le score affiché à l'import est celui de l'élève
-à l'ouverture (0) ; seules les commandes de test du professeur y ajoutent des points.
+(`studentStartResults(net, cfg, true)`) ou si le professeur l'a cassé puis rétabli dans le builder
+(`BUILDER_TOUCHED`, remis à zéro à l'import, par « Figer » et par 🔄), si bien que le score affiché à
+l'import est celui de l'élève à l'ouverture (0) ; les commandes de test et les réparations du
+professeur y ajoutent des points.
 
 Le hook local `.git/hooks/pre-commit` (non versionné) exige le nombre exact de tests : si ce nombre
 change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 28 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 29 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -110,7 +112,7 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, le DHCP depuis la fiche d'un poste, la connexion WiFi (SSID suivi dans le builder, mot de passe
+le pointeur câble et les touches Échap et Suppr, un câble débranché puis rebranché par le professeur (compté seulement au switch indiqué), le DHCP depuis la fiche d'un poste, la connexion WiFi (SSID suivi dans le builder, mot de passe
 faux puis corrigé chez l'élève), l'assistant
 « Nouvelle activité » et la fenêtre Variante jusqu'à l'élève, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
