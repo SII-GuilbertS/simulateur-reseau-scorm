@@ -251,6 +251,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
   <!-- ── Palette ──────────────────────────────────── -->
   <div class="pal" id="palette">
     <div class="psep">Appareils</div>
+    <div class="pi" id="pi-link"   onclick="setTool('link')"   title="Câble">           <div class="pi-icon">🔗</div><span>Câble</span></div>
     <div class="pi" id="pi-pc-desktop" draggable="true" ondragstart="palDS(event,'pc:desktop')" title="PC fixe — câble uniquement"><div class="pi-icon">🖥️</div><span>PC fixe</span></div>
     <div class="pi" id="pi-pc-laptop"  draggable="true" ondragstart="palDS(event,'pc:laptop')"  title="PC portable — câble ou WiFi"><div class="pi-icon">💻</div><span>Portable</span></div>
     <div class="pi" id="pi-pc-phone"   draggable="true" ondragstart="palDS(event,'pc:phone')"   title="Téléphone — WiFi uniquement"><div class="pi-icon">📱</div><span>Téléphone</span></div>
@@ -264,7 +265,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
     <div class="pi" id="pi-anntext"  draggable="true" ondragstart="palDS(event,'anntext')"  title="Texte">   <div class="pi-icon">𝐓</div><span>Texte</span></div>
     <div class="psep" style="margin-top:6px">Outils</div>
     <div class="pi" id="pi-sel"    onclick="setTool('select')" title="Sélectionner">    <div class="pi-icon">🖱️</div><span>Sélect.</span></div>
-    <div class="pi" id="pi-link"   onclick="setTool('link')"   title="Câble">           <div class="pi-icon">🔗</div><span>Câble</span></div>
     <div class="pi" id="pi-del"    onclick="setTool('delete')" title="Supprimer">       <div class="pi-icon">🗑️</div><span>Suppr.</span></div>
   </div>
 
