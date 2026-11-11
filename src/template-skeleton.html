@@ -175,8 +175,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .lout{flex:1;overflow-y:auto;padding:5px 10px;font-family:'Courier New',monospace;font-size:.77em;line-height:1.55}
 .ll{padding:0}.ll.ok{color:#68d391}.ll.err{color:#fc8181}.ll.info{color:#63b3ed}
 
-/* Badges */
-.bpts{font-weight:700;margin-left:3px;font-size:.9em}
 
 /* ─── Color pickers dans props ─── */
 .pr input[type=color]{width:48px;height:28px;padding:1px;cursor:pointer;border-radius:4px}
@@ -226,7 +224,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
   </div>
 
   <div class="hdr-r">
-    <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs">🏅 Score : 0 / 100</div>
+    <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs">📊 Score : 0 / 100</div>
     <div id="score-details"></div>
     <button class="wbtn icon-only" id="btn-fs" onclick="toggleFullscreen()" title="Plein écran">⤢</button>
     <button class="fbtn" onclick="finishActivity()">🏁 Terminer</button>
@@ -315,7 +313,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
     <button class="bt active" onclick="showTab('term')">📟 Terminal</button>
     <button class="bt"        onclick="showTab('brow')">🌐 Navigateur</button>
     <button class="bt"        onclick="showTab('log')">📋 Journal</button>
-    <button class="bt"        onclick="showTab('bdg')">🏅 Badges</button>
     <button class="bt"        onclick="showTab('pkt')">🔍 Paquets</button>
     <button class="bt" id="btn-activ-tab" style="display:none" onclick="showTab('activ')">📋 Activité</button>
   </div>
@@ -352,10 +349,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
   <!-- Log -->
   <div class="tp" id="tp-log">
     <div class="lout" id="lout"><div class="ll info">[ Journal réseau prêt ]</div></div>
-  </div>
-
-  <!-- Badges -->
-  <div class="tp" id="tp-bdg">
   </div>
 
   <!-- Sniffer paquets -->

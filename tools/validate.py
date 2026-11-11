@@ -78,7 +78,8 @@ if tmpl:
         errors.append("Aucun JS extrait du template")
 
 # ── 5. Résidus de badges ──────────────────────────────────────────
-for kw in ['var BADGES=', 'S.badges', 'renderBadges(', 'checkBadges(', "unlock('b"]:
+for kw in ['var BADGES=', 'S.badges', 'renderBadges(', 'checkBadges(', "unlock('b",
+           "showTab('bdg')", 'tp-bdg', "'bdg'", '🏅']:
     cnt = builder_js.count(kw) + tmpl.count(kw)
     if cnt:
         errors.append(f"Résidu badge '{kw}' ({cnt} occurrence(s))")

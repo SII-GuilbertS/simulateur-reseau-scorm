@@ -2187,7 +2187,7 @@ function showTab(id){
   document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.bt').forEach(function(b){b.classList.remove('active');});
   var pane=document.getElementById('tp-'+id);if(pane)pane.classList.add('active');
-  var tabs=['term','brow','log','bdg','pkt','activ'];
+  var tabs=['term','brow','log','pkt','activ'];
   var idx=tabs.indexOf(id);
   var bts=document.querySelectorAll('.bt');if(bts[idx])bts[idx].classList.add('active');
   if(id==='brow'&&S.termDev){
