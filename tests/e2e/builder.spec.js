@@ -133,6 +133,10 @@ async function studentBrowse(scope, deviceName, url) {
    Rend la fenêtre de l'appareil. */
 async function openDeskApp(scope, deviceName, appLabel) {
   const id = await deviceId(scope, deviceName);
+  // Les fenêtres ouvertes peuvent couvrir l'appareil : on les réduit d'abord dans le dock.
+  for (const min of await scope.locator('.dwin .dw-min').all()) {
+    if (await min.isVisible()) await min.click();
+  }
   await scope.locator(`#gd${id}`).dblclick();
   const win = scope.locator(`#dwin-${id}`);
   await expect(win).toBeVisible();
@@ -286,6 +290,30 @@ test.describe('Vue élève (export HTML)', () => {
     await expect.poll(() => page.dialogs.at(-1)).toContain('RÉUSSI');
   });
 
+  test('panne « service arrêté » : l\'élève redémarre le DNS dans le bureau du serveur, conservé après rechargement', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const file = await exportFile(page, 'html', info.outputPath('entreprise-dns.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+
+    // En Configuration, la fiche du serveur ne règle plus les services : elle mène au bureau.
+    const srv = await deviceId(page, 'Serveur');
+    await page.locator(`#gd${srv}`).click();
+    await expect(page.locator('#props-body')).not.toContainText('Activer le serveur DNS');
+    await page.locator('#props-body button', { hasText: 'Ouvrir le bureau en simulation' }).click();
+    await expect(page.locator(`#dwin-${srv}`)).toBeVisible();
+
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await expect(dns.locator('.dpill')).toHaveText('arrêté');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(dns.locator('.dpill')).toHaveText('démarré');
+    await studentScore(page, 20);
+
+    await page.reload();
+    await studentScore(page, 20);
+    expect(await page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on)).toBe(true);
+  });
+
   test('bureau des appareils : terminal et navigateur en fenêtre valident l\'activité, une session par appareil', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     const file = await exportFile(page, 'html', info.outputPath('maison-bureau.html'));
@@ -312,7 +340,7 @@ test.describe('Vue élève (export HTML)', () => {
 
     // Fermer l'application garde la fenêtre ; × ferme le bureau ; le mode Conception ferme tout.
     await pc.locator('.aclose').click();
-    await expect(pc.locator('.dico')).toHaveCount(2);
+    await expect(pc.locator('.dico')).toHaveCount(3);
     await pc.locator('.dw-x').click();
     await expect(pc).toHaveCount(0);
     await expect(page.locator('.dwin')).toHaveCount(1);
@@ -322,6 +350,37 @@ test.describe('Vue élève (export HTML)', () => {
 });
 
 test.describe('Builder', () => {
+  test('services réglés en simulation : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('#btn-sim').click();
+    const box = await openDeskApp(page, 'Box-WiFi', 'Administration');
+    const dhcp = box.locator('.dpill');
+    await expect(dhcp).toHaveText('démarré');
+    await box.locator('[data-act="toggle"]').click();
+    await expect(dhcp).toHaveText('arrêté');
+    await page.keyboard.press('Control+z');
+    await expect(dhcp).toHaveText('démarré');
+    await box.locator('[data-act="toggle"]').click();
+    await expect(dhcp).toHaveText('arrêté');
+
+    const file = await exportFile(page, 'html', info.outputPath('maison-dhcp-off.html'));
+    await page.goto(pathToFileURL(file).href);
+    await page.locator('#btn-sim').click();
+    const sbox = await openDeskApp(page, 'Box-WiFi', 'Administration');
+    await expect(sbox.locator('.dpill')).toHaveText('arrêté');
+    const laptop = await deskTerminal(page, 'Laptop', 'dhcp');
+    const before = await page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Laptop').ifaces[0].ip);
+    expect(before || '').toBe('');
+
+    await openDeskApp(page, 'Box-WiFi', 'Administration');
+    await sbox.locator('[data-act="toggle"]').click();
+    await expect(sbox.locator('.dpill')).toHaveText('démarré');
+    await deskTerminal(page, 'Laptop', 'dhcp');
+    await expect.poll(() => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Laptop').ifaces[0].ip))
+      .toMatch(/^192\.168\.1\.\d+$/);
+    await expect(laptop).toBeVisible();
+  });
+
   test('bureau des appareils dans le builder : terminal en fenêtre, adresse dans le titre', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
     await page.locator('#btn-sim').click();
@@ -711,11 +770,11 @@ test.describe('Builder', () => {
   test('Connexion WiFi : SSID suivi dans le builder, mot de passe faux puis corrigé chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     // Builder : renommer le réseau de la box, les terminaux connectés suivent
-    const box = await deviceId(page, 'Box-WiFi');
-    await page.locator(`#gd${box}`).click();
-    const ssid = page.locator('#props-body .pr', { hasText: 'SSID (nom du réseau)' }).locator('input');
-    await ssid.fill('WiFi-Famille');
-    await ssid.press('Tab');
+    // (le WiFi de la box se règle dans son application Administration, en mode simulation)
+    await page.locator('#btn-sim').click();
+    const admin = await openDeskApp(page, 'Box-WiFi', 'Administration');
+    await admin.locator('[data-f="ssid"]').fill('WiFi-Famille');
+    await admin.locator('[data-act="wifi-save"]').click();
     const laptop = await deviceId(page, 'Laptop');
     await page.locator(`#gd${laptop}`).click();
     await expect(page.locator('#props-body')).toContainText('Connecté à « WiFi-Famille »');

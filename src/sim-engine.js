@@ -1591,7 +1591,7 @@ function uploadServerFiles(devId,input){
     reader.onload=function(e){
       d.serverFiles[file.name]={name:file.name,type:file.type,data:e.target.result,size:file.size};
       done++;
-      if(done===files.length){notif('✅ '+done+' fichier(s) uploadé(s)','ok');showProps(devId);}
+      if(done===files.length){notif('✅ '+done+' fichier(s) uploadé(s)','ok');showProps(devId);deskFilesChanged(devId);}
     };
     reader.readAsDataURL(file);
   });
@@ -1599,7 +1599,7 @@ function uploadServerFiles(devId,input){
 }
 function deleteServerFile(devId,filename){
   var d=S.devs[devId];if(d.serverFiles)delete d.serverFiles[filename];
-  showProps(devId);
+  showProps(devId);deskFilesChanged(devId);
 }
 function insertFileRef(devId,filename){
   var ta=document.getElementById('hcontent-'+devId);if(!ta)return;
@@ -1707,12 +1707,24 @@ function termRun(raw,devId){
 var DESK={wins:{},sess:{},z:900,last:{id:null,t:0},ready:false};
 var DESK_APPS={
   term:{icon:'📟',label:'Invite de commandes'},
-  brow:{icon:'🌐',label:'Navigateur'}
+  brow:{icon:'🌐',label:'Navigateur'},
+  net:{icon:'⚙️',label:'Paramètres réseau',form:true},
+  wifi:{icon:'📶',label:'WiFi',form:true},
+  web:{icon:'🗂️',label:'Serveur web',form:true},
+  dnss:{icon:'📖',label:'Serveur DNS',form:true},
+  dhcps:{icon:'🏷️',label:'Serveur DHCP',form:true},
+  admin:{icon:'🛠️',label:'Administration',form:true},
+  routes:{icon:'🧭',label:'Routage',form:true}
 };
+// Applications de chaque appareil. Les services (web, DNS, DHCP, WiFi de la box) ne se
+// règlent qu'ici, en mode simulation ; ce qui est réglé dans le builder part à l'export.
 function deskApps(d){
   if(!d||d.type==='switch'||d.type==='internet')return [];
-  var a=['term'];
-  if(d.type==='pc'||d.type==='server')a.push('brow');
+  if(d.type==='wifi_router')return ['admin','routes','term'];
+  if(d.type==='router')return ['routes','term'];
+  var a=['term','brow','net'];
+  if(d.type==='pc'&&wifiBoxOf(d))a.push('wifi');
+  if(d.type==='server')a.push('web','dnss','dhcps');
   return a;
 }
 function deskPrompt(d){return d.name.toLowerCase().replace(/\s+/g,'-')+'@réseau > ';}
@@ -1762,7 +1774,37 @@ function deskInit(){
     '.desk-papps{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}'+
     '.desk-papps .dpl{font-size:.7em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}'+
     '.desk-papps button{display:flex;align-items:center;gap:7px;border:1px solid #e2e8f0;background:#f7fafc;border-radius:7px;padding:5px 9px;font-size:.8em;cursor:pointer;text-align:left;color:#2d3748;font-family:inherit}'+
-    '.desk-papps button:hover{border-color:#63b3ed;background:#ebf8ff}';
+    '.desk-papps button:hover{border-color:#63b3ed;background:#ebf8ff}'+
+    '.abody.dform{background:#f7fafc;color:#2d3748;overflow-y:auto;padding:10px 14px;display:block;font-size:12.5px}'+
+    '.dform h4{margin:10px 0 6px;font-size:12px;color:#553c9a}.dform h4:first-child{margin-top:0}'+
+    '.dform .m{font-family:"Courier New",monospace}'+
+    '.dfr{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:6px}'+
+    '.dfr.col{grid-template-columns:1fr;gap:3px}'+
+    '.dfr label{font-weight:600;color:#4a5568}'+
+    '.dfr input,.dfr textarea{border:1px solid #cbd5e0;border-radius:5px;padding:4px 7px;font-family:"Courier New",monospace;font-size:12px;background:#fff;color:#2d3748;min-width:0;width:100%;box-sizing:border-box}'+
+    '.dfr input:disabled{background:#edf2f7;color:#718096}'+
+    '.dfr textarea{resize:vertical}'+
+    '.dck{display:flex;gap:6px;align-items:center;margin:4px 0 8px;cursor:pointer}'+
+    '.dacts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 4px}'+
+    '.dbtn{border:none;border-radius:6px;background:#2b6cb0;color:#fff;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}'+
+    '.dbtn:hover{filter:brightness(1.1)}.dbtn.red{background:#e53e3e}.dbtn.green{background:#38a169}'+
+    '.dbtn.sec{background:#e2e8f0;color:#2d3748;padding:2px 8px}'+
+    '.dmsg{font-size:12px}.dmsg.ok{color:#276749}.dmsg.ko{color:#c53030}'+
+    '.dsw{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-weight:600}'+
+    '.dpill{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px}'+
+    '.dpill.on{background:#c6f6d5;color:#22543d}.dpill.off{background:#fed7d7;color:#822727}'+
+    '.dtab{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:12px}'+
+    '.dtab th{text-align:left;color:#718096;font-weight:600;border-bottom:1px solid #cbd5e0;padding:3px 6px}'+
+    '.dtab td{border-bottom:1px solid #e2e8f0;padding:3px 6px}'+
+    '.dnote{color:#718096;font-size:12px;margin-bottom:8px}'+
+    '.dstate{font-weight:700;margin-bottom:6px}.dstate.ok{color:#276749}.dstate.ko{color:#c53030}'+
+    '.dnet{display:flex;width:100%;align-items:center;gap:8px;padding:7px 10px;margin-bottom:10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12.5px;color:#2d3748}'+
+    '.dnet span{margin-left:auto;color:#718096;font-size:11px}.dnet:hover{border-color:#63b3ed}'+
+    '.dfile{display:flex;gap:8px;align-items:center;padding:3px 0;font-size:12px}.dfile .m{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}'+
+    '.desk-cfg{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}'+
+    '.desk-cfg .dcr{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.8em}'+
+    '.desk-cfg .dcr .m{font-family:"Courier New",monospace;font-size:.95em;color:#4a5568}'+
+    '.desk-cfg .dcn{font-size:.74em;color:#718096;margin:2px 0}';
   document.head.appendChild(st);
   var dock=document.createElement('div');dock.className='desk-dock';dock.id='desk-dock';document.body.appendChild(dock);
   window.addEventListener('resize',deskDock);
@@ -1850,6 +1892,7 @@ function deskRender(id){
   w.el.querySelector('.dwin-ip').textContent=ip;
   w.el.querySelector('.dw-home').disabled=!w.app;
   var b=w.el.querySelector('.dwin-b');
+  w.dev=d;
   if(!app){
     b.innerHTML='<div class="desk">'+deskApps(d).map(function(a){
         return '<button type="button" class="dico" data-app="'+a+'"><span class="di">'+DESK_APPS[a].icon+'</span>'+DESK_APPS[a].label+'</button>';
@@ -1860,6 +1903,7 @@ function deskRender(id){
   b.innerHTML='<div class="abar"><span>'+app.icon+' '+app.label+'</span>'+
     '<button type="button" class="aclose" title="Fermer l\'application et revenir au bureau">✕ Fermer</button></div><div class="abody"></div>';
   var body=b.querySelector('.abody'),s=deskSess(id);
+  if(app.form){body.classList.add('dform');DESK_FORMS[w.app](d,body);return;}
   if(w.app==='term'){
     body.appendChild(s.out);
     var tin=document.createElement('div');tin.className='tin';
@@ -1929,8 +1973,248 @@ function deskSync(){
     if(!d||!deskApps(d).length||S.mode!=='simulation'){deskClose(id);return;}
     var w=DESK.wins[id],fi=mainIface(d);
     w.el.querySelector('.dwin-ip').textContent=fi&&fi.ip?fi.ip:'';
-    if(!w.app){var bar=w.el.querySelector('.dbar');if(bar)deskRender(id);}
+    // Bureau : toujours à jour. Application à formulaire : redessinée seulement si l'appareil a été
+    // remplacé (annuler, import), pour ne pas effacer une saisie en cours.
+    if(!w.app||(DESK_APPS[w.app].form&&w.dev!==d))deskRender(id);
   });
+}
+
+/* ── Applications à formulaire : services et paramètres de l'appareil ──
+   Elles modifient le réseau avec les mêmes fonctions que les fiches (setIface, setDHCP,
+   setBoxWifi…). Dans le builder, chaque changement est annulable (Ctrl+Z) et part à l'export ;
+   chez l'élève, il est sauvegardé pour la reprise. */
+function deskRefresh(id){
+  var w=DESK.wins[id];
+  if(w&&w.app&&DESK_APPS[w.app]&&DESK_APPS[w.app].form&&w.el.style.display!=='none')deskRender(id);
+}
+function deskFilesChanged(id){
+  if(typeof saveToSession==='function')saveToSession();
+  deskRefresh(id);
+}
+function deskApply(id,fn){
+  snapHistory();
+  fn();
+  render();
+  if(typeof checkAllObjectives==='function')checkAllObjectives();
+  if(typeof saveToSession==='function')saveToSession();
+  deskRefresh(id);
+}
+function deskMsg(body,txt,ok,key){
+  var m=body.querySelector(key?'.dmsg[data-m="'+key+'"]':'.dmsg');if(!m)return;
+  m.className='dmsg '+(ok?'ok':'ko');m.textContent=txt;
+}
+function deskField(key,label,val,ph,attrs){
+  return '<div class="dfr"><label>'+label+'</label><input data-f="'+key+'" type="text" value="'+esc(val||'')+'"'+
+    ' placeholder="'+esc(ph||'')+'" spellcheck="false" autocomplete="off"'+(attrs||'')+'></div>';
+}
+function deskVal(body,key){var i=body.querySelector('[data-f="'+key+'"]');return i?i.value.trim():'';}
+function deskSwitch(on,label){
+  return '<div class="dsw"><span>'+label+'</span><span class="dpill '+(on?'on':'off')+'">'+(on?'démarré':'arrêté')+'</span>'+
+    '<button type="button" class="dbtn '+(on?'red':'green')+'" data-act="toggle">'+(on?'Arrêter':'Démarrer')+'</button></div>';
+}
+function deskDhcpDefaults(d){
+  if(!d.dhcp)d.dhcp={on:false,start:'192.168.1.100',end:'192.168.1.200',mask:'255.255.255.0',gateway:'',dns:''};
+  return d.dhcp;
+}
+// Postes qui ont reçu leur adresse de ce serveur DHCP (adresse dans sa plage).
+function deskLeases(d){
+  var dh=d.dhcp||{},a=ip2n(dh.start||''),z=ip2n(dh.end||'');
+  if(a<0||z<0)return [];
+  return Object.values(S.devs).filter(function(x){
+    var f=mainIface(x);if(!f||!f.dhcpMode||!f.ip)return false;
+    var n=ip2n(f.ip);return n>=a&&n<=z;
+  });
+}
+function deskDhcpForm(d,body,title){
+  var dh=deskDhcpDefaults(d),id=d.id;
+  var h='<h4>'+title+'</h4>'+deskSwitch(dh.on,'Service DHCP');
+  h+=deskField('start','IP de départ',dh.start,'192.168.1.100')+deskField('end','IP de fin',dh.end,'192.168.1.200')+
+    deskField('mask','Masque distribué',dh.mask,'255.255.255.0')+deskField('gateway','Passerelle distribuée',dh.gateway,'192.168.1.1')+
+    deskField('dns','DNS distribué',dh.dns,'192.168.1.254');
+  h+='<div class="dacts"><button type="button" class="dbtn" data-act="dhcp-save">Enregistrer</button><span class="dmsg" data-m="dhcp"></span></div>';
+  var ls=deskLeases(d);
+  h+='<h4>Baux en cours</h4>'+(ls.length?'<table class="dtab"><tr><th>Appareil</th><th>Adresse</th></tr>'+
+    ls.map(function(x){return '<tr><td>'+esc(x.name)+'</td><td class="m">'+esc(mainIface(x).ip)+'</td></tr>';}).join('')+'</table>'
+    :'<div class="dnote">Aucun poste n\'a encore reçu d\'adresse de ce serveur.</div>');
+  return h;
+}
+function deskDhcpWire(d,body){
+  var id=d.id,dh=deskDhcpDefaults(d);
+  body.querySelector('[data-act="toggle"]').onclick=function(){
+    deskApply(id,function(){dh.on=!dh.on;addLog('DHCP '+(dh.on?'démarré':'arrêté')+' sur '+d.name,dh.on?'ok':'warn');});
+  };
+  body.querySelector('[data-act="dhcp-save"]').onclick=function(){
+    var v={start:deskVal(body,'start'),end:deskVal(body,'end'),mask:deskVal(body,'mask'),gateway:deskVal(body,'gateway'),dns:deskVal(body,'dns')};
+    var bad=['start','end','gateway','dns'].filter(function(k){return !isValidUserIP(v[k]);});
+    if(bad.length){deskMsg(body,'Adresse invalide : '+v[bad[0]],false,'dhcp');return;}
+    if(!isValidUserMask(v.mask)){deskMsg(body,'Masque invalide : '+v.mask,false,'dhcp');return;}
+    deskApply(id,function(){Object.keys(v).forEach(function(k){dh[k]=v[k];});});
+    deskMsg(DESK.wins[id].el,'✓ Configuration DHCP enregistrée',true,'dhcp');
+  };
+}
+var DESK_FORMS={
+  net:function(d,body){
+    var id=d.id,fi=mainIface(d)||{},dh=!!fi.dhcpMode,canDhcp=d.type==='pc';
+    var h='<h4>Carte réseau'+(d.mac?' · <span class="m">'+esc(d.mac)+'</span>':'')+'</h4>';
+    if(canDhcp)h+='<label class="dck"><input type="checkbox" data-f="dhcp"'+(dh?' checked':'')+'> Obtenir une adresse automatiquement (DHCP)</label>';
+    var ro=dh?' disabled':'';
+    h+=deskField('ip','Adresse IP',fi.ip,'192.168.1.10',ro)+deskField('mask','Masque',fi.mask,'255.255.255.0',ro)+
+      deskField('gateway','Passerelle',fi.gateway,'192.168.1.1',ro)+deskField('dns','Serveur DNS',fi.dns,'192.168.1.254',ro);
+    h+='<div class="dacts">'+(dh?'<button type="button" class="dbtn" data-act="renew">'+(fi.ip?'Renouveler l\'adresse':'Demander une adresse')+'</button>'
+      :'<button type="button" class="dbtn" data-act="save">Enregistrer</button>')+'<span class="dmsg"></span></div>';
+    body.innerHTML=h;
+    // Les messages de la demande DHCP vont dans le terminal de l'appareil.
+    function dhcpRun(fn){var s=deskSess(id),p=_termOut;_termOut=s.out;try{fn();}finally{_termOut=p;}}
+    var ck=body.querySelector('[data-f="dhcp"]');
+    if(ck)ck.onchange=function(){
+      var on=ck.checked;
+      deskApply(id,function(){dhcpRun(function(){toggleDHCPMode(id,on);});});
+      var f=mainIface(S.devs[id])||{};
+      if(on)deskMsg(DESK.wins[id].el,f.ip?'✓ Adresse reçue : '+f.ip:'Aucune réponse DHCP (détails dans l\'invite de commandes)',!!f.ip);
+    };
+    var rn=body.querySelector('[data-act="renew"]');
+    if(rn)rn.onclick=function(){
+      deskApply(id,function(){dhcpRun(function(){doDHCP(id);});});
+      var f=mainIface(S.devs[id])||{};
+      deskMsg(DESK.wins[id].el,f.ip?'✓ Adresse reçue : '+f.ip:'Aucune réponse DHCP (détails dans l\'invite de commandes)',!!f.ip);
+    };
+    var sv=body.querySelector('[data-act="save"]');
+    if(sv)sv.onclick=function(){
+      var v={ip:deskVal(body,'ip'),mask:deskVal(body,'mask'),gateway:deskVal(body,'gateway'),dns:deskVal(body,'dns')};
+      var bad=['ip','gateway','dns'].filter(function(k){return !isValidUserIP(v[k]);});
+      if(bad.length){deskMsg(body,'Adresse invalide : '+v[bad[0]],false);return;}
+      if(!isValidUserMask(v.mask)){deskMsg(body,'Masque invalide : '+v.mask,false);return;}
+      deskApply(id,function(){Object.keys(v).forEach(function(k){setIface(id,0,k,v[k]);});addLog('Configuration IP de '+d.name+' modifiée','info');});
+      deskMsg(DESK.wins[id].el,'✓ Configuration appliquée',true);
+    };
+  },
+  wifi:function(d,body){
+    var id=d.id,b=wifiBoxOf(d),w=d.wifi||{},st=b?wifiAssoc(d,b):{ok:false};
+    var h='<h4>État</h4><div class="dstate '+(st.ok?'ok':'ko')+'">'+
+      (st.ok?'✅ Connecté à « '+esc(b.ssid||'')+' »':'❌ '+esc((wifiProblem(id)||'Non connecté au WiFi').replace('Non connecté au WiFi : ','Non connecté : ')))+'</div>';
+    if(b)h+='<h4>Réseaux à portée</h4><button type="button" class="dnet" data-act="pick">🔒 '+esc(b.ssid||'(sans nom)')+'<span>'+(b.wifiPass?'WPA2':'ouvert')+'</span></button>';
+    h+=deskField('ssid','Réseau (SSID)',w.ssid,b?b.ssid:'')+
+      '<div class="dfr"><label>Mot de passe</label><input data-f="pass" type="password" value="'+esc(w.pass||'')+'" autocomplete="off"></div>'+
+      '<div class="dacts"><button type="button" class="dbtn" data-act="join">Se connecter</button><span class="dmsg"></span></div>';
+    body.innerHTML=h;
+    var pk=body.querySelector('[data-act="pick"]');
+    if(pk)pk.onclick=function(){body.querySelector('[data-f="ssid"]').value=b.ssid||'';body.querySelector('[data-f="pass"]').focus();};
+    function join(){
+      var ss=deskVal(body,'ssid'),pw=body.querySelector('[data-f="pass"]').value;
+      deskApply(id,function(){setTermWifi(id,'ssid',ss);setTermWifi(id,'pass',pw);});
+      var ok=wifiBoxOf(S.devs[id])&&wifiAssoc(S.devs[id],wifiBoxOf(S.devs[id])).ok;
+      addLog('WiFi de '+d.name+' : '+(ok?'connecté à « '+ss+' »':'connexion refusée'),ok?'ok':'err');
+    }
+    body.querySelector('[data-act="join"]').onclick=join;
+    body.querySelector('[data-f="pass"]').addEventListener('keydown',function(e){if(e.key==='Enter')join();});
+  },
+  web:function(d,body){
+    var id=d.id,hp=d.http;
+    var h=deskSwitch(hp.on,'Service HTTP (port 80)');
+    h+=deskField('title','Titre de la page',hp.title,'Ma page web');
+    h+='<label class="dck"><input type="checkbox" data-f="html"'+(hp.htmlMode?' checked':'')+'> Mode HTML (balises et fichiers)</label>';
+    h+='<div class="dfr col"><label>Contenu '+(hp.htmlMode?'HTML':'texte')+'</label><textarea id="hcontent-'+id+'" rows="6" spellcheck="false">'+esc(hp.content||'')+'</textarea></div>';
+    h+='<div class="dacts"><button type="button" class="dbtn" data-act="save">Enregistrer la page</button><span class="dmsg"></span></div>';
+    var sf=d.serverFiles||{},ks=Object.keys(sf);
+    h+='<h4>Fichiers du serveur</h4><input type="file" id="fup-'+id+'" style="display:none" multiple accept="image/*,.html,.htm,.svg,.txt,.css,.js">'+
+      (ks.length?ks.map(function(fn){
+        return '<div class="dfile"><span class="m">'+esc(fn)+'</span><span>'+Math.round((sf[fn].size||0)/102.4)/10+' Ko</span>'+
+          '<button type="button" class="dbtn sec" data-ins="'+esc(fn)+'">⤵ Insérer</button><button type="button" class="dbtn sec" data-del="'+esc(fn)+'">✕</button></div>';
+      }).join(''):'<div class="dnote">Aucun fichier. Réf. dans le HTML : &lt;img src="files/nom.png"&gt;</div>')+
+      '<div class="dacts"><button type="button" class="dbtn sec" data-act="up">📎 Ajouter des fichiers…</button></div>';
+    body.innerHTML=h;
+    body.querySelector('[data-act="toggle"]').onclick=function(){
+      deskApply(id,function(){hp.on=!hp.on;addLog('Serveur web '+(hp.on?'démarré':'arrêté')+' sur '+d.name,hp.on?'ok':'warn');});
+    };
+    body.querySelector('[data-f="html"]').onchange=function(e){var v=e.target.checked;deskApply(id,function(){hp.content=body.querySelector('textarea').value;hp.htmlMode=v;});};
+    body.querySelector('[data-act="save"]').onclick=function(){
+      deskApply(id,function(){hp.title=deskVal(body,'title');hp.content=body.querySelector('textarea').value;});
+      deskMsg(DESK.wins[id].el,'✓ Page enregistrée',true);
+    };
+    var fup=body.querySelector('#fup-'+id);
+    fup.onchange=function(){snapHistory();uploadServerFiles(id,fup);};
+    body.querySelector('[data-act="up"]').onclick=function(){fup.click();};
+    body.querySelectorAll('[data-ins]').forEach(function(x){x.onclick=function(){insertFileRef(id,x.getAttribute('data-ins'));};});
+    body.querySelectorAll('[data-del]').forEach(function(x){x.onclick=function(){snapHistory();deleteServerFile(id,x.getAttribute('data-del'));};});
+  },
+  dnss:function(d,body){
+    var id=d.id,dn=d.dns,rec=dn.records||{};
+    var h=deskSwitch(dn.on,'Service DNS (port 53)');
+    var ks=Object.keys(rec);
+    h+='<h4>Enregistrements</h4>'+(ks.length?'<table class="dtab"><tr><th>Nom de domaine</th><th>Adresse IP</th><th></th></tr>'+
+      ks.map(function(k){return '<tr><td class="m">'+esc(k)+'</td><td class="m">'+esc(rec[k])+'</td><td><button type="button" class="dbtn sec" data-del="'+esc(k)+'" aria-label="Supprimer">✕</button></td></tr>';}).join('')+'</table>'
+      :'<div class="dnote">Aucun enregistrement.</div>');
+    h+=deskField('name','Nouveau nom','','www.lycee.fr')+deskField('ip','Adresse IP','','192.168.1.100');
+    h+='<div class="dacts"><button type="button" class="dbtn" data-act="add">Ajouter</button><span class="dmsg"></span></div>';
+    body.innerHTML=h;
+    body.querySelector('[data-act="toggle"]').onclick=function(){
+      deskApply(id,function(){dn.on=!dn.on;addLog('Serveur DNS '+(dn.on?'démarré':'arrêté')+' sur '+d.name,dn.on?'ok':'warn');});
+    };
+    body.querySelectorAll('[data-del]').forEach(function(x){x.onclick=function(){
+      var k=x.getAttribute('data-del');deskApply(id,function(){delete dn.records[k];});
+    };});
+    body.querySelector('[data-act="add"]').onclick=function(){
+      var n=deskVal(body,'name').toLowerCase(),ip=deskVal(body,'ip');
+      if(!n||/[\s=]/.test(n)){deskMsg(body,'Saisissez un nom de domaine sans espace.',false);return;}
+      if(!ip||!isValidUserIP(ip)){deskMsg(body,'Adresse IP invalide : '+ip,false);return;}
+      deskApply(id,function(){if(!dn.records)dn.records={};dn.records[n]=ip;addLog('DNS '+d.name+' : '+n+' → '+ip,'info');});
+    };
+  },
+  dhcps:function(d,body){
+    body.innerHTML=deskDhcpForm(d,body,'Distribution d\'adresses');
+    deskDhcpWire(d,body);
+  },
+  admin:function(d,body){
+    var id=d.id;
+    var h='<h4>WiFi</h4>'+deskField('ssid','Nom du réseau (SSID)',d.ssid,'MonWiFi')+
+      deskField('pass','Mot de passe WiFi',d.wifiPass,'(vide = réseau ouvert)')+
+      '<div class="dacts"><button type="button" class="dbtn" data-act="wifi-save">Enregistrer le WiFi</button><span class="dmsg" data-m="wifi"></span></div>';
+    h+=deskDhcpForm(d,body,'DHCP');
+    body.innerHTML=h;
+    body.querySelector('[data-act="wifi-save"]').onclick=function(){
+      var ss=deskVal(body,'ssid'),pw=deskVal(body,'pass');
+      deskApply(id,function(){
+        if(ss!==(d.ssid||''))setBoxWifi(id,'ssid',ss);
+        if(pw!==(d.wifiPass||''))setBoxWifi(id,'pass',pw);
+      });
+      deskMsg(DESK.wins[id].el,'✓ WiFi enregistré',true,'wifi');
+    };
+    deskDhcpWire(d,body);
+  },
+  routes:function(d,body){
+    var rt=getRoutingTable(d.id),ar=d.autoRouteEnabled!==false;
+    var h='<h4>Table de routage</h4><div class="dnote">'+(ar?'Routes calculées automatiquement (RIP).':'Routes statiques, réglées en mode Configuration.')+'</div>';
+    h+='<table class="dtab"><tr><th>Réseau</th><th>Masque</th><th>Passerelle</th><th>Interface</th></tr>'+
+      (rt.length?rt.map(function(r){return '<tr><td class="m">'+esc(r.dest)+'</td><td class="m">'+esc(r.mask)+'</td><td class="m">'+esc(r.gw||'direct')+'</td><td>'+esc(r.iface)+'</td></tr>';}).join('')
+        :'<tr><td colspan="4">Aucune route.</td></tr>')+'</table>';
+    body.innerHTML=h;
+  }
+};
+
+/* Fiche en mode Configuration : les services se règlent dans le bureau (mode simulation).
+   On rappelle leur état et on y mène en un clic. */
+function deskConfigNote(id){
+  var d=S.devs[id];if(!d)return '';
+  function pill(on){return '<span class="dpill '+(on?'on':'off')+'">'+(on?'démarré':'arrêté')+'</span>';}
+  var h='<div class="psection">Services</div><div class="desk-cfg">';
+  if(d.type==='server'){
+    h+='<div class="dcr"><span>🗂️ Serveur web</span>'+pill(d.http&&d.http.on)+'</div>'+
+      '<div class="dcr"><span>📖 Serveur DNS</span>'+pill(d.dns&&d.dns.on)+'</div>'+
+      '<div class="dcr"><span>🏷️ Serveur DHCP</span>'+pill(d.dhcp&&d.dhcp.on)+'</div>';
+  } else if(d.type==='wifi_router'){
+    h+='<div class="dcr"><span>📶 WiFi</span><span class="m">'+esc(d.ssid||'(sans nom)')+(d.wifiPass?' · '+esc(d.wifiPass):' · ouvert')+'</span></div>'+
+      '<div class="dcr"><span>🏷️ Serveur DHCP</span>'+pill(d.dhcp&&d.dhcp.on)+'</div>';
+  }
+  h+='<div class="dcn">Ils se règlent dans le bureau de l\'appareil, en mode Simulation.</div>'+
+    '<button type="button" class="pb pb-blue" onclick="deskOpenSim(\''+id+'\')">▶ Ouvrir le bureau en simulation</button></div>';
+  deskInit();
+  return h;
+}
+function deskOpenSim(id){
+  if(S.mode!=='simulation')setMode('simulation');
+  var d=S.devs[id];if(!d)return;
+  S.sel=id;render();if(typeof showPropsSimu==='function')showPropsSimu(id);
+  deskOpen(id,d.type==='wifi_router'?'admin':null);
 }
 
 function doPing(devId,target){
