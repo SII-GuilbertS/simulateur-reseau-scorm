@@ -3282,6 +3282,41 @@ test('variantes combinées d\'une activité de l\'assistant (exigeante + une pan
   }
 });
 
+test('autres appareils sur un petit réseau : deux pannes échangent leurs postes', function() {
+  var base = AW.build({type: 'depannage', theme: 'maison', level: 'lycee', seed: 0});
+  var r = AW.makeVariant(base, {exigence: 'same', faults: ['move']});
+  ok(r.changed, r.warnings.join(' ; '));
+  ok(r.report.some(function(t) { return /échangée/.test(t); }), r.report.join(' ; '));
+  var host = function(sc, type) {
+    var f = sc.activity.faults.filter(function(x) { return x.type === type; })[0];
+    return (f.params || f).dev;
+  };
+  eq(host(r.scenario, 'bad_ip'), host(base, 'bad_dns'));
+  eq(host(r.scenario, 'bad_dns'), host(base, 'bad_ip'));
+  scenarioBattery(r.scenario, 'échange');
+});
+
+test('choix combinés : autres appareils et une panne de plus (reseau-maison)', function() {
+  var src = readScenario('reseau-maison.json'), n = src.activity.faults.length;
+  ok(!AW.makeVariant(src, {faults: ['move']}).changed, 'seul poste fixe : rien ne bouge');
+  ok(AW.makeVariant(src, {faults: ['move']}).warnings.some(function(t) { return /Ajoutez-en un/.test(t); }));
+  var r = AW.makeVariant(src, {faults: ['move', 'add']});
+  ok(r.changed, r.warnings.join(' ; '));
+  eq(r.scenario.activity.faults.length, n + 1);
+  scenarioBattery(r.scenario, 'combinée');
+});
+
+test('mot de passe WiFi incorrect : déplacé vers un autre terminal de la box', function() {
+  var base = AW.makeVariant(readScenario('reseau-maison.json'), {faults: ['add']}).scenario;
+  var wf = base.activity.faults.filter(function(f) { return f.type === 'wifi_pass_wrong'; })[0];
+  ok(wf, 'panne WiFi ajoutée');
+  var from = (wf.params || wf).dev;
+  var r = AW.makeVariant(base, {faults: ['move']});
+  var nf = r.scenario.activity.faults.filter(function(f) { return f.type === 'wifi_pass_wrong'; })[0];
+  ok((nf.params || nf).dev !== from, 'déplacée de ' + from);
+  scenarioBattery(r.scenario, 'WiFi déplacé');
+});
+
 test('variante d\'une activité au format du builder (ids obj_N, pannes avec params)', function() {
   var sc = readScenario('reseau-entreprise.json'), a = sc.activity, map = {};
   a.objectives.forEach(function(o) { map['o:' + o.id] = 'o:obj_' + o.id; o.id = 'obj_' + o.id; });

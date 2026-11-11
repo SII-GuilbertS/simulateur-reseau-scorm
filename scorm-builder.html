@@ -6687,19 +6687,44 @@ var ActivityWizard=(function(){
     return sw;
   }
 
-  /* Mêmes pannes sur un autre appareil : la réparation et ses tests suivent. */
-  function moveFault(sc,f,seed){
-    var a=sc.activity,net=sc.network,p=fp(f),field=IFACE_FIELD[f.type],cable=f.type==='missing_cable';
-    if(!field&&!cable)return null;
-    var oldName=cable?[p.devA,p.devB].filter(function(n){var d=devNamed(net,n);return d&&INFRA.indexOf(d.type)<0;})[0]:p.dev;
+  /* Box à laquelle le terminal est relié en WiFi, ou null. */
+  function wifiBoxName(net,name){
+    var d=devNamed(net,name),box=null;if(!d)return null;
+    Object.keys(net.links).forEach(function(k){
+      var l=net.links[k],other=l.from===d.id?l.to:l.to===d.id?l.from:null;
+      if(!other||l.type!=='wifi'||box)return;
+      var o=net.devs[other];if(o&&o.type==='wifi_router')box=o.name;
+    });
+    return box;
+  }
+  /* Poste touché par la panne (l'extrémité non infrastructure d'un câble). */
+  function faultHost(net,f){
+    var p=fp(f);
+    if(f.type==='missing_cable')return [p.devA,p.devB].filter(function(n){var d=devNamed(net,n);return d&&INFRA.indexOf(d.type)<0;})[0]||null;
+    return p.dev||null;
+  }
+  /* Mêmes pannes sur un autre appareil : la réparation et ses tests suivent.
+     opt.only : seul appareil visé ; opt.ignore : appareil accepté bien qu'en panne (échange) ;
+     opt.noAudit : étape intermédiaire d'un échange, vérifiée à l'étape suivante. */
+  function moveFault(sc,f,seed,opt){
+    opt=opt||{};
+    var a=sc.activity,net=sc.network,p=fp(f),field=IFACE_FIELD[f.type],cable=f.type==='missing_cable',
+      wifi=f.type==='wifi_pass_wrong';
+    if(!field&&!cable&&!wifi)return null;
+    var oldName=faultHost(net,f);
     var oldDev=oldName&&devNamed(net,oldName);if(!oldDev)return null;
+    var oldBox=wifi?wifiBoxName(net,oldName):null;
+    if(wifi&&!oldBox)return null;
     var oldSw=cable?(p.devA===oldName?p.devB:p.devA):null;
     if(cable&&(!devNamed(net,oldSw)||devNamed(net,oldSw).type!=='switch'))return null;
     var block=faultBlock(a,f);if(!block.length)return null;
     var faulted={};(a.faults||[]).forEach(function(g){devNames(fp(g)).forEach(function(n){faulted[n]=1;});});
     var cands=Object.keys(net.devs).map(function(k){return net.devs[k];}).filter(function(d){
       var fi=d.ifaces&&d.ifaces[0];
-      if(d.name===oldName||d.type!==oldDev.type||faulted[d.name]||!fi||fi.dhcpMode||!fi.ip)return false;
+      if(d.name===oldName||d.type!==oldDev.type||(faulted[d.name]&&d.name!==opt.ignore)||!fi)return false;
+      if(opt.only&&d.name!==opt.only)return false;
+      if(wifi){if(wifiBoxName(net,d.name)!==oldBox)return false;}
+      else if(fi.dhcpMode||!fi.ip)return false;
       if(field&&!fi[field])return false;
       if(cable&&!linkedSwitch(net,d.name,true))return false;
       return !block.some(function(o){return mentions(o,d.name)||(o.label||'').indexOf(d.name)>=0;});
@@ -6732,7 +6757,7 @@ var ActivityWizard=(function(){
           if(o[k])subs.forEach(function(s){o[k]=replaceToken(o[k],s[0],s[1]);});
         });
       });
-      if(audit(trial).ok)return {scenario:trial,from:oldName,to:nd.name};
+      if(opt.noAudit||audit(trial).ok)return {scenario:trial,from:oldName,to:nd.name};
     }
     return null;
   }
@@ -6877,22 +6902,43 @@ var ActivityWizard=(function(){
     var sc=clone(source),a=sc.activity,report=[],warn=[],seed=Math.abs(parseInt(opts.seed,10)||0),tags=[];
     a.objectives=a.objectives||[];a.faults=a.faults||[];
     normalizeOrder(a);
-    if(opts.faults==='move'){
-      var moved=0;
+    // Choix combinables : ['move','add'], ['move','remove']… (une chaîne seule reste acceptée)
+    var fo=Array.isArray(opts.faults)?opts.faults:(opts.faults&&opts.faults!=='same'?[opts.faults]:[]);
+    function want(k){return fo.indexOf(k)>=0;}
+    if(want('move')){
+      var moved=0,stay=[];
       a.faults.slice().forEach(function(f){
         var r=moveFault(sc,faultOf(a,f.id),seed);
         if(r){sc=r.scenario;a=sc.activity;moved++;report.push(faultText(f)+' : déplacée de '+r.from+' vers '+r.to);}
-        else warn.push(faultText(f)+' : conservée (aucun autre appareil ne convient)');
+        else stay.push(f.id);
+      });
+      // Petit réseau où chaque poste a déjà sa panne : deux pannes échangent leurs postes
+      for(var i=0;i<stay.length;i++)for(var j=i+1;j<stay.length;j++){
+        if(!stay[i]||!stay[j])continue;
+        var f1=faultOf(a,stay[i]),f2=faultOf(a,stay[j]),h1=faultHost(sc.network,f1),h2=faultHost(sc.network,f2);
+        if(!h1||!h2||h1===h2)continue;
+        var s1=moveFault(sc,f1,seed,{only:h2,ignore:h2,noAudit:true});if(!s1)continue;
+        var s2=moveFault(s1.scenario,faultOf(s1.scenario.activity,f2.id),seed,{only:h1});if(!s2)continue;
+        sc=s2.scenario;a=sc.activity;moved+=2;
+        report.push(faultText(f1)+' : échangée avec '+faultText(f2)+' ('+h1+' ↔ '+h2+')');
+        stay[i]=stay[j]=null;
+      }
+      stay.forEach(function(id){
+        if(id)warn.push(faultText(faultOf(a,id))+' : conservée (aucun autre appareil ne convient)');
       });
       if(moved)tags.push('autres pannes');
-    } else if(opts.faults==='remove'){
+      else if(a.faults.length)warn.push('Aucune panne ne peut changer d\'appareil : le réseau n\'a pas d\'autre poste du même genre. '+
+        'Ajoutez-en un dans l\'onglet Réseau (un PC fixe relié au switch, un portable en WiFi…), ou combinez avec « Une de plus ».');
+    }
+    if(want('remove')){
       if(a.faults.length<2)warn.push('Une seule panne : elle est conservée');
       else{
         var rm=removeFault(sc);
         if(rm){sc=rm.scenario;a=sc.activity;report.push('Panne retirée : '+faultText(rm.fault)+', avec '+rm.removed+' objectif'+(rm.removed>1?'s':'')+' de réparation et de test');tags.push('une panne de moins');}
         else warn.push('Aucune panne n\'a de réparation identifiable dans la liste : rien n\'est retiré');
       }
-    } else if(opts.faults==='add'){
+    }
+    if(want('add')){
       var ad=addFault(sc,seed);
       if(ad){sc=ad.scenario;a=sc.activity;
         report.push('Panne ajoutée : '+FAULT_LABEL[{gateway:'bad_gateway',cable:'missing_cable',ip:'bad_ip',wifipass:'wifi_pass_wrong'}[ad.kind]]+' sur '+ad.dev+', avec sa réparation et son test');
@@ -6939,12 +6985,12 @@ var WizardUI=(function(){
     {id:'demanding',icon:'🎯',label:'Plus exigeante',desc:'Adresses au choix, contraintes et indices masqués, seuil relevé de 10 points'}
   ];
   var FAULT_OPTS=[
-    {id:'same',icon:'＝',label:'Les mêmes',desc:'Pannes inchangées'},
+    {id:'same',icon:'＝',label:'Les mêmes',desc:'Pannes inchangées (les choix suivants se combinent)'},
     {id:'move',icon:'🔀',label:'Autres appareils',desc:'Mêmes pannes, sur d\'autres postes : réparations et tests suivent'},
     {id:'remove',icon:'➖',label:'Une de moins',desc:'Retire la dernière panne, sa réparation et ses tests'},
     {id:'add',icon:'➕',label:'Une de plus',desc:'Ajoute une panne sur un poste, avec sa réparation et son test'}
   ];
-  var st={mode:'new',type:'depannage',theme:'maison',level:'college',seed:0,exigence:'same',faults:'same',source:null,result:null};
+  var st={mode:'new',type:'depannage',theme:'maison',level:'college',seed:0,exigence:'same',faults:[],source:null,result:null};
 
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function ovl(){return document.getElementById('wz-ovl');}
@@ -6957,7 +7003,9 @@ var WizardUI=(function(){
   }
   function cards(group,list,cur,icons){
     return '<div class="wz-cards wz-cards-'+list.length+'">'+list.map(function(t){
-      return '<button type="button" class="wz-card'+(t.id===cur?' on':'')+'" data-group="'+group+'" data-id="'+t.id+'"'+
+      var on=Array.isArray(cur)?(t.id==='same'?!cur.length:cur.indexOf(t.id)>=0):t.id===cur;
+      return '<button type="button" class="wz-card'+(on?' on':'')+'" data-group="'+group+'" data-id="'+t.id+'"'+
+        (Array.isArray(cur)?' aria-pressed="'+on+'"':'')+
         ' onclick="WizardUI.set(\''+group+'\',\''+t.id+'\')">'+
         '<span class="wz-ic">'+(icons?icons[t.id]:t.icon)+'</span><b>'+esc(t.label)+'</b><small>'+esc(t.desc)+'</small></button>';
     }).join('')+'</div>';
@@ -7004,7 +7052,7 @@ var WizardUI=(function(){
         '<div class="wz-step">Pannes</div>'+cards('faults',FAULT_OPTS,st.faults)+
         '<p class="wz-note">Le réseau ne change pas. La variante remplace l\'activité en cours : '+
         'exportez d\'abord celle-ci pour garder les deux versions.</p>';
-      reroll=(st.faults==='move'||st.faults==='add')&&r.changed&&JSON.stringify(r.scenario.activity)!==
+      reroll=(st.faults.indexOf('move')>=0||st.faults.indexOf('add')>=0)&&r.changed&&JSON.stringify(r.scenario.activity)!==
         JSON.stringify(AW.makeVariant(st.source,{exigence:st.exigence,faults:st.faults,seed:st.seed+1}).scenario.activity);
       right=(r.report.length||r.warnings.length?'<ul class="wz-report">'+
           r.report.map(function(t){return '<li>✔️ '+esc(t)+'</li>';}).join('')+
@@ -7029,14 +7077,24 @@ var WizardUI=(function(){
       if(!(st.source.activity.objectives||[]).length){
         bldNotif('🔀 Aucun objectif à décliner : créez ou importez d\'abord une activité','err');return;
       }
-      st.exigence='same';st.faults='same';
+      st.exigence='same';st.faults=[];
     }
     st.seed=0;
     render();
     ovl().classList.add('open');
   }
   function close(){ovl().classList.remove('open');}
-  function set(k,v){st[k]=v;if(k!=='exigence')st.seed=0;render();}
+  function set(k,v){
+    if(k==='faults'){
+      // Cases à cocher : « Les mêmes » vide la sélection ; une de moins et une de plus s'excluent
+      var f=st.faults.slice(),i=f.indexOf(v);
+      if(v==='same')f=[];
+      else if(i>=0)f.splice(i,1);
+      else{f.push(v);var opp={add:'remove',remove:'add'}[v];if(opp&&f.indexOf(opp)>=0)f.splice(f.indexOf(opp),1);}
+      v=['move','remove','add'].filter(function(x){return f.indexOf(x)>=0;});
+    }
+    st[k]=v;if(k!=='exigence')st.seed=0;render();
+  }
   function reroll(){st.seed++;render();}
   function create(){
     var sc=JSON.parse(JSON.stringify(st.result));

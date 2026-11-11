@@ -67,8 +67,11 @@ configuration mise de côté n'est pas transmise à l'élève.
 **🔀 Variante** : décline l'activité en cours sans toucher au réseau. *Plus guidée* (contraintes affichées,
 seuil −10), *plus exigeante* (adresses exactes laissées au choix quand rien d'autre ne les utilise, passerelle
 « routeur du réseau », contraintes et indices masqués, seuil +10) ; pannes *sur d'autres appareils* (la
-réparation et ses tests suivent, adresses et libellés compris), *une de moins* ou *une de plus* (avec sa
-réparation et son test). La fenêtre liste ce qui change et vérifie la variante ; exporter d'abord l'activité
+réparation et ses tests suivent, adresses et libellés compris ; sur un petit réseau où chaque poste a déjà sa panne,
+deux pannes échangent leurs postes ; un mot de passe WiFi faux passe à un autre terminal de la box), *une de moins*
+ou *une de plus* (avec sa réparation et son test). Les choix de pannes se combinent (*autres appareils* et *une de
+plus*, par exemple ; *une de moins* et *une de plus* s'excluent). Quand aucun appareil ne convient, la fenêtre le
+dit et propose d'ajouter un poste dans l'onglet Réseau. La fenêtre liste ce qui change et vérifie la variante ; exporter d'abord l'activité
 actuelle pour garder les deux versions.
 
 **Types d'appareils disponibles :** PC, Serveur (HTTP/DNS/DHCP), Switch, Routeur, Box WiFi, Internet, Cadre, Annotation texte.
@@ -86,7 +89,7 @@ actuelle pour garder les deux versions.
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **383 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **386 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -103,7 +106,7 @@ Suite de **383 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 383/383 tests passés — SUCCÈS
+# ✅ 386/386 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`

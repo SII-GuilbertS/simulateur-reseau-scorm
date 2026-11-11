@@ -832,6 +832,32 @@ test.describe('Builder', () => {
     await studentScore(page, gw.points);
   });
 
+  test('Variante : choix de pannes combinés (autres appareils + une de plus) sur le réseau maison', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('#btn-variant').click();
+    const card = (id) => page.locator(`.wz-card[data-group="faults"][data-id="${id}"]`);
+    await card('move').click();
+    await expect(page.locator('.wz-report')).toContainText('Ajoutez-en un dans l\'onglet Réseau');
+    await expect(page.locator('#wz-create')).toBeDisabled();     // seul poste fixe : rien ne bouge
+    await card('add').click();
+    await expect(card('move')).toHaveClass(/\bon\b/);
+    await expect(card('add')).toHaveClass(/\bon\b/);
+    await expect(card('same')).not.toHaveClass(/\bon\b/);
+    await card('remove').click();                                // une de moins remplace une de plus
+    await expect(card('add')).not.toHaveClass(/\bon\b/);
+    await card('add').click();
+    await expect(card('remove')).not.toHaveClass(/\bon\b/);
+    await expect(page.locator('.wz-report')).toContainText('Panne ajoutée');
+    await expect(page.locator('.wz-audit')).toContainText('Vérifié');
+    await page.locator('#wz-create').click();
+    expect((await page.evaluate(() => EvalModule.getConfig())).faults).toHaveLength(2);
+    await page.locator('#btn-variant').click();
+    await card('move').click();
+    await card('same').click();                                  // « Les mêmes » vide la sélection
+    await expect(card('move')).not.toHaveClass(/\bon\b/);
+    await expect(page.locator('#wz-create')).toBeDisabled();
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));
