@@ -139,6 +139,162 @@ function objectiveConstraint(obj){
   return t||autoConstraintText(obj);
 }
 
+/* ── Plan d'adressage (énoncé imprimable et corrigé) ──
+   Construit à partir des objectifs d'adressage : une ligne par appareil, une colonne par
+   champ utilisé (IP, masque, passerelle, DNS). Chaque case est :
+     fixed : valeur donnée à l'élève ; fill : à compléter (label : contrainte éventuelle) ;
+     none  : aucun objectif sur ce champ.
+   Les solutions viennent du réseau actuel, vérifiées avec les règles d'évaluation. */
+var PLAN_COLS=['ip','mask','gateway','dns'];
+function addrKind(spec){
+  spec=(spec||'').trim();
+  if(!spec)return 'none';
+  if(spec===GATEWAY_COHERENT)return 'coherent';
+  if(refName(spec)!==null)return 'ref';
+  if(/^\d+\.\d+\.\d+\.\d+-\d+$/.test(spec))return 'range';
+  if(ipPatternIsFlexible(spec))return 'any';
+  return 'exact';
+}
+function _planCellShown(obj,spec){
+  if(typeof obj.showConstraint==='boolean')return obj.showConstraint;
+  return constraintShownByDefault(obj)||['range','any','coherent','ref'].indexOf(addrKind(spec))>=0;
+}
+function _planCell(obj,col,spec){
+  var k=addrKind(spec),c={kind:'fill',label:'',prefix:'',spec:spec||'',objKind:k,check:obj.check,obj:obj};
+  if(!_planCellShown(obj,spec))return c;
+  if(k==='exact'){c.kind='fixed';c.value=spec.trim();}
+  else if(k==='range'){var r=/^(\d+\.\d+\.\d+\.)(\d+)-(\d+)$/.exec(spec.trim());c.label='entre '+r[1]+r[2]+' et .'+r[3];}
+  else if(k==='any'){
+    if(/^(\d+\.){3}\*$/.test(spec.trim()))c.prefix=spec.trim().slice(0,-1);
+    else c.label=addrConstraintDesc(spec);
+  }
+  else if(k==='coherent')c.label='adresse du routeur';
+  else if(k==='ref')c.label='adresse de '+refName(spec);
+  return c;
+}
+function _devFrame(d){
+  if(!d)return null;
+  var cx=d.x+DW/2,cy=d.y+DH/2,best=null;
+  Object.values(S.frames||{}).forEach(function(f){
+    if(cx>=f.x&&cx<=f.x+f.w&&cy>=f.y&&cy<=f.y+f.h&&(!best||f.w*f.h<best.w*best.h))best=f;
+  });
+  return best;
+}
+/* Appareil à ajouter : son encadré est celui de l'appareil auquel un objectif le relie. */
+function _linkedFrame(name,objectives){
+  var n=(name||'').trim().toLowerCase(),fr=null;
+  objectives.some(function(o){
+    if(o.check!=='cable_exists'&&o.check!=='wifi_link')return false;
+    var p=o.params||{},other=null;
+    if((p.devA||'').trim().toLowerCase()===n)other=p.devB;
+    else if((p.devB||'').trim().toLowerCase()===n)other=p.devA;
+    fr=other?_devFrame(devByName(other)):null;
+    return !!fr;
+  });
+  return fr;
+}
+/* Appareil qui sert de solution à une ligne « nouveau poste » sans nom. */
+function _newDevSolution(obj){
+  var p=obj.params||{},start=startDevIds();
+  var cands=Object.values(S.devs).filter(function(dv){
+    return start.indexOf(dv.id)<0&&(!p.type||dv.type===p.type);
+  });
+  var good=cands.filter(function(dv){var o2={check:'device_added',params:{}};
+    Object.keys(p).forEach(function(k){o2.params[k]=p[k];});
+    o2.params.newdev=dv.name;return checkObjectiveStatic(o2);});
+  return good[0]||cands[0]||null;
+}
+function _planSolution(d,col,cell){
+  var fi=d&&mainIface(d),val=fi?(fi[col]||'').trim():'';
+  if(cell.objKind==='exact')return{value:cell.spec.trim()};
+  if(cell.objKind==='ref'){
+    var rd=devByName(refName(cell.spec)),rf=rd&&mainIface(rd);
+    return rf&&rf.ip?{value:rf.ip}:{missing:true};
+  }
+  if(!d||!val)return{missing:true};
+  var ok;
+  if(col==='ip')ok=ipObjectiveOK(d,fi,cell.spec);
+  else if(col==='mask')ok=!cell.spec||val===cell.spec.trim();
+  else if(col==='gateway')ok=gatewayOK(d,fi,cell.spec);
+  else ok=valueMatchesRef(val,cell.spec);
+  if(!ok)return{missing:true};
+  return{value:val,possible:cell.objKind==='range'||cell.objKind==='any'||cell.objKind==='none'};
+}
+function addressPlan(objectives){
+  objectives=objectives||[];
+  var rows={},order=[],used={};
+  function row(key,name,toAdd,obj){
+    if(!rows[key]){rows[key]={name:name,toAdd:toAdd,ref:false,cells:{},solObj:obj};order.push(key);}
+    return rows[key];
+  }
+  function put(r,col,obj,spec){
+    if(r.cells[col])return;
+    r.cells[col]=_planCell(obj,col,spec);used[col]=true;
+  }
+  var newCount=0;
+  objectives.forEach(function(o){
+    var p=o.params||{},r,name;
+    if(o.check==='ip_configured'||o.check==='gateway_configured'||o.check==='dns_configured'){
+      name=(p.dev||'').trim();if(!name)return;
+      r=row(name.toLowerCase(),name,!devByName(name),null);
+      if(o.check==='ip_configured'){put(r,'ip',o,p.ip);if(p.mask)put(r,'mask',o,p.mask);}
+      else if(o.check==='gateway_configured')put(r,'gateway',o,p.gateway);
+      else put(r,'dns',o,p.dns);
+    } else if(o.check==='device_added'){
+      if(p.newdev){
+        // Appareil du réseau de départ (objectif de présence) : pas « à ajouter ».
+        name=p.newdev.trim();
+        var nd=devByName(name),start=startDevIds();
+        r=row(name.toLowerCase(),name,!(nd&&(!start.length||start.indexOf(nd.id)>=0)),null);
+      }
+      else{newCount++;r=row('#'+o.id,'Nouveau poste',true,o);}
+      if(p.ip)put(r,'ip',o,p.ip);
+      if(p.mask)put(r,'mask',o,p.mask);
+      if(p.gateway)put(r,'gateway',o,p.gateway);
+    }
+  });
+  if(newCount>1){var i=0;order.forEach(function(k){if(k[0]==='#')rows[k].name='Nouveau poste '+(++i);});}
+  var cols=PLAN_COLS.filter(function(c){return used[c];});
+  // Appareils cités par « l'adresse de… » : donnés en référence s'ils n'ont pas leur ligne.
+  order.slice().forEach(function(k){
+    PLAN_COLS.forEach(function(c){
+      var cell=rows[k].cells[c];if(!cell||cell.objKind!=='ref')return;
+      var n=refName(cell.spec),key=n.toLowerCase();
+      if(rows[key])return;
+      var d=devByName(n),f=d&&mainIface(d);
+      var r={name:d?d.name:n,toAdd:!d,ref:true,cells:{}};
+      cols.forEach(function(col){
+        var v=f?(f[col]||'').trim():'';
+        r.cells[col]=v?{kind:'fixed',value:v}:{kind:'none'};
+      });
+      rows[key]=r;order.push(key);
+    });
+  });
+  // Cases sans objectif, solutions, encadrés
+  var groups={},gorder=[];
+  order.forEach(function(k){
+    var r=rows[k],d=r.solObj?_newDevSolution(r.solObj):devByName(r.name);
+    cols.forEach(function(c){
+      if(!r.cells[c])r.cells[c]={kind:'none'};
+      var cell=r.cells[c];
+      if(!r.ref&&cell.kind!=='none')cell.solution=_planSolution(d,c,cell);
+      delete cell.obj;
+    });
+    var fr=_devFrame(d||devByName(r.name))||(r.toAdd?_linkedFrame(r.name,objectives):null);
+    var gk=fr?fr.id:'';
+    if(!groups[gk]){groups[gk]={label:fr?(fr.label||'Zone'):'',y:fr?fr.y:1e9,x:fr?fr.x:1e9,rows:[]};gorder.push(gk);}
+    delete r.solObj;
+    groups[gk].rows.push(r);
+  });
+  var glist=gorder.map(function(k){return groups[k];});
+  glist.sort(function(a,b){return a.y-b.y||a.x-b.x;});
+  glist.forEach(function(g){
+    g.rows.sort(function(a,b){return (a.ref-b.ref)||a.name.localeCompare(b.name);});
+    delete g.x;delete g.y;
+  });
+  return{cols:cols,groups:glist};
+}
+
 function startDevIds(){
   if(START_DEV_IDS)return START_DEV_IDS;
   return STARTER_NETWORK&&STARTER_NETWORK.devs?Object.keys(STARTER_NETWORK.devs):[];

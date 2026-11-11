@@ -53,7 +53,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **268 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **281 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -68,18 +68,18 @@ Suite de **268 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 268/268 tests passés — SUCCÈS
+# ✅ 281/281 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois
 npm --prefix tests/e2e test
 ```
 
-Ces tests ne remplacent pas un essai sur un vrai Moodle, et ne couvrent ni le drag & drop, ni l'énoncé imprimable, ni Firefox.
+Ces tests ne remplacent pas un essai sur un vrai Moodle, et ne couvrent ni le drag & drop, ni l'énoncé imprimable en dehors de son plan d'adressage, ni Firefox.
 
 ---
 
@@ -261,6 +261,19 @@ Le texte est généré pour `ip_configured`, `gateway_configured` et `device_add
 types, l'enseignant peut en rédiger un. Dans le builder, le bloc « Montrer une contrainte à l'élève »
 de chaque objectif propose le texte généré, qui suit les paramètres tant qu'il n'est pas modifié,
 et un lien pour y revenir.
+
+**Plan d'adressage.** L'énoncé imprimable (onglet 3) contient un tableau construit à partir des
+objectifs d'adressage (`ip_configured`, `gateway_configured`, `dns_configured`, `device_added`) : une
+ligne par appareil, regroupée par encadré, et seulement les colonnes utilisées (IP, masque,
+passerelle, DNS). Chaque case suit le niveau choisi : valeur écrite, contrainte avec une ligne à
+compléter (« entre 192.168.1.10 et .50 : ____ », « adresse du routeur : ____ », « adresse de
+Srv-DNS : ____ »), ou ligne vide. Une valeur exacte n'est écrite que si la contrainte de l'objectif est
+affichée. Un appareil à ajouter rejoint l'encadré de l'appareil auquel un objectif de câblage le relie ;
+un appareil cité par « l'adresse de… » sans ligne propre est donné en référence. Une case de l'onglet 3
+retire le plan de l'énoncé.
+
+Le bouton **Corrigé enseignant** produit le même document, rempli avec les adresses du réseau actuel
+du builder, vérifiées avec les règles d'évaluation ; une case sans solution valide l'indique.
 
 **Le score suit le réseau.** Un objectif n'est acquis que tant que sa condition reste vraie : si
 l'élève casse sa configuration, il perd les points, et le score affiché est la note transmise au

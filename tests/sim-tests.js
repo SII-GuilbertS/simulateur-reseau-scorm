@@ -2022,6 +2022,146 @@ test('contrainte : passerelle cohérente décrite sans donner l\'adresse', funct
      'masquée par défaut');
 });
 
+/* ── Plan d'adressage (énoncé et corrigé) ── */
+suite('Plan d\'adressage — énoncé et corrigé');
+
+function plan(objs) { return sandbox.addressPlan(objs); }
+function rowsOf(p) { return p.groups.reduce(function(a,g){ return a.concat(g.rows); }, []); }
+function rowNamed(p, n) { return rowsOf(p).find(function(r){ return r.name === n; }); }
+function O(check, params, extra) { return Object.assign({ id: Math.random(), check:check, params:params }, extra||{}); }
+function planNet() { resetNet(); S.frames = {}; sandbox.START_DEV_IDS = null; }
+
+test('valeurs exactes : cases à compléter, la réponse n\'est pas donnée', function() {
+  planNet();
+  var p = plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.10', mask:'255.255.255.0'})]);
+  eq(p.cols.join(','), 'ip,mask');
+  var r = rowNamed(p,'PC1');
+  eq(r.cells.ip.kind, 'fill'); eq(r.cells.ip.label, '');
+  eq(r.cells.mask.kind, 'fill');
+});
+
+test('plage : contrainte écrite, masque donné', function() {
+  planNet();
+  var r = rowNamed(plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.10-50', mask:'255.255.255.0'})]),'PC1');
+  eq(r.cells.ip.kind, 'fill'); eq(r.cells.ip.label, 'entre 192.168.1.10 et .50');
+  eq(r.cells.mask.kind, 'fixed'); eq(r.cells.mask.value, '255.255.255.0');
+});
+
+test('joker sur le dernier octet : début de l\'adresse écrit', function() {
+  planNet();
+  var r = rowNamed(plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.*'})]),'PC1');
+  eq(r.cells.ip.prefix, '192.168.1.');
+});
+
+test('case « montrer la contrainte » : force ou masque la valeur', function() {
+  planNet();
+  var shown = rowNamed(plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.10'},{showConstraint:true})]),'PC1');
+  eq(shown.cells.ip.kind, 'fixed'); eq(shown.cells.ip.value, '192.168.1.10');
+  var hidden = rowNamed(plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.10-50'},{showConstraint:false})]),'PC1');
+  eq(hidden.cells.ip.kind, 'fill'); eq(hidden.cells.ip.label, '');
+});
+
+test('plusieurs objectifs sur un appareil : une seule ligne, colonnes utilisées seulement', function() {
+  planNet();
+  var p = plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.*'}),
+                O('gateway_configured',{dev:'pc1', gateway:'@routeur'})]);
+  eq(rowsOf(p).length, 1);
+  eq(p.cols.join(','), 'ip,gateway');
+  eq(rowNamed(p,'PC1').cells.gateway.label, 'adresse du routeur');
+});
+
+test('DNS « l\'adresse de… » : appareil cité ajouté en référence', function() {
+  planNet();
+  var srv = mkServer('192.168.1.53'); S.devs[srv].name = 'Srv-DNS';
+  var p = plan([O('dns_configured',{dev:'PC1', dns:'{Srv-DNS}'})]);
+  eq(rowNamed(p,'PC1').cells.dns.label, 'adresse de Srv-DNS');
+  var ref = rowNamed(p,'Srv-DNS');
+  ok(ref && ref.ref, 'ligne de référence');
+  eq(ref.cells.dns.kind, 'none', 'le serveur n\'a pas de DNS configuré');
+});
+
+test('appareil cité qui a déjà sa ligne : pas de doublon en référence', function() {
+  planNet();
+  mkServer('192.168.1.53');
+  var p = plan([O('dns_configured',{dev:'PC1', dns:'{Srv}'}), O('ip_configured',{dev:'Srv', ip:'192.168.1.*'})]);
+  eq(rowsOf(p).filter(function(r){ return r.name.toLowerCase() === 'srv'; }).length, 1);
+});
+
+test('poste à ajouter, appareil du départ, postes sans nom numérotés', function() {
+  planNet();
+  var srv = mkServer('192.168.1.100'); S.devs[srv].name = 'Serveur';
+  sandbox.START_DEV_IDS = [srv];
+  try {
+    var p = plan([O('device_added',{newdev:'Serveur', type:'server'}),
+                  O('device_added',{newdev:'PC-New', ip:'192.168.1.*'}),
+                  O('device_added',{ip:'10.0.0.*'}), O('device_added',{ip:'10.0.1.*'})]);
+    notOk(rowNamed(p,'Serveur').toAdd, 'objectif de présence');
+    ok(rowNamed(p,'PC-New').toAdd);
+    ok(rowNamed(p,'Nouveau poste 1') && rowNamed(p,'Nouveau poste 2'));
+  } finally { sandbox.START_DEV_IDS = null; }
+});
+
+test('encadrés : lignes regroupées par salle, de haut en bas', function() {
+  planNet();
+  S.frames = { fB:{id:'fB', x:0, y:400, w:400, h:300, label:'Salle B'},
+               fA:{id:'fA', x:0, y:0,   w:400, h:300, label:'Salle A'} };
+  var a = mkPC('192.168.1.10'); S.devs[a].name = 'PC-A'; S.devs[a].x = 50;  S.devs[a].y = 50;
+  var b = mkPC('192.168.2.10'); S.devs[b].name = 'PC-B'; S.devs[b].x = 50;  S.devs[b].y = 450;
+  var sw = mkSwitch(); S.devs[sw].name = 'SW-B'; S.devs[sw].x = 200; S.devs[sw].y = 450;
+  var p = plan([O('ip_configured',{dev:'PC-B', ip:'192.168.2.*'}),
+                O('ip_configured',{dev:'PC-A', ip:'192.168.1.*'}),
+                O('ip_configured',{dev:'PC-C', ip:'192.168.2.*'}),
+                O('cable_exists',{devA:'PC-C', devB:'SW-B'})]);
+  eq(p.groups.map(function(g){ return g.label; }).join(','), 'Salle A,Salle B');
+  eq(p.groups[1].rows.map(function(r){ return r.name; }).join(','), 'PC-B,PC-C',
+     'le poste à ajouter rejoint la salle de son switch');
+});
+
+test('corrigé : solutions lues dans le réseau et vérifiées', function() {
+  planNet();
+  var sw = mkSwitch();
+  var pc = mkPC('192.168.1.30','255.255.255.0','192.168.1.1','192.168.1.53','PC1');
+  var r1 = mkRouter('192.168.1.1','255.255.255.0','10.0.0.1','255.255.255.0'); S.devs[r1].name = 'R1';
+  var dns = mkServer('192.168.1.53'); S.devs[dns].name = 'Srv-DNS';
+  link(pc,sw); link(r1,sw); link(dns,sw);
+  var p = plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.10-50', mask:'255.255.255.0'}),
+                O('gateway_configured',{dev:'PC1', gateway:'@routeur'}),
+                O('dns_configured',{dev:'PC1', dns:'{Srv-DNS}'})]);
+  var c = rowNamed(p,'PC1').cells;
+  eq(c.ip.solution.value, '192.168.1.30'); ok(c.ip.solution.possible, 'une réponse possible parmi d\'autres');
+  eq(c.mask.solution.value, '255.255.255.0');
+  eq(c.gateway.solution.value, '192.168.1.1');
+  eq(c.dns.solution.value, '192.168.1.53');
+});
+
+test('corrigé : pas de solution si le réseau ne respecte pas l\'objectif ou si l\'appareil manque', function() {
+  planNet();
+  mkPC('192.168.1.60','255.255.255.0','','','PC1');
+  var p = plan([O('ip_configured',{dev:'PC1', ip:'192.168.1.10-50'}),
+                O('ip_configured',{dev:'PC-Absent', ip:'192.168.1.*'}),
+                O('ip_configured',{dev:'PC-Fixe', ip:'192.168.1.99'})]);
+  ok(rowNamed(p,'PC1').cells.ip.solution.missing, 'hors de la plage');
+  ok(rowNamed(p,'PC-Absent').cells.ip.solution.missing);
+  eq(rowNamed(p,'PC-Fixe').cells.ip.solution.value, '192.168.1.99', 'valeur exacte connue même sans appareil');
+});
+
+test('nouveau poste sans nom : la solution est le poste ajouté qui remplit l\'objectif', function() {
+  planNet();
+  var old = mkPC('192.168.1.10','255.255.255.0','','','PC-Depart');
+  sandbox.START_DEV_IDS = [old];
+  try {
+    mkPC('192.168.1.42','255.255.255.0','','','PC-Ajoute');
+    var r = rowNamed(plan([O('device_added',{ip:'192.168.1.*'})]),'Nouveau poste');
+    eq(r.cells.ip.solution.value, '192.168.1.42');
+  } finally { sandbox.START_DEV_IDS = null; }
+});
+
+test('aucun objectif d\'adressage : plan vide', function() {
+  planNet();
+  var p = plan([O('ping_success',{from:'PC1', to:'{Srv}'})]);
+  eq(p.cols.length, 0); eq(p.groups.length, 0);
+});
+
 /* ── SCORM ── */
 suite('SCORM — échanges avec le LMS');
 

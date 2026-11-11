@@ -391,6 +391,52 @@ test.describe('Builder', () => {
     expect(gateway).toBe('@routeur');
   });
 
+  test('plan d\'adressage : à compléter dans l\'énoncé, rempli dans le corrigé, désactivable', async ({ page, context }, info) => {
+    await openBuilderWith(page, 'reseau-college');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const card = page.locator('[data-objid="5"]');
+    await card.locator('.obj-card-hdr').click();
+    await card.locator('.ipf select').selectOption('range');
+    await card.locator('#ipr-e-5-ip').fill('20');
+    await card.locator('#ipr-e-5-ip').press('Tab');
+    await page.locator('.bld-tab[data-tab="3"]').click();
+
+    const open = async (selector) => {
+      const pending = context.waitForEvent('page');
+      await page.locator(selector).click();
+      const doc = await pending;
+      await doc.waitForLoadState();
+      return doc;
+    };
+    const rows = (doc) => doc.locator('table.plan tbody tr');
+
+    const enonce = await open('button[onclick="GenModule.generateEnonce()"]');
+    await expect(enonce.locator('h2', { hasText: 'Plan d\'adressage' })).toBeVisible();
+    await expect(rows(enonce)).toHaveCount(2);
+    const added = rows(enonce).filter({ hasText: 'B210-P3' });
+    await expect(added).toContainText('à ajouter');
+    await expect(added).toContainText('Salle 210');
+    await expect(added).toContainText('entre 10.2.210.3 et .20');
+    // Valeur exacte : la réponse n'est pas donnée à l'élève.
+    await expect(rows(enonce).filter({ hasText: 'B105-P2' })).not.toContainText('10.2.105.2');
+    await enonce.screenshot({ path: info.outputPath('enonce.png'), fullPage: true });
+    await enonce.close();
+
+    const corrige = await open('.gen-btn-corrige');
+    await expect(corrige.locator('.teacher-banner')).toContainText('Document enseignant');
+    await expect(corrige.locator('.student-grid')).toHaveCount(0);
+    await expect(rows(corrige).filter({ hasText: 'B105-P2' })).toContainText('10.2.105.2');
+    await expect(rows(corrige).filter({ hasText: 'B210-P3' })).toContainText('pas de solution dans le réseau actuel');
+    await corrige.screenshot({ path: info.outputPath('corrige.png'), fullPage: true });
+    await corrige.close();
+
+    await page.locator('#gen-plan').uncheck();
+    const sansPlan = await open('button[onclick="GenModule.generateEnonce()"]');
+    await expect(sansPlan.locator('h2', { hasText: 'Objectifs' })).toBeVisible();
+    await expect(sansPlan.locator('table.plan')).toHaveCount(0);
+    await sansPlan.close();
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));

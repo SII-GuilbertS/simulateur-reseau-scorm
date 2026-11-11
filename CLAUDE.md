@@ -23,7 +23,7 @@ de simulation embarqué pour l'élève. Il combine trois parties :
    contient les trois fichiers de `src/` combinés (le placeholder `/* __JS__ */` de
    `template-skeleton.html` reçoit `sim-engine.js` + `template-extra.js`).
 3. **JS du builder lui-même** — `EvalModule` (objectifs pédagogiques, score, pannes) et
-   `GenModule` (export SCORM .zip / HTML standalone, génération d'énoncé imprimable,
+   `GenModule` (export SCORM .zip / HTML standalone, génération d'énoncé imprimable et de son corrigé,
    import/export de scénarios JSON), plus les surcharges builder (undo/redo, copier/coller,
    drag & drop de la topologie, etc.).
 
@@ -60,9 +60,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 268/268
+## Tests : `node tests/sim-tests.js` → doit afficher 281/281
 
-Suite de 268 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 281 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -70,7 +70,7 @@ Couverture : fonctions réseau de base (`ip2n`, `isValidUserIP`, `isValidUserMas
 `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`...), simulation applicative (`simPing`
 LAN/WiFi/routé/internet, `simDNS`, `simHTTP`, `simDHCP`), routage (`getRoutingTable`, `autoRoute`
 — RIP simplifié), évaluation (`checkObjectiveStatic` : 10 types statiques, adresses en plage ou
-joker, références `{Appareil}`, passerelle cohérente, `checkDynamicObjective` : 4 types dynamiques, objectifs perdus quand la configuration casse,
+joker, références `{Appareil}`, passerelle cohérente, plan d'adressage (`addressPlan`), `checkDynamicObjective` : 4 types dynamiques, objectifs perdus quand la configuration casse,
 contrainte affichée à l'élève), mode panne (`applyFaults` : 7 types, formats plat
 et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
 sauvegarde et reprise, et pour chaque fichier de `scenarios/` : cohérence, score de 100 une fois le
@@ -89,16 +89,18 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 19 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 20 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
 score de départ des 4 scénarios, l'objectif `nslookup` validé depuis le terminal du builder,
 l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'élève, la cible
-d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
+d'adressage de l'énoncé et du corrigé enseignant, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
 
-Non couverts : vrai Moodle, drag & drop et câblage, énoncé imprimable, Firefox. Elle n'est pas dans le
+Non couverts : vrai Moodle, drag & drop et câblage, le reste de l'énoncé imprimable (seul son plan
+d'adressage est vérifié), Firefox. Elle n'est pas dans le
 hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à jour `SCENARIOS` dans
 `builder.spec.js`. À lancer avant chaque push qui touche au builder, aux exports ou aux scénarios.
 
@@ -137,7 +139,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 268/268
+node tests/sim-tests.js    # → 281/281
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -184,6 +186,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 268 tests Node.js |
+| `tests/sim-tests.js` | Suite de 281 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |
