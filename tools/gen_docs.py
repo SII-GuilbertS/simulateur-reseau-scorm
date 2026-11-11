@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.8
+#  DOC PROF  v1.9
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.8'
+    doc._subtitle    = 'Documentation v1.9'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -204,7 +204,9 @@ def build_prof(out_path):
             'dans le panneau de droite.',
             BODY),
         callout('<b>Ce réseau devient le réseau de départ de l\'activité élève.</b>', INFO, '■'),
-        Paragraph('• Outil <b>Câble</b> : cliquez sur deux appareils pour les relier.', BODY_L),
+        Paragraph('• Outil <b>Câble</b> : cliquez sur deux appareils pour les relier (le pointeur prend la forme '
+                  'du câble). <b>Échap</b> revient à l\'outil Sélection depuis n\'importe quel outil ; <b>Suppr</b> '
+                  'efface l\'appareil, le câble, le cadre ou le texte sélectionné.', BODY_L),
         Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC.', BODY_L),
         Paragraph('• <b>Ctrl+Z / Ctrl+Y</b> : annuler / rétablir. <b>Ctrl+C / Ctrl+V</b> : copier / coller un appareil.', BODY_L),
         Paragraph('• <b>Ctrl+S</b> : sauvegarder la session dans le navigateur.', BODY_L),
@@ -214,6 +216,10 @@ def build_prof(out_path):
                   '(fait automatiquement à l\'import d\'un scénario). <b>Réinitialiser</b> y revient après vos '
                   'essais : appareils et câbles ajoutés supprimés, éléments supprimés remis, configurations '
                   'restaurées, objectifs remis à zéro. Les positions sont conservées ; Ctrl+Z annule.', BODY_L),
+        Paragraph('• <b>Routage</b> : le ping suit les tables de routage à l\'aller et au retour, comme sur un vrai '
+                  'réseau. Les routes RIP sont recalculées automatiquement (y compris une route par défaut vers '
+                  'Internet) ; un routeur dont le routage automatique est décoché n\'apprend aucune route et ne '
+                  'communique qu\'avec ses réseaux directs. Une adresse privée que personne ne porte est inconnue.', BODY_L),
         callout('L\'export reprend le réseau affiché : après avoir testé vos corrections, '
                 'cliquez sur <b>Réinitialiser</b> avant d\'exporter.', WARN, '⚠'),
         Spacer(1, 6),
@@ -425,7 +431,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.8
+#  DOC ELEVE  v1.9
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -434,7 +440,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.8'
+    doc._subtitle    = 'Guide élève v1.9'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
@@ -581,8 +587,12 @@ def build_eleve(out_path):
     story += [Paragraph('6. En cas de problème', H1), hr()]
     for title, desc in [
         ('Le ping échoue',
-         'Vérifiez que les deux appareils sont dans le même sous-réseau, ou qu\'une passerelle '
-         'est configurée pour sortir du réseau local.'),
+         'Lisez la cause affichée sous le ping. <b>Hôte inconnu</b> : aucun appareil n\'a cette adresse. '
+         '<b>Pas de route vers… sur un routeur</b> : ce routeur ne connaît pas le réseau visé (vérifiez les '
+         'adresses des routeurs et la commande route). <b>La réponse ne revient pas</b> : l\'aller arrive, mais '
+         'l\'appareil visé ne sait pas répondre (sa passerelle, ou une route manquante au retour). Sinon, vérifiez '
+         'que les deux appareils sont dans le même sous-réseau, ou qu\'une passerelle est configurée pour sortir '
+         'du réseau local. La commande traceroute montre le chemin suivi.'),
         ('DNS ne résout pas',
          'Vérifiez que l\'adresse DNS du PC pointe vers un Serveur ayant le service DNS activé '
          'et que l\'enregistrement du domaine est configuré.'),
