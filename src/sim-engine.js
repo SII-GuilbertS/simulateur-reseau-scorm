@@ -1475,7 +1475,7 @@ function setMode(m){
   document.getElementById('btn-cfg').classList.toggle('active',m==='config');
   document.getElementById('btn-sim').classList.toggle('active',m==='simulation');
   var simMode=(m==='simulation');
-  ['pc','pc-desktop','pc-laptop','pc-phone','pc-tablet','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){
+  ['link','pc','pc-desktop','pc-laptop','pc-phone','pc-tablet','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){
     var el=document.getElementById('pi-'+t);
     if(el){el.classList.toggle('disabled',simMode);el.draggable=!simMode;}
   });
