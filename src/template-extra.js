@@ -1,129 +1,25 @@
-function checkObjectiveStatic(obj){
-  var p=obj.params||{};
-  var d,fi;
-  switch(obj.check){
-    case 'cable_exists':
-      var devA=devByName(p.devA),devB=devByName(p.devB);
-      if(!devA||!devB)return false;
-      return !!Object.values(S.links).find(function(l){
-        return (l.from===devA.id&&l.to===devB.id)||(l.from===devB.id&&l.to===devA.id);
-      });
-    case 'ip_configured':
-      d=devByName(p.dev);if(!d)return false;
-      fi=mainIface(d);if(!fi)return false;
-      if(p.ip&&!ipMatchesPattern(fi.ip,p.ip))return false;
-      if(p.mask&&fi.mask!==p.mask)return false;
-      return true;
-    case 'gateway_configured':
-      d=devByName(p.dev);if(!d)return false;
-      fi=mainIface(d);if(!fi)return false;
-      if(p.gateway&&!ipMatchesPattern((fi&&fi.gateway)||'',p.gateway))return false;
-      return true;
-    case 'dns_configured':
-      d=devByName(p.dev);if(!d)return false;
-      fi=mainIface(d);if(!fi)return false;
-      if(!fi.dns)return false;
-      if(p.dns&&fi.dns!==p.dns)return false;
-      return true;
-    case 'service_active':
-      d=devByName(p.dev);if(!d)return false;
-      if(p.service==='http')return !!(d.http&&d.http.on);
-      if(p.service==='dns')return !!(d.dns&&d.dns.on);
-      if(p.service==='dhcp')return !!(d.dhcp&&d.dhcp.on);
-      return false;
-    case 'device_added':{
-      var nd=p.newdev?devByName(p.newdev):null;
-      if(!nd&&p.ip&&p.ip.indexOf('*')<0)nd=devByIP(p.ip);
-      if(!nd&&p.ip&&p.ip.indexOf('*')>=0){
-        nd=Object.values(S.devs).find(function(dv){
-          var _f=mainIface(dv);return _f&&ipMatchesPattern(_f.ip,p.ip);
-        })||null;
-      }
-      if(!nd)return false;
-      fi=mainIface(nd);
-      if(p.ip&&!ipMatchesPattern(fi?fi.ip:'',p.ip))return false;
-      if(p.mask&&(!fi||fi.mask!==p.mask))return false;
-      if(p.gateway&&(!fi||fi.gateway!==p.gateway))return false;
-      if(p.type&&nd.type!==p.type)return false;
-      return true;}
-    case 'wifi_link':{
-      var wA=devByName(p.devA),wB=devByName(p.devB);
-      if(!wA||!wB)return false;
-      return !!Object.values(S.links).find(function(l){
-        return l.type==='wifi'&&
-          ((l.from===wA.id&&l.to===wB.id)||(l.from===wB.id&&l.to===wA.id));
-      });}
-    case 'route_exists':{
-      d=devByName(p.dev);if(!d)return false;
-      var rt=getRoutingTable(d.id);
-      if(!p.dest)return rt.length>0;
-      return !!rt.find(function(r){
-        if(p.dest&&r.dest!==p.dest)return false;
-        if(p.mask&&r.mask!==p.mask)return false;
-        return true;
-      });}
-    case 'dns_record':{
-      d=devByName(p.dev);if(!d||!d.dns||!d.dns.on)return false;
-      if(!p.domain)return Object.keys(d.dns.records||{}).length>0;
-      var dom=(p.domain||'').toLowerCase().trim();
-      var rec=(d.dns.records||{})[dom];
-      if(!rec)return false;
-      if(p.ip&&rec!==p.ip)return false;
-      return true;}
-    case 'ssid_configured':{
-      d=devByName(p.dev);if(!d||d.type!=='wifi_router')return false;
-      if(!d.ssid)return false;
-      if(p.ssid&&d.ssid!==p.ssid)return false;
-      return true;}
-    default:
-      return false;
-  }
-}
-
 function checkAllObjectives(){
   if(!ACTIVITY_CONFIG)return;
-  var changed=false;
-  var staticTypes=['cable_exists','ip_configured','gateway_configured','dns_configured','service_active','device_added','wifi_link','route_exists','dns_record','ssid_configured'];
-  ACTIVITY_CONFIG.objectives.forEach(function(obj){
-    if(ACTIVITY_RESULTS[obj.id])return;
-    if(staticTypes.indexOf(obj.check)>=0&&checkObjectiveStatic(obj)){
-      ACTIVITY_RESULTS[obj.id]=true;changed=true;
-      notif('✅ Objectif atteint : '+obj.label,'ok');
-      addLog('✅ Objectif : '+obj.label,'ok');
-    }
+  var r=evaluateObjectives(ACTIVITY_CONFIG.objectives);
+  r.gained.forEach(function(obj){
+    notif('✅ Objectif atteint : '+obj.label,'ok');
+    addLog('✅ Objectif : '+obj.label,'ok');
   });
-  if(changed){updateActivityScore();renderActivityTab();}
+  r.lost.forEach(function(obj){
+    notif('⚠️ Objectif perdu : '+obj.label,'err');
+    addLog('⚠️ Objectif perdu : '+obj.label,'err');
+  });
+  if(r.gained.length||r.lost.length){updateActivityScore();renderActivityTab();}
 }
 
 function checkDynamicObjective(type,context){
   if(!ACTIVITY_CONFIG)return;
-  var changed=false;
-  ACTIVITY_CONFIG.objectives.forEach(function(obj){
-    if(ACTIVITY_RESULTS[obj.id]||obj.check!==type)return;
-    var p=obj.params||{};var ok=false;
-    if(type==='ping_success'){
-      var _pto=p.to;
-      if(_pto&&!(/^\d+\.\d+\.\d+\.\d+$/.test(_pto))){
-        var _ptoDev=devByName(_pto);
-        if(_ptoDev){var _ptoFi=mainIface(_ptoDev);if(_ptoFi&&_ptoFi.ip)_pto=_ptoFi.ip;}
-      }
-      ok=(!p.from||p.from===context.from)&&(!p.to||_pto===context.to);
-    } else if(type==='dns_success'){
-      // Même règle que simDNS : un nom de domaine ne dépend pas de la casse.
-      ok=(!p.from||p.from===context.from)&&(!p.domain||p.domain.trim().toLowerCase()===(context.domain||'').trim().toLowerCase());
-    } else if(type==='http_success'){
-      var _normURL=function(u){return (u||'').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'').toLowerCase();};
-      ok=(!p.from||p.from===context.from)&&(!p.url||_normURL(p.url)===_normURL(context.url));
-    } else if(type==='dhcp_success'){
-      ok=(!p.from||p.from===context.from);
-    }
-    if(ok){
-      ACTIVITY_RESULTS[obj.id]=true;changed=true;
-      notif('✅ Objectif atteint : '+obj.label,'ok');
-      addLog('✅ Objectif : '+obj.label,'ok');
-    }
+  var gained=recordDynamicEvent(ACTIVITY_CONFIG.objectives,type,context);
+  gained.forEach(function(obj){
+    notif('✅ Objectif atteint : '+obj.label,'ok');
+    addLog('✅ Objectif : '+obj.label,'ok');
   });
-  if(changed){updateActivityScore();renderActivityTab();}
+  if(gained.length){updateActivityScore();renderActivityTab();}
 }
 
 function renderScoreDetails(){
@@ -182,6 +78,8 @@ function renderActivityTab(){
       h+='<div class="activ-obj'+(done?' done':'')+'">'+
         '<div class="ao-icon">'+(done?'✅':'⭕')+'</div>'+
         '<div style="flex:1"><div class="ao-label">'+esc(obj.label)+'</div>';
+      var cons=objectiveConstraint(obj);
+      if(cons)h+='<div class="ao-constraint">📐 '+esc(cons).replace(/\n/g,'<br>')+'</div>';
       if(!done&&obj.hint)h+='<div class="ao-hint">💡 '+esc(obj.hint)+'</div>';
       h+='</div><div class="ao-pts">'+obj.points+' pts</div></div>';
     });
@@ -197,7 +95,7 @@ function renderActivityTab(){
 }
 
 function saveToSession(){
-  var data={version:2,devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid,score:S.score,activityResults:ACTIVITY_RESULTS};
+  var data={version:2,devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid,score:S.score,activityResults:ACTIVITY_RESULTS,activityProofs:ACTIVITY_PROOFS};
   var json=JSON.stringify(data);
   var saved=false;
   // SCORM suspend_data (limite 4096 chars SCORM 1.2 — la plupart des LMS acceptent plus)
@@ -232,6 +130,7 @@ function loadFromSession(){
     if(data.texts)S.texts=data.texts;
     if(data.score)S.score=data.score;
     if(data.activityResults)ACTIVITY_RESULTS=data.activityResults;
+    ACTIVITY_PROOFS=data.activityProofs||{};
     return true;
   }catch(e){return false;}
 }
@@ -259,7 +158,7 @@ function clearAll(){
   if(STARTER_NETWORK&&STARTER_NETWORK.devs&&Object.keys(STARTER_NETWORK.devs).length>0){
     if(!confirm('Recommencer depuis le r\u00e9seau de d\u00e9part ?'))return;
     S.mode='config';
-    S.score=0;ACTIVITY_RESULTS={};
+    S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
     applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
     if(ACTIVITY_CONFIG)
       applyFaults(ACTIVITY_CONFIG.faults);
@@ -629,8 +528,8 @@ function browGo(){
     addPacket('HTTP GET',srcIP2,res.ip,'GET '+url+' → 200 OK',true);
     
     if(res.path)animPath(res.path);
-    if(res.domain)checkDynamicObjective('dns_success',{from:S.devs[devId]?S.devs[devId].name:'',domain:res.domain});
-    checkDynamicObjective('http_success',{from:S.devs[devId]?S.devs[devId].name:'',url:url});
+    if(res.domain)checkDynamicObjective('dns_success',{from:S.devs[devId]?S.devs[devId].name:'',fromId:devId,domain:res.domain});
+    checkDynamicObjective('http_success',{from:S.devs[devId]?S.devs[devId].name:'',fromId:devId,url:url});
   } else {
     bc.innerHTML='<div class="berr">❌ '+esc(url)+'<br><br>'+esc(res.reason)+'</div>';
     addLog('HTTP '+url+' ÉCHEC : '+res.reason,'err');

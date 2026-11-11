@@ -53,13 +53,13 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **219 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **254 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
 - Simulation applicative : `simPing` (LAN, WiFi, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
 - Routage : `getRoutingTable`, `autoRoute` (RIP simplifié)
-- Évaluation : `checkObjectiveStatic` (10 types statiques), `checkDynamicObjective` (4 types dynamiques)
+- Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
 - Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
 - Commandes élève : terminal et navigateur jusqu'à la validation des objectifs
 - Score et SCORM : calcul du score, seuil de réussite, échanges avec un LMS simulé
@@ -68,11 +68,11 @@ Suite de **219 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 219/219 tests passés — SUCCÈS
+# ✅ 254/254 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois
@@ -213,14 +213,51 @@ node tests/sim-tests.js
 | `dhcp_success` | Simulation | `from` |
 | `cable_exists` | Configuration | `devA`, `devB` |
 | `wifi_link` | Configuration | `devA`, `devB` |
-| `ip_configured` | Configuration | `dev`, `ip` |
+| `ip_configured` | Configuration | `dev`, `ip`, `mask` |
 | `gateway_configured` | Configuration | `dev`, `gateway` |
 | `dns_configured` | Configuration | `dev`, `dns` |
 | `service_active` | Configuration | `dev`, `service` (`http`/`dns`/`dhcp`) |
-| `device_added` | Configuration | `newdev`, `type` |
+| `device_added` | Configuration | `newdev`, `type`, `ip`, `mask`, `gateway` |
 | `ssid_configured` | Configuration | `dev`, `ssid` |
 | `route_exists` | Configuration | `dev`, `dest` |
 | `dns_record` | Configuration | `dev`, `domain`, `ip` |
+
+**Adresses au choix.** Dans `ip_configured`, `gateway_configured` et `device_added`, l'adresse
+attendue (`ip`, `gateway`) peut être :
+
+| Valeur | Sens |
+|--------|------|
+| `192.168.1.10` | exacte |
+| `192.168.1.10-50` | plage (sur n'importe quel octet) |
+| `192.168.1.*` | au choix (joker) |
+| vide | aucune condition |
+
+Pour l'adresse d'un appareil, une plage ou un joker n'accepte qu'une adresse utilisable : ni
+l'adresse du réseau, ni la diffusion (calculées avec le masque de l'appareil), ni une adresse déjà
+prise par un autre appareil. Dans le builder, un menu devant le champ propose ces quatre niveaux.
+
+**`device_added` sans nom** (`newdev` vide) ne compte que les appareils absents du réseau de
+départ ; avec un nom, l'appareil de ce nom suffit, même s'il était déjà là.
+
+**Contrainte affichée à l'élève.** Sous le libellé d'un objectif, l'élève peut lire une
+contrainte (onglet Activité et énoncé imprimable), par exemple « PC1 : adresse IP au choix entre
+192.168.1.10 et 192.168.1.50 (adresse libre) ». Champs facultatifs de l'objectif :
+
+| Champ | Rôle |
+|-------|------|
+| `showConstraint` | `true` / `false` ; absent : affichée seulement si une adresse est en plage ou en joker, pour ne pas donner la réponse d'une valeur exacte |
+| `constraintText` | texte rédigé par l'enseignant, à la place du texte généré (retours à la ligne conservés) |
+| `constraintFrom` | texte généré au moment de la rédaction : le builder signale quand les paramètres ont changé depuis |
+
+Le texte est généré pour `ip_configured`, `gateway_configured` et `device_added` ; pour les autres
+types, l'enseignant peut en rédiger un. Dans le builder, le bloc « Montrer une contrainte à l'élève »
+de chaque objectif propose le texte généré, qui suit les paramètres tant qu'il n'est pas modifié,
+et un lien pour y revenir.
+
+**Le score suit le réseau.** Un objectif n'est acquis que tant que sa condition reste vraie : si
+l'élève casse sa configuration, il perd les points, et le score affiché est la note transmise au
+LMS. Un objectif de simulation (ping, DNS, HTTP, DHCP) se valide par une commande réussie, puis cette
+commande est rejouée sans affichage à chaque modification du réseau.
 
 **7 types de pannes (`faults`) :**
 

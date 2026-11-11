@@ -24,12 +24,259 @@ function devByName(name){
   return Object.values(S.devs).find(function(d){return d.name&&d.name.trim().toLowerCase()===n;})||null;
 }
 
+/* ── Évaluation des objectifs (partagée par le builder et l'activité élève) ──
+   Un objectif n'est acquis que tant que sa condition reste vraie : si l'élève casse
+   sa configuration, il le perd, et le score affiché est toujours la note finale. */
+var STATIC_OBJ_TYPES=['cable_exists','ip_configured','gateway_configured','dns_configured',
+  'service_active','device_added','wifi_link','route_exists','dns_record','ssid_configured'];
+var DYNAMIC_OBJ_TYPES=['ping_success','dns_success','http_success','dhcp_success'];
+var ACTIVITY_PROOFS={};   // {objectiveId: commande réussie qui l'a validé, rejouée à chaque vérification}
+var START_DEV_IDS=null;   // appareils du réseau de départ ; null → ceux de STARTER_NETWORK
+
+/* Adresse attendue par un objectif, octet par octet :
+   192.168.1.10 exacte · 192.168.1.* au choix · 192.168.1.10-50 plage. */
+function ipPatternIsFlexible(pattern){return /[*-]/.test(pattern||'');}
 function ipMatchesPattern(ip,pattern){
   if(!pattern||!ip)return !pattern;
-  if(pattern.indexOf('*')<0)return ip===pattern;
+  pattern=pattern.trim();ip=ip.trim();
+  if(!ipPatternIsFlexible(pattern))return ip===pattern;
   var pp=pattern.split('.'),ip4=ip.split('.');
   if(pp.length!==4||ip4.length!==4)return false;
-  return pp.every(function(seg,i){return seg==='*'||seg===ip4[i];});
+  return pp.every(function(seg,i){
+    var v=ip4[i];if(!/^\d+$/.test(v)||+v>255)return false;
+    if(seg==='*')return true;
+    var r=/^(\d+)-(\d+)$/.exec(seg);
+    if(r)return +v>=+r[1]&&+v<=+r[2];
+    return seg===v;
+  });
+}
+/* Adresse hôte utilisable : ni adresse du réseau, ni diffusion, ni déjà prise par un autre appareil. */
+function ipUsableBy(devId,ip,mask){
+  var a=ip2n(ip),m=ip2n(mask);
+  if(a<0||!vMask(mask))return false;
+  var net=(a&m)>>>0,bc=(net|(~m>>>0))>>>0;
+  if(a===net||a===bc)return false;
+  ip=ip.trim();
+  return !Object.values(S.devs).some(function(d){
+    return d.id!==devId&&d.ifaces&&d.ifaces.some(function(f){return f.ip&&f.ip.trim()===ip;});
+  });
+}
+/* Une valeur exacte est comparée telle quelle ; une plage ou un joker exige en plus une adresse utilisable. */
+function ipObjectiveOK(dev,fi,pattern){
+  if(!pattern)return true;
+  if(!fi||!ipMatchesPattern(fi.ip||'',pattern))return false;
+  return !ipPatternIsFlexible(pattern)||ipUsableBy(dev.id,fi.ip,fi.mask||'');
+}
+/* ── Contrainte affichée à l'élève sous un objectif ──
+   Texte généré à partir des paramètres, ou rédigé par l'enseignant (constraintText).
+   Affichée par défaut seulement quand une adresse est laissée au choix (showConstraint). */
+var CONSTRAINT_TYPES=['ip_configured','gateway_configured','device_added'];
+function addrConstraintDesc(v){
+  v=(v||'').trim();
+  var r=/^(\d+\.\d+\.\d+\.)(\d+)-(\d+)$/.exec(v);
+  if(r)return 'au choix entre '+r[1]+r[2]+' et '+r[1]+r[3];
+  if(!ipPatternIsFlexible(v))return v;
+  return 'au choix, de la forme '+v.split('.').map(function(seg){
+    if(seg==='*')return 'x';
+    var m=/^(\d+)-(\d+)$/.exec(seg);
+    return m?'['+m[1]+' à '+m[2]+']':seg;
+  }).join('.');
+}
+function autoConstraintText(obj){
+  var p=obj.params||{},parts=[],who;
+  if(CONSTRAINT_TYPES.indexOf(obj.check)<0)return '';
+  if(p.ip)parts.push('adresse IP '+addrConstraintDesc(p.ip)+(ipPatternIsFlexible(p.ip)?' (adresse libre)':''));
+  if(p.mask)parts.push('masque '+p.mask.trim());
+  if(p.gateway)parts.push('passerelle '+addrConstraintDesc(p.gateway));
+  if(obj.check==='device_added')who='Nouveau poste'+(p.newdev?' « '+p.newdev.trim()+' »':'');
+  else who=(p.dev||'').trim();
+  if(!parts.length)return obj.check==='device_added'&&p.newdev?who:'';
+  return (who?who+' : ':'')+parts.join(', ');
+}
+function constraintShownByDefault(obj){
+  var p=obj.params||{};
+  return CONSTRAINT_TYPES.indexOf(obj.check)>=0&&
+    (ipPatternIsFlexible(p.ip)||ipPatternIsFlexible(p.gateway));
+}
+/* Texte à afficher à l'élève, ou '' si la contrainte est masquée. */
+function objectiveConstraint(obj){
+  var show=typeof obj.showConstraint==='boolean'?obj.showConstraint:constraintShownByDefault(obj);
+  if(!show)return '';
+  var t=(obj.constraintText||'').trim();
+  return t||autoConstraintText(obj);
+}
+
+function startDevIds(){
+  if(START_DEV_IDS)return START_DEV_IDS;
+  return STARTER_NETWORK&&STARTER_NETWORK.devs?Object.keys(STARTER_NETWORK.devs):[];
+}
+
+function checkObjectiveStatic(obj){
+  var p=obj.params||{};
+  var d,fi;
+  switch(obj.check){
+    case 'cable_exists':
+      var devA=devByName(p.devA),devB=devByName(p.devB);
+      if(!devA||!devB)return false;
+      return !!Object.values(S.links).find(function(l){
+        return (l.from===devA.id&&l.to===devB.id)||(l.from===devB.id&&l.to===devA.id);
+      });
+    case 'ip_configured':
+      d=devByName(p.dev);if(!d)return false;
+      fi=mainIface(d);if(!fi)return false;
+      if(p.ip&&!ipObjectiveOK(d,fi,p.ip))return false;
+      if(p.mask&&fi.mask!==p.mask)return false;
+      return true;
+    case 'gateway_configured':
+      d=devByName(p.dev);if(!d)return false;
+      fi=mainIface(d);if(!fi)return false;
+      if(p.gateway&&!ipMatchesPattern((fi&&fi.gateway)||'',p.gateway))return false;
+      return true;
+    case 'dns_configured':
+      d=devByName(p.dev);if(!d)return false;
+      fi=mainIface(d);if(!fi)return false;
+      if(!fi.dns)return false;
+      if(p.dns&&fi.dns!==p.dns)return false;
+      return true;
+    case 'service_active':
+      d=devByName(p.dev);if(!d)return false;
+      if(p.service==='http')return !!(d.http&&d.http.on);
+      if(p.service==='dns')return !!(d.dns&&d.dns.on);
+      if(p.service==='dhcp')return !!(d.dhcp&&d.dhcp.on);
+      return false;
+    case 'device_added':{
+      // Nom imposé : l'appareil de ce nom, qu'il soit du départ ou non.
+      // Sans nom : seul un appareil absent du réseau de départ compte.
+      var cands;
+      if(p.newdev){d=devByName(p.newdev);cands=d?[d]:[];}
+      else{
+        var start=startDevIds();
+        cands=Object.values(S.devs).filter(function(dv){return start.indexOf(dv.id)<0;});
+      }
+      return cands.some(function(nd){
+        var f=mainIface(nd);
+        if(p.type&&nd.type!==p.type)return false;
+        if(p.ip&&!ipObjectiveOK(nd,f,p.ip))return false;
+        if(p.mask&&(!f||f.mask!==p.mask))return false;
+        if(p.gateway&&(!f||!ipMatchesPattern(f.gateway||'',p.gateway)))return false;
+        return true;
+      });}
+    case 'wifi_link':{
+      var wA=devByName(p.devA),wB=devByName(p.devB);
+      if(!wA||!wB)return false;
+      return !!Object.values(S.links).find(function(l){
+        return l.type==='wifi'&&
+          ((l.from===wA.id&&l.to===wB.id)||(l.from===wB.id&&l.to===wA.id));
+      });}
+    case 'route_exists':{
+      d=devByName(p.dev);if(!d)return false;
+      var rt=getRoutingTable(d.id);
+      if(!p.dest)return rt.length>0;
+      return !!rt.find(function(r){
+        if(p.dest&&r.dest!==p.dest)return false;
+        if(p.mask&&r.mask!==p.mask)return false;
+        return true;
+      });}
+    case 'dns_record':{
+      d=devByName(p.dev);if(!d||!d.dns||!d.dns.on)return false;
+      if(!p.domain)return Object.keys(d.dns.records||{}).length>0;
+      var dom=(p.domain||'').toLowerCase().trim();
+      var rec=(d.dns.records||{})[dom];
+      if(!rec)return false;
+      if(p.ip&&rec!==p.ip)return false;
+      return true;}
+    case 'ssid_configured':{
+      d=devByName(p.dev);if(!d||d.type!=='wifi_router')return false;
+      if(!d.ssid)return false;
+      if(p.ssid&&d.ssid!==p.ssid)return false;
+      return true;}
+    default:
+      return false;
+  }
+}
+
+/* Cible d'un objectif de ping : un nom d'appareil désigne son IP actuelle. */
+function pingTargetIP(to){
+  if(!to||/^\d+\.\d+\.\d+\.\d+$/.test(to))return to;
+  var _ptoDev=devByName(to);
+  if(!_ptoDev)return to;
+  var f=mainIface(_ptoDev);return f&&f.ip?f.ip:to;
+}
+/* La commande que vient de réussir l'élève correspond-elle à l'objectif ? */
+function dynamicEventMatches(obj,type,context){
+  var p=obj.params||{};
+  if(obj.check!==type)return false;
+  if(p.from&&p.from!==context.from)return false;
+  if(type==='ping_success')return !p.to||pingTargetIP(p.to)===context.to;
+  if(type==='dns_success')
+    // Même règle que simDNS : un nom de domaine ne dépend pas de la casse.
+    return !p.domain||p.domain.trim().toLowerCase()===(context.domain||'').trim().toLowerCase();
+  if(type==='http_success'){
+    var _normURL=function(u){return (u||'').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'').toLowerCase();};
+    return !p.url||_normURL(p.url)===_normURL(context.url);
+  }
+  return type==='dhcp_success';
+}
+/* Rejoue sans rien afficher la commande qui a validé l'objectif, sur le réseau actuel. */
+function dynamicStillHolds(obj,proof){
+  var p=obj.params||{};
+  var src=p.from?devByName(p.from):(S.devs[proof.fromId]||devByName(proof.from));
+  if(!src)return false;
+  switch(obj.check){
+    case 'ping_success':{
+      var to=p.to?pingTargetIP(p.to):proof.to;
+      return !!to&&simPing(src.id,to).ok;}
+    case 'dns_success':return simDNS(src.id,p.domain||proof.domain||'').ok;
+    case 'http_success':return simHTTP(src.id,p.url||proof.url||'',true).ok;
+    case 'dhcp_success':{
+      // L'appareil garde l'adresse reçue et un serveur DHCP actif reste joignable.
+      var f=mainIface(src);
+      if(!f||!f.ip||f.ip!==proof.ip)return false;
+      return lanSeg(src.id).some(function(id){
+        var s=S.devs[id];return s&&(s.type==='server'||s.type==='wifi_router')&&s.dhcp&&s.dhcp.on;
+      });}
+  }
+  return false;
+}
+function objectiveHolds(obj){
+  if(STATIC_OBJ_TYPES.indexOf(obj.check)>=0)return checkObjectiveStatic(obj);
+  if(DYNAMIC_OBJ_TYPES.indexOf(obj.check)<0)return false;
+  var pr=ACTIVITY_PROOFS[obj.id];
+  // Validé par une sauvegarde antérieure à l'enregistrement des preuves : on le garde.
+  if(!pr)return !!ACTIVITY_RESULTS[obj.id];
+  return dynamicStillHolds(obj,pr);
+}
+/* Réévalue tous les objectifs ; renvoie ceux qui viennent d'être atteints ou perdus. */
+function evaluateObjectives(objectives){
+  var gained=[],lost=[];
+  (objectives||[]).forEach(function(obj){
+    var was=!!ACTIVITY_RESULTS[obj.id],now=!!objectiveHolds(obj);
+    ACTIVITY_RESULTS[obj.id]=now;
+    if(now&&!was)gained.push(obj);
+    else if(was&&!now)lost.push(obj);
+  });
+  return{gained:gained,lost:lost};
+}
+/* Enregistre une commande réussie ; renvoie les objectifs qu'elle valide. */
+function recordDynamicEvent(objectives,type,context){
+  var gained=[];
+  (objectives||[]).forEach(function(obj){
+    if(!dynamicEventMatches(obj,type,context))return;
+    var pr={};Object.keys(context).forEach(function(k){pr[k]=context[k];});
+    if(!pr.fromId){var fd=devByName(context.from);if(fd)pr.fromId=fd.id;}
+    ACTIVITY_PROOFS[obj.id]=pr;
+    if(!ACTIVITY_RESULTS[obj.id]){ACTIVITY_RESULTS[obj.id]=true;gained.push(obj);}
+  });
+  return gained;
+}
+/* Toute modification redessine le réseau : les objectifs sont alors revérifiés. */
+var _objCheckT=null;
+function scheduleObjectiveCheck(){
+  if(_objCheckT)return;
+  _objCheckT=setTimeout(function(){
+    _objCheckT=null;
+    if(typeof checkAllObjectives==='function')checkAllObjectives();
+  },0);
 }
 
 
@@ -544,7 +791,7 @@ function simDNS(srcId,domain){
   return{ok:true,ip:ip,server:ddev.name};
 }
 
-function simHTTP(srcId,rawURL){
+function simHTTP(srcId,rawURL,quiet){
   var url=rawURL.trim().replace(/^https?:\/\//i,'');
   var he=url.search(/[/?#]/);var host=he>0?url.substring(0,he):url;
   var destIP,domain=null;
@@ -552,7 +799,7 @@ function simHTTP(srcId,rawURL){
   else{
     domain=host;var dr=simDNS(srcId,domain);
     if(!dr.ok)return{ok:false,reason:'DNS : '+dr.reason};
-    destIP=dr.ip;addLog('DNS '+domain+' → '+destIP,'info');
+    destIP=dr.ip;if(!quiet)addLog('DNS '+domain+' → '+destIP,'info');
   }
   var srv=devByIP(destIP);
   if(!srv)return{ok:false,reason:'Serveur '+destIP+' introuvable'};
@@ -566,7 +813,7 @@ function simHTTP(srcId,rawURL){
 /* ─────────────────────────────────────────────────────
    SVG RENDERING
 ───────────────────────────────────────────────────── */
-function render(){renderFrames();renderLinks();renderDevs();renderTexts();renderHint();updSelects();}
+function render(){renderFrames();renderLinks();renderDevs();renderTexts();renderHint();updSelects();scheduleObjectiveCheck();}
 
 function renderLinks(){
   var h='';
@@ -1057,7 +1304,7 @@ function doPing(devId,target){
     var srcDNS=(mainIface(S.devs[devId])||{}).dns||'?';
     addPacket('DNS Query',srcDNS,(mainIface(S.devs[devId])||{}).ip||'?',hostname+' → '+dr.ip,true);
     var dpath=simPing(devId,srcDNS);if(dpath.ok)animPath(dpath.path);
-    checkDynamicObjective('dns_success',{from:S.devs[devId].name,domain:hostname});
+    checkDynamicObjective('dns_success',{from:S.devs[devId].name,fromId:devId,domain:hostname});
     target=dr.ip;
   }
   var res=simPing(devId,target);tpr('');
@@ -1072,7 +1319,7 @@ function doPing(devId,target){
     addLog('PING '+(hostname||target)+' depuis '+S.devs[devId].name+' — OK ('+pathNames.join('→')+')','ok');
     addPacket('ICMP Echo',srcIP,target,'4 réponses — '+pathNames.join('→'),true);
     animPath(res.path);
-    checkDynamicObjective('ping_success',{from:S.devs[devId].name,to:target});
+    checkDynamicObjective('ping_success',{from:S.devs[devId].name,fromId:devId,to:target});
   } else {
     tpr('Ping de '+disp+' :','info');
     for(var i=0;i<4;i++)tpr('Délai d\'attente de la demande dépassé.','err');
@@ -1117,7 +1364,7 @@ function doNSL(devId,domain){
     tpr('Nom     : '+domain,'');tpr('Adresse : '+res.ip,'ok');
     addLog('DNS '+domain+' → '+res.ip,'ok');
     addPacket('DNS Query',srcDNS,(mainIface(S.devs[devId])||{}).ip||'?',domain+' → '+res.ip,true);
-    checkDynamicObjective('dns_success',{from:S.devs[devId].name,domain:domain});
+    checkDynamicObjective('dns_success',{from:S.devs[devId].name,fromId:devId,domain:domain});
     // animer le chemin vers le DNS
     var src=S.devs[devId];var si=mainIface(src);
     if(si&&si.dns){var r=simPing(devId,si.dns);if(r.ok)animPath(r.path);}
@@ -1275,7 +1522,7 @@ function doDHCP(devId){
     addLog('DHCP '+d.name+' → '+res.ip+' (via '+res.server+')','ok');
     addPacket('DHCP','0.0.0.0',res.ip,'Adresse attribuée par '+res.server,true);
     render();if(S.termDev)showProps(S.termDev);if(S.sel===devId)showProps(devId);
-    checkDynamicObjective('dhcp_success',{from:d.name,ip:res.ip});
+    checkDynamicObjective('dhcp_success',{from:d.name,fromId:devId,ip:res.ip});
   } else {
     tpr('DHCP Request échoué : '+res.reason,'err');
     addLog('DHCP '+d.name+' ÉCHEC : '+res.reason,'err');

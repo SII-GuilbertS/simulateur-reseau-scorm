@@ -315,6 +315,47 @@ test.describe('Builder', () => {
     await expect(page.locator('body')).not.toContainText('RIP :');
   });
 
+  test('adresse en plage : contrainte générée, rédigée à la main, puis affichée à l\'élève', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-college');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const card = page.locator('[data-objid="5"]');
+    await card.locator('.obj-card-hdr').click();
+    const chk = card.locator('.obj-cons input[type="checkbox"]');
+    const text = card.locator('.obj-cons textarea');
+
+    // Adresse exacte : la contrainte donnerait la réponse, elle est masquée par défaut.
+    await expect(chk).not.toBeChecked();
+
+    await card.locator('.ipf select').selectOption('range');
+    await card.locator('#ipr-e-5-ip').fill('20');
+    await card.locator('#ipr-e-5-ip').press('Tab');
+    await expect(chk).toBeChecked();
+    await expect(text).toHaveValue('B210-P3 : adresse IP au choix entre 10.2.210.3 et 10.2.210.20 (adresse libre)');
+    await expect(card.locator('.obj-cons-meta')).toContainText('généré à partir des paramètres');
+
+    const mine = 'Prenez une adresse libre de la salle 210, entre .3 et .20.';
+    await text.fill(mine);
+    await text.press('Tab');
+    await expect(card.locator('.obj-cons-meta')).toContainText('rédigé à la main');
+
+    // Paramètres modifiés après coup : le texte manuel est gardé, mais signalé.
+    await card.locator('#ipr-e-5-ip').fill('30');
+    await card.locator('#ipr-e-5-ip').press('Tab');
+    await expect(text).toHaveValue(mine);
+    await expect(card.locator('.obj-cons-warn')).toContainText('10.2.210.30');
+
+    await card.locator('.obj-cons-meta a').click();
+    await expect(text).toHaveValue('B210-P3 : adresse IP au choix entre 10.2.210.3 et 10.2.210.30 (adresse libre)');
+    await expect(card.locator('.obj-cons-warn')).toHaveCount(0);
+
+    await text.fill(mine);
+    await text.press('Tab');
+    const file = await exportFile(page, 'html', info.outputPath('college-contrainte.html'));
+    await page.goto(pathToFileURL(file).href);
+    await expect(page.locator('.ao-constraint')).toHaveCount(1);
+    await expect(page.locator('.ao-constraint')).toContainText(mine);
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));

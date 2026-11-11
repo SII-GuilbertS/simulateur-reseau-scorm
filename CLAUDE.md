@@ -60,36 +60,41 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 219/219
+## Tests : `node tests/sim-tests.js` → doit afficher 254/254
 
-Suite de 219 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 254 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
 Couverture : fonctions réseau de base (`ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`,
 `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`...), simulation applicative (`simPing`
 LAN/WiFi/routé/internet, `simDNS`, `simHTTP`, `simDHCP`), routage (`getRoutingTable`, `autoRoute`
-— RIP simplifié), évaluation (`checkObjectiveStatic` : 10 types statiques,
-`checkDynamicObjective` : 4 types dynamiques), mode panne (`applyFaults` : 7 types, formats plat
+— RIP simplifié), évaluation (`checkObjectiveStatic` : 10 types statiques, adresses en plage ou
+joker, `checkDynamicObjective` : 4 types dynamiques, objectifs perdus quand la configuration casse,
+contrainte affichée à l'élève), mode panne (`applyFaults` : 7 types, formats plat
 et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
 sauvegarde et reprise, et pour chaque fichier de `scenarios/` : cohérence, score de 100 une fois le
 réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Non couverts : rendu de
 l'interface et `EvalModule`/`GenModule` du builder (exports).
 
-`checkDynamicObjective` existe aussi en copies propres au builder, hors du bloc généré, que les tests
-n'exercent pas : y reporter à la main toute modification de cette fonction.
+Les règles d'évaluation sont dans `src/sim-engine.js`, partagées par le builder et l'élève
+(`checkObjectiveStatic`, `evaluateObjectives`, `recordDynamicEvent`). Un objectif n'est acquis que
+tant que sa condition reste vraie : les objectifs dynamiques gardent la commande qui les a validés
+(`ACTIVITY_PROOFS`) et la rejouent à chaque modification du réseau. `checkAllObjectives` et
+`checkDynamicObjective` restent définis deux fois, dans `src/template-extra.js` et dans le JS du
+builder, mais ne font qu'appeler ces fonctions puis afficher le résultat.
 
 Le hook local `.git/hooks/pre-commit` (non versionné) exige le nombre exact de tests : si ce nombre
 change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 17 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 18 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
-score de départ des 4 scénarios, les copies de `checkDynamicObjective` propres au builder (via
-`nslookup`), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+score de départ des 4 scénarios, l'objectif `nslookup` validé depuis le terminal du builder,
+l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'élève, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
 
 Non couverts : vrai Moodle, drag & drop et câblage, énoncé imprimable, Firefox. Elle n'est pas dans le
@@ -131,7 +136,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 219/219
+node tests/sim-tests.js    # → 254/254
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -178,6 +183,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 219 tests Node.js |
+| `tests/sim-tests.js` | Suite de 254 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

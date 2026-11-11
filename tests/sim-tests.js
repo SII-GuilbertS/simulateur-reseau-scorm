@@ -891,6 +891,131 @@ test('device_added : insensible à la casse (Bug3 fix)', function() {
 });
 
 /* ── mkDev wifi_router ── */
+suite('Adresses au choix — plages et joker');
+
+test('ipMatchesPattern : exacte, joker, plage et plage sur plusieurs octets', function() {
+  ok(ipMatchesPattern('192.168.1.10','192.168.1.10'));
+  notOk(ipMatchesPattern('192.168.1.11','192.168.1.10'));
+  ok(ipMatchesPattern('192.168.1.77','192.168.1.*'));
+  notOk(ipMatchesPattern('192.168.2.77','192.168.1.*'));
+  ok(ipMatchesPattern('192.168.1.10','192.168.1.10-50'));
+  ok(ipMatchesPattern('192.168.1.50','192.168.1.10-50'));
+  notOk(ipMatchesPattern('192.168.1.51','192.168.1.10-50'));
+  notOk(ipMatchesPattern('192.168.1.9','192.168.1.10-50'));
+  ok(ipMatchesPattern('10.3.0.5','10.1-4.*.*'));
+  notOk(ipMatchesPattern('10.5.0.5','10.1-4.*.*'));
+});
+
+test('ipMatchesPattern : adresse vide ou mal formée → refusée', function() {
+  notOk(ipMatchesPattern('','192.168.1.*'));
+  notOk(ipMatchesPattern('192.168.1','192.168.1.*'));
+  notOk(ipMatchesPattern('192.168.1.abc','192.168.1.*'));
+  notOk(ipMatchesPattern('192.168.1.300','192.168.1.*'));
+});
+
+test('ip_configured joker : adresse hôte libre du réseau → validé', function() {
+  resetNet();
+  mkPC('192.168.1.42','255.255.255.0','','','PC1');
+  ok(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}));
+});
+
+test('ip_configured joker : adresse du réseau ou de diffusion → non validé', function() {
+  resetNet();
+  var pc = mkPC('192.168.1.0','255.255.255.0','','','PC1');
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}), 'adresse du réseau');
+  S.devs[pc].ifaces[0].ip = '192.168.1.255';
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}), 'diffusion');
+});
+
+test('ip_configured joker : la diffusion dépend du masque de l\'appareil (/26)', function() {
+  resetNet();
+  var pc = mkPC('192.168.1.63','255.255.255.192','','','PC1');
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}), '.63 est la diffusion en /26');
+  S.devs[pc].ifaces[0].ip = '192.168.1.64';
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}), '.64 est une adresse de réseau en /26');
+  S.devs[pc].ifaces[0].ip = '192.168.1.65';
+  ok(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}));
+});
+
+test('ip_configured joker : adresse déjà prise par un autre appareil → non validé', function() {
+  resetNet();
+  mkPC('192.168.1.42','255.255.255.0','','','PC1');
+  var srv = mkServer('192.168.1.42');
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}));
+  S.devs[srv].ifaces[0].ip = '192.168.1.43';
+  ok(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.*'}}));
+});
+
+test('ip_configured plage : dans la plage → validé, hors plage → non validé', function() {
+  resetNet();
+  var pc = mkPC('192.168.1.30','255.255.255.0','','','PC1');
+  ok(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.10-50'}}));
+  S.devs[pc].ifaces[0].ip = '192.168.1.60';
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.10-50'}}));
+});
+
+test('ip_configured plage + masque imposé : mauvais masque → non validé', function() {
+  resetNet();
+  mkPC('192.168.1.30','255.255.0.0','','','PC1');
+  notOk(checkObjectiveStatic({check:'ip_configured', params:{dev:'PC1', ip:'192.168.1.10-50', mask:'255.255.255.0'}}));
+});
+
+test('gateway_configured plage : passerelle dans la plage → validé', function() {
+  resetNet();
+  mkPC('192.168.1.30','255.255.255.0','192.168.1.254','','PC1');
+  ok(checkObjectiveStatic({check:'gateway_configured', params:{dev:'PC1', gateway:'192.168.1.250-254'}}));
+  notOk(checkObjectiveStatic({check:'gateway_configured', params:{dev:'PC1', gateway:'192.168.1.1-9'}}));
+});
+
+test('device_added sans nom : un appareil du réseau de départ ne compte pas', function() {
+  resetNet();
+  var old = mkPC('192.168.1.10','255.255.255.0','','','PC-Depart');
+  sandbox.START_DEV_IDS = [old];
+  try {
+    notOk(checkObjectiveStatic({check:'device_added', params:{type:'pc', ip:'192.168.1.*'}}));
+    mkPC('192.168.1.11','255.255.255.0','','','PC-Nouveau');
+    ok(checkObjectiveStatic({check:'device_added', params:{type:'pc', ip:'192.168.1.*'}}));
+  } finally { sandbox.START_DEV_IDS = null; }
+});
+
+test('device_added sans nom : sans réseau de départ connu, tout appareil compte', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','','','PC1');
+  ok(checkObjectiveStatic({check:'device_added', params:{type:'pc'}}));
+});
+
+test('device_added avec nom : un appareil du départ reste « présent »', function() {
+  resetNet();
+  var old = mkServer('192.168.1.100'); S.devs[old].name = 'Serveur';
+  sandbox.START_DEV_IDS = [old];
+  try {
+    ok(checkObjectiveStatic({check:'device_added', params:{newdev:'Serveur', type:'server'}}));
+  } finally { sandbox.START_DEV_IDS = null; }
+});
+
+test('device_added sans nom : réseau de départ lu dans STARTER_NETWORK', function() {
+  resetNet();
+  var old = mkPC('192.168.1.10','255.255.255.0','','','PC-Depart');
+  sandbox.STARTER_NETWORK = { devs:{}, links:{} };
+  sandbox.STARTER_NETWORK.devs[old] = S.devs[old];
+  try {
+    notOk(checkObjectiveStatic({check:'device_added', params:{type:'pc'}}));
+  } finally { sandbox.STARTER_NETWORK = null; }
+});
+
+test('device_added : IP au choix doit être utilisable, passerelle en joker', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','','','PC-A');
+  var nw = mkPC('192.168.1.10','255.255.255.0','192.168.1.1','','PC-B');
+  sandbox.START_DEV_IDS = Object.keys(S.devs).filter(function(id){ return id !== nw; });
+  try {
+    notOk(checkObjectiveStatic({check:'device_added', params:{ip:'192.168.1.*'}}), 'IP en doublon');
+    S.devs[nw].ifaces[0].ip = '192.168.1.20';
+    ok(checkObjectiveStatic({check:'device_added', params:{ip:'192.168.1.*', gateway:'192.168.1.*'}}));
+    notOk(checkObjectiveStatic({check:'device_added', params:{ip:'192.168.1.*', gateway:'10.0.0.*'}}));
+  } finally { sandbox.START_DEV_IDS = null; }
+});
+
 suite('mkDev — initialisation du wifi_router');
 
 test('wifi_router créé avec un ssid par défaut', function() {
@@ -1261,6 +1386,8 @@ function setupActivity(objectives, masteryscore) {
     objectives: objectives,
   };
   sandbox.ACTIVITY_RESULTS = {};
+  sandbox.ACTIVITY_PROOFS = {};
+  sandbox.START_DEV_IDS = null;
 }
 
 function objective(id, check, params, points) {
@@ -1544,14 +1671,210 @@ test('checkAllObjectives ne valide jamais un objectif dynamique', function() {
   notOk(done(1)); notOk(done(2));
 });
 
-test('objectif atteint → reste acquis si le réseau change ensuite', function() {
+/* ── Le score suit l'état du réseau ── */
+suite('Objectifs perdus quand l\'élève casse sa configuration');
+
+test('statique : configuration cassée → objectif perdu et score baissé', function() {
   setupActivity([objective(1,'ip_configured',{dev:'PC1',ip:'192.168.1.10'},100)]);
   var pc = mkPC('192.168.1.10','255.255.255.0','','','PC1');
   sandbox.checkAllObjectives();
+  ok(done(1)); eq(S.score, 100);
   S.devs[pc].ifaces[0].ip = '10.0.0.1';
   sandbox.checkAllObjectives();
+  notOk(done(1));
+  eq(S.score, 0);
+});
+
+test('statique : configuration réparée → objectif regagné', function() {
+  setupActivity([objective(1,'ip_configured',{dev:'PC1',ip:'192.168.1.*'},100)]);
+  var pc = mkPC('192.168.1.10','255.255.255.0','','','PC1');
+  sandbox.checkAllObjectives();
+  S.devs[pc].ifaces[0].ip = '192.168.1.0';
+  sandbox.checkAllObjectives();
+  notOk(done(1));
+  S.devs[pc].ifaces[0].ip = '192.168.1.12';
+  sandbox.checkAllObjectives();
+  ok(done(1)); eq(S.score, 100);
+});
+
+test('ping : câble retiré → objectif perdu, câble remis → regagné sans retaper la commande', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'Srv-Web'},100)]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.20');
   ok(done(1));
-  eq(S.score, 100);
+  var lid = Object.keys(S.links).find(function(k){ return S.links[k].from === n.web || S.links[k].to === n.web; });
+  delete S.links[lid];
+  sandbox.checkAllObjectives();
+  notOk(done(1)); eq(S.score, 0);
+  link(n.web, n.sw);
+  sandbox.checkAllObjectives();
+  ok(done(1)); eq(S.score, 100);
+});
+
+test('ping sans paramètre : la commande réussie est rejouée', function() {
+  setupActivity([objective(1,'ping_success',{},100)]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.20');
+  ok(done(1));
+  S.devs[n.pc].ifaces[0].ip = '10.0.0.10';
+  sandbox.checkAllObjectives();
+  notOk(done(1));
+});
+
+test('ping vers un appareil nommé : suit son changement d\'adresse', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'Srv-Web'},100)]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.20');
+  S.devs[n.web].ifaces[0].ip = '192.168.1.21';
+  sandbox.checkAllObjectives();
+  ok(done(1), 'le serveur reste joignable à sa nouvelle adresse');
+});
+
+test('DNS : service arrêté après validation → objectif perdu', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice',domain:'lycee.local'},100)]);
+  var n = makeLan();
+  term(n.pc,'nslookup lycee.local');
+  ok(done(1));
+  S.devs[n.dns].dns.on = false;
+  sandbox.checkAllObjectives();
+  notOk(done(1));
+});
+
+test('HTTP : serveur web arrêté après validation → objectif perdu', function() {
+  setupActivity([objective(1,'http_success',{from:'PC-Alice',url:'lycee.local'},100)]);
+  var n = makeLan();
+  browse(n.pc,'lycee.local');
+  ok(done(1));
+  S.devs[n.web].http.on = false;
+  sandbox.checkAllObjectives();
+  notOk(done(1));
+});
+
+test('DHCP : adresse reçue remplacée à la main → objectif perdu', function() {
+  setupActivity([objective(1,'dhcp_success',{from:'PC-Alice'},100)]);
+  var sw = mkSwitch();
+  var pc = mkPC('','255.255.255.0','','','PC-Alice');
+  var srv = mkServer('192.168.1.1'); S.devs[srv].dhcp.on = true;
+  link(pc,sw); link(srv,sw);
+  term(pc,'dhcp');
+  ok(done(1));
+  sandbox.checkAllObjectives();
+  ok(done(1), 'toujours valide juste après');
+  S.devs[pc].ifaces[0].ip = '192.168.1.250';
+  sandbox.checkAllObjectives();
+  notOk(done(1));
+});
+
+test('objectif dynamique validé sans preuve (ancienne sauvegarde) → conservé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'192.168.1.20'},100)]);
+  sandbox.ACTIVITY_RESULTS[1] = true;
+  sandbox.checkAllObjectives();
+  ok(done(1));
+});
+
+test('objectif perdu → score transmis au LMS mis à jour', function() {
+  setupActivity([objective(1,'ip_configured',{dev:'PC1',ip:'192.168.1.10'},100)]);
+  withLMS(makeLMS({}), function(api) {
+    var pc = mkPC('192.168.1.10','255.255.255.0','','','PC1');
+    sandbox.checkAllObjectives();
+    eq(api.data['cmi.core.score.raw'], '100');
+    S.devs[pc].ifaces[0].ip = '10.0.0.1';
+    sandbox.checkAllObjectives();
+    eq(api.data['cmi.core.score.raw'], '0');
+  });
+});
+
+test('Terminer après une régression : la note est celle du réseau final', function() {
+  setupActivity([objective(1,'ip_configured',{dev:'PC1',ip:'192.168.1.10'},100)], 60);
+  withLMS(makeLMS({}), function(api) {
+    var pc = mkPC('192.168.1.10','255.255.255.0','','','PC1');
+    sandbox.checkAllObjectives();
+    S.devs[pc].ifaces[0].ip = '10.0.0.1';
+    sandbox.checkAllObjectives();
+    sandbox.finishActivity();
+    eq(api.data['cmi.core.score.raw'], '0');
+    eq(api.data['cmi.core.lesson_status'], 'failed');
+  });
+});
+
+test('reprise : les preuves sont sauvegardées et l\'objectif reste revérifié', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice',to:'Srv-Web'},100)]);
+  withStorage(function() {
+    var n = makeLan();
+    term(n.pc,'ping 192.168.1.20');
+    ok(sandbox.saveToSession());
+    sandbox.ACTIVITY_RESULTS = {}; sandbox.ACTIVITY_PROOFS = {};
+    eq(sandbox.loadFromSession(), true);
+    ok(done(1));
+    S.devs[devByName('Srv-Web').id].ifaces[0].ip = '10.9.9.9';
+    sandbox.checkAllObjectives();
+    notOk(done(1));
+  });
+});
+
+/* ── Contrainte affichée à l'élève ── */
+suite('Contrainte affichée à l\'élève');
+
+function cons(check, params, extra) {
+  return Object.assign({ id:1, label:'Objectif', check:check, params:params, points:10 }, extra||{});
+}
+
+test('texte automatique : plage d\'adresses et masque', function() {
+  eq(sandbox.autoConstraintText(cons('ip_configured',{dev:'PC1', ip:'192.168.1.10-50', mask:'255.255.255.0'})),
+     'PC1 : adresse IP au choix entre 192.168.1.10 et 192.168.1.50 (adresse libre), masque 255.255.255.0');
+});
+
+test('texte automatique : joker et plage sur plusieurs octets', function() {
+  eq(sandbox.autoConstraintText(cons('ip_configured',{dev:'PC1', ip:'192.168.1.*'})),
+     'PC1 : adresse IP au choix, de la forme 192.168.1.x (adresse libre)');
+  eq(sandbox.autoConstraintText(cons('ip_configured',{dev:'PC1', ip:'10.1-4.*.*'})),
+     'PC1 : adresse IP au choix, de la forme 10.[1 à 4].x.x (adresse libre)');
+});
+
+test('texte automatique : passerelle et nouveau poste', function() {
+  eq(sandbox.autoConstraintText(cons('gateway_configured',{dev:'PC1', gateway:'192.168.1.250-254'})),
+     'PC1 : passerelle au choix entre 192.168.1.250 et 192.168.1.254');
+  eq(sandbox.autoConstraintText(cons('device_added',{newdev:'B210-P3', ip:'10.2.210.*', gateway:'10.2.210.254'})),
+     'Nouveau poste « B210-P3 » : adresse IP au choix, de la forme 10.2.210.x (adresse libre), passerelle 10.2.210.254');
+  eq(sandbox.autoConstraintText(cons('device_added',{})), '');
+});
+
+test('texte automatique : rien pour les autres types d\'objectifs', function() {
+  eq(sandbox.autoConstraintText(cons('ping_success',{from:'PC1', to:'Srv'})), '');
+});
+
+test('affichage par défaut : seulement si une adresse est au choix', function() {
+  eq(sandbox.objectiveConstraint(cons('ip_configured',{dev:'PC1', ip:'192.168.1.10'})), '', 'valeur exacte : on ne donne pas la réponse');
+  ok(sandbox.objectiveConstraint(cons('ip_configured',{dev:'PC1', ip:'192.168.1.*'})));
+});
+
+test('l\'enseignant peut forcer ou masquer l\'affichage', function() {
+  ok(sandbox.objectiveConstraint(cons('ip_configured',{dev:'PC1', ip:'192.168.1.10'}, {showConstraint:true})).indexOf('192.168.1.10') >= 0);
+  eq(sandbox.objectiveConstraint(cons('ip_configured',{dev:'PC1', ip:'192.168.1.*'}, {showConstraint:false})), '');
+});
+
+test('texte rédigé à la main : remplace le texte automatique', function() {
+  var o = cons('ip_configured',{dev:'PC1', ip:'192.168.1.*'}, {constraintText:'  Choisissez une adresse libre de la salle B.  '});
+  eq(sandbox.objectiveConstraint(o), 'Choisissez une adresse libre de la salle B.');
+});
+
+test('texte rédigé à la main pour un objectif sans texte automatique', function() {
+  var o = cons('cable_exists',{devA:'PC1', devB:'SW1'}, {showConstraint:true, constraintText:'Utilisez le port libre du switch.'});
+  eq(sandbox.objectiveConstraint(o), 'Utilisez le port libre du switch.');
+});
+
+test('onglet Activité : contrainte affichée sous l\'objectif, échappée, retours à la ligne', function() {
+  setupActivity([cons('ip_configured',{dev:'PC1', ip:'192.168.1.*'}, {constraintText:'Ligne 1 <b>\nLigne 2'})]);
+  sandbox.renderActivityTab();
+  var html = sandbox.document.getElementById('activ-pane').innerHTML;
+  ok(html.indexOf('ao-constraint') >= 0);
+  ok(html.indexOf('Ligne 1 &lt;b&gt;<br>Ligne 2') >= 0, html);
+});
+
+test('onglet Activité : contrainte masquée → absente', function() {
+  setupActivity([cons('ip_configured',{dev:'PC1', ip:'192.168.1.10'})]);
+  sandbox.renderActivityTab();
+  ok(sandbox.document.getElementById('activ-pane').innerHTML.indexOf('ao-constraint') < 0);
 });
 
 /* ── SCORM ── */
