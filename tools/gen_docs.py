@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.9.2
+#  DOC PROF  v1.9.3
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.9.2'
+    doc._subtitle    = 'Documentation v1.9.3'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -198,7 +198,7 @@ def build_prof(out_path):
             'La palette propose quatre modèles de terminaux — <b>PC fixe</b> (câble), <b>PC portable</b> '
             '(câble et WiFi), <b>Téléphone</b> et <b>Tablette</b> (WiFi uniquement) — ainsi que '
             '<b>Serveur</b>, <b>Switch</b>, <b>Routeur</b>, <b>Box WiFi</b> (routeur WiFi avec DHCP intégré), '
-            '<b>Internet</b> et l\'outil <b>Câble</b>. Chaque appareil apparaît sous forme de carte '
+            '<b>Internet</b>, et en tête l\'outil <b>Câble</b>. Chaque appareil apparaît sous forme de carte '
             'illustrée. Faites glisser les appareils sur le canevas, puis configurez '
             'leurs propriétés (IP, masque, passerelle, DNS, services HTTP/DNS/DHCP, SSID WiFi) '
             'dans le panneau de droite.',
@@ -209,12 +209,21 @@ def build_prof(out_path):
                   'efface l\'appareil, le câble, le cadre ou le texte sélectionné.', BODY_L),
         Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC. Comme une vraie box, elle relie '
                   'ses clients WiFi et les postes câblés de son côté LAN (switch compris) ; son port WAN reste séparé.', BODY_L),
+        Paragraph('• <b>Connexion WiFi</b> : la fiche d\'un terminal relié en WiFi a une section « Connexion WiFi » '
+                  '(réseau choisi et mot de passe). La liaison ne transporte rien, en pointillé rouge, tant que le SSID '
+                  'n\'est pas celui de la box ou que le mot de passe est faux ; ping, dhcp et ipconfig l\'expliquent. '
+                  'Dans le builder, une liaison tracée reçoit le SSID et le mot de passe de la box, et changer ceux de la '
+                  'box met à jour ses terminaux. Chez l\'élève, le mot de passe est à saisir (il figure dans la fiche de la box).', BODY_L),
+        Paragraph('• <b>Case DHCP d\'un poste</b> : la cocher met de côté l\'adresse, le masque, la passerelle et le DNS '
+                  'saisis (ignorés tant que le DHCP est coché) ; la décocher les remet en place. Ce qui est mis de côté '
+                  'n\'est pas transmis à l\'élève.', BODY_L),
         Paragraph('• <b>Ctrl+Z / Ctrl+Y</b> : annuler / rétablir. <b>Ctrl+C / Ctrl+V</b> : copier / coller un appareil.', BODY_L),
         Paragraph('• <b>Ctrl+S</b> : sauvegarder la session dans le navigateur.', BODY_L),
         Paragraph('• Le <b>score</b> en haut à droite est <b>celui de l\'élève</b> : le réseau du builder est le '
                   'corrigé, mais les pannes de l\'onglet 2 sont appliquées pour le calcul. Une activité bien '
                   'construite affiche 0 à l\'import ; les commandes de test lancées dans le terminal (ping, '
-                  'nslookup, navigateur) ajoutent leurs points.', BODY_L),
+                  'nslookup, navigateur) ajoutent leurs points, tout comme une configuration que vous cassez puis '
+                  'rétablissez (un câble débranché puis rebranché au switch indiqué, par exemple).', BODY_L),
         Paragraph('• <b>Figer le départ</b> mémorise le réseau actuel comme état de départ '
                   '(fait automatiquement à l\'import d\'un scénario). <b>Réinitialiser</b> y revient après vos '
                   'essais : appareils et câbles ajoutés supprimés, éléments supprimés remis, configurations '
@@ -238,7 +247,12 @@ def build_prof(out_path):
         Paragraph('• Objectifs (pastille <b>bleue</b> numérotée) et pannes (pastille <b>rouge</b> P1, P2…) '
                   'forment <b>une seule liste</b>, avec les deux boutons d\'ajout en haut. Réordonnez-la '
                   'en glissant la poignée à gauche de la carte ou avec les flèches <b>▲ ▼</b> : l\'élève voit les objectifs '
-                  'dans cet ordre. Une panne sans description est désignée par son type et l\'appareil visé.', BODY_L),
+                  'dans cet ordre. La description d\'une panne est pré-remplie (type et appareil visé) et modifiable.', BODY_L),
+        Paragraph('• <b>Indice</b> : chaque objectif a un indice, affiché à l\'élève sous l\'objectif tant qu\'il n\'est '
+                  'pas atteint. Il est proposé selon le type d\'objectif, ses appareils et la panne qu\'il répare '
+                  '(« Outil Câble : reliez PC-Bureau à Switch-Salon », ou « ipconfig est bon mais rien ne passe ? '
+                  'Regardez les câbles de PC-Bureau » quand une panne débranche ce câble). Il suit l\'objectif et les '
+                  'pannes tant que vous ne le réécrivez pas ; le bouton à droite du champ revient à la proposition, un champ vide supprime l\'indice.', BODY_L),
         Paragraph('• Sous chaque objectif, un <b>aperçu</b> indique s\'il est atteint sur le réseau actuel et '
                   'avertit s\'il l\'est déjà dans le réseau remis à l\'élève (points gagnés sans rien faire).', BODY_L),
         Paragraph('• <b>Le score suit le réseau</b> : un objectif n\'est acquis que tant que sa condition reste vraie. '
@@ -258,7 +272,7 @@ def build_prof(out_path):
         ['http_success',       'Accès HTTP',          'Vérifie l\'accès à une page web par IP ou hostname.'],
         ['dhcp_success',       'Attribution DHCP',    'Vérifie qu\'un appareil obtient une IP via DHCP.'],
         ['cable_exists',       'Câble existant',      'Vérifie qu\'un câble relie deux appareils nommés.'],
-        ['wifi_link',          'Liaison WiFi',        'Vérifie qu\'une liaison WiFi existe.'],
+        ['wifi_link',          'Liaison WiFi',        'Vérifie qu\'une liaison WiFi relie deux appareils et que le terminal est connecté (SSID et mot de passe).'],
         ['ip_configured',      'IP configurée',       'Vérifie l\'IP d\'un appareil : exacte, dans une plage ou au choix.'],
         ['gateway_configured', 'Passerelle',          'Vérifie la passerelle : exacte, plage ou routeur du réseau.'],
         ['dns_configured',     'DNS configuré',       'Vérifie le DNS : adresse exacte ou adresse d\'un serveur.'],
@@ -322,7 +336,8 @@ def build_prof(out_path):
         ['bad_dns',      'DNS incorrect',      'appareil + valeur incorrecte'],
         ['service_down', 'Service désactivé',  'appareil + service (http/dns/dhcp)'],
         ['missing_cable','Câble débranché',    'appareil A + appareil B'],
-        ['ssid_wrong',   'SSID incorrect',     'Box WiFi + valeur incorrecte'],
+        ['ssid_wrong',   'SSID incorrect',     'Box WiFi + valeur incorrecte (ses terminaux se déconnectent)'],
+        ['wifi_pass_wrong','Mot de passe WiFi faux','terminal WiFi + valeur incorrecte'],
     ]
     fw = [40*mm, 46*mm, CONTENT_W-86*mm]
     frows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
@@ -388,8 +403,13 @@ def build_prof(out_path):
         Paragraph('• <b>Plus exigeante</b> : adresses exactes laissées au choix quand rien d\'autre ne les utilise, '
                   'passerelle « routeur du réseau », contraintes et indices masqués, seuil relevé de 10 points.', BODY_L),
         Paragraph('• <b>Pannes sur d\'autres appareils</b> : la réparation et ses tests suivent, adresses et libellés compris. '
-                  '<b>Une de moins</b> retire la dernière panne avec sa réparation et ses tests ; <b>une de plus</b> en ajoute '
-                  'une sur un poste à adresse fixe, avec sa réparation et son test.', BODY_L),
+                  'Sur un petit réseau où chaque poste a déjà sa panne, deux pannes échangent leurs postes ; un mot de passe '
+                  'WiFi faux passe à un autre terminal de la box. <b>Une de moins</b> retire la dernière panne avec sa réparation '
+                  'et ses tests ; <b>une de plus</b> en ajoute une sur un poste à adresse fixe (à défaut, un mot de passe WiFi '
+                  'faux sur un terminal), avec sa réparation et son test.', BODY_L),
+        Paragraph('• Les choix de pannes <b>se combinent</b> : autres appareils et une de plus, par exemple. Une de moins '
+                  'et une de plus s\'excluent. Quand aucun appareil ne convient, la fenêtre propose d\'ajouter un poste '
+                  'dans l\'onglet 1.', BODY_L),
         callout('La variante remplace l\'activité en cours : exportez d\'abord le scénario (bouton de la fenêtre) '
                 'pour garder les deux versions. Ce qui ne peut pas changer est signalé.', WARN, '⚠'),
         Spacer(1, 4),
@@ -429,7 +449,7 @@ def build_prof(out_path):
     ]
 
     # 4. Workflow
-    story += [Paragraph('4. Workflow complet', H1), hr()]
+    story += [CondPageBreak(70*mm), Paragraph('4. Workflow complet', H1), hr()]
     wf_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
         ['1', 'Ouvrir le Builder',        'Double-cliquez sur scorm-builder.html dans Chrome ou Firefox.'],
         ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP — ou Nouvelle activité pour partir d\'un modèle.'],
@@ -479,7 +499,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.9.2
+#  DOC ELEVE  v1.9.3
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -488,7 +508,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.9.2'
+    doc._subtitle    = 'Guide élève v1.9.3'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
@@ -591,7 +611,12 @@ def build_eleve(out_path):
     story += [
         callout('Pour obtenir une IP automatiquement (si un serveur DHCP est présent sur le réseau) : cochez '
                 '« Obtenir l\'adresse IP automatiquement (DHCP) » dans la fiche du poste, cliquez sur '
-                '<b>Demander une adresse (DHCP)</b>, ou tapez la commande <b>dhcp</b> dans le terminal.', INFO, '■'),
+                '<b>Demander une adresse (DHCP)</b>, ou tapez la commande <b>dhcp</b> dans le terminal. Si vous décochez '
+                'la case, l\'adresse fixe saisie avant revient.', INFO, '■'),
+        Paragraph('<b>Se connecter au WiFi :</b> reliez le portable, le téléphone ou la tablette à la Box WiFi avec '
+                  'l\'outil Câble, puis, dans sa fiche, section « Connexion WiFi », vérifiez le réseau (SSID) et tapez '
+                  'le mot de passe indiqué dans la fiche de la box. Tant qu\'ils ne correspondent pas, la liaison '
+                  'reste en pointillé rouge et l\'appareil ne joint rien.', BODY),
         Spacer(1, 8),
     ]
 
@@ -606,6 +631,7 @@ def build_eleve(out_path):
         Paragraph('• ⭕ <b>Non validé</b> — vérifiez câblage et configuration IP.', BODY_L),
         Paragraph('• 📐 Sous certains objectifs, une <b>contrainte</b> précise ce qui est attendu, par exemple '
                   'une adresse à choisir dans une plage.', BODY_L),
+        Paragraph('• Un <b>indice</b> peut vous mettre sur la piste ; il disparaît une fois l\'objectif validé.', BODY_L),
         callout('Un objectif reste validé tant que le réseau le permet : si vous modifiez ensuite '
                 'un réglage qui le casse, vous perdez ses points (message « Objectif perdu »). '
                 'Votre note est celle du réseau à la fin de l\'activité.', WARN, '⚠'),
@@ -633,7 +659,7 @@ def build_eleve(out_path):
     story.append(Spacer(1, 8))
 
     # 6. Dépannage
-    story += [Paragraph('6. En cas de problème', H1), hr()]
+    story += [CondPageBreak(70*mm), Paragraph('6. En cas de problème', H1), hr()]
     for title, desc in [
         ('Le ping échoue',
          'Lisez la cause affichée sous le ping. <b>Hôte inconnu</b> : aucun appareil n\'a cette adresse. '
@@ -648,7 +674,9 @@ def build_eleve(out_path):
         ('DHCP échoue',
          'Assurez-vous qu\'une Box WiFi ou un Serveur sur le même segment LAN a le service DHCP activé.'),
         ('WiFi non connecté',
-         'Vérifiez que le SSID de la Box WiFi est correct et qu\'une liaison WiFi relie votre appareil.'),
+         'Le message « Non connecté au WiFi » dit pourquoi : <b>mot de passe incorrect</b> (comparez-le avec celui '
+         'de la fiche de la box), <b>SSID inconnu</b> (le nom du réseau choisi dans la fiche de l\'appareil doit être '
+         'celui de la box) ou aucun réseau choisi. Vérifiez aussi qu\'une liaison WiFi relie l\'appareil à la box.'),
         ('L\'objectif ne se valide pas',
          'Relisez l\'intitulé et vérifiez chaque paramètre (IP, masque, passerelle, DNS). '
          'Pour les objectifs de simulation, lancez la commande dans le terminal (ping, nslookup, dhcp) '
