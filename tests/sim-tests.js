@@ -2162,6 +2162,42 @@ test('aucun objectif d\'adressage : plan vide', function() {
   eq(p.cols.length, 0); eq(p.groups.length, 0);
 });
 
+/* ── Nom de l'appareil source : casse et espaces ignorés ── */
+suite('Appareil source d\'une commande — nom sans casse');
+
+test('ping : appareil nommé « b210-p3 » par l\'élève, « B210-P3 » attendu → validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'B210-P3', to:'192.168.1.20'})]);
+  checkDynamicObjective('ping_success',{from:'b210-p3 ', to:'192.168.1.20'});
+  ok(done(1));
+});
+
+test('DNS, HTTP et DHCP : même règle', function() {
+  setupActivity([objective(1,'dns_success',{from:'PC-Alice', domain:'lycee.local'}),
+                 objective(2,'http_success',{from:'PC-Alice', url:'lycee.local'}),
+                 objective(3,'dhcp_success',{from:'PC-Alice'})]);
+  checkDynamicObjective('dns_success',{from:'pc-alice', domain:'lycee.local'});
+  checkDynamicObjective('http_success',{from:' PC-ALICE', url:'lycee.local'});
+  checkDynamicObjective('dhcp_success',{from:'Pc-Alice', ip:'192.168.1.100'});
+  ok(done(1)); ok(done(2)); ok(done(3));
+});
+
+test('autre appareil → toujours refusé', function() {
+  setupActivity([objective(1,'ping_success',{from:'B210-P3'})]);
+  checkDynamicObjective('ping_success',{from:'B210-P30', to:'192.168.1.20'});
+  notOk(done(1));
+});
+
+test('poste ajouté et nommé en minuscules : ping au terminal validé puis revérifié', function() {
+  setupActivity([objective(1,'ping_success',{from:'B210-P3', to:'{Srv-Web}'},100)]);
+  var n = makeLan();
+  var pc = mkPC('192.168.1.33','255.255.255.0','','','b210-p3');
+  link(pc, n.sw);
+  term(pc,'ping 192.168.1.20');
+  ok(done(1));
+  sandbox.checkAllObjectives();
+  ok(done(1), 'toujours valide après revérification');
+});
+
 /* ── SCORM ── */
 suite('SCORM — échanges avec le LMS');
 

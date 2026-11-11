@@ -410,7 +410,8 @@ function pingTargetMatches(to,ip){
 function dynamicEventMatches(obj,type,context){
   var p=obj.params||{};
   if(obj.check!==type)return false;
-  if(p.from&&p.from!==context.from)return false;
+  // Même règle que devByName : le nom de l'appareil ne dépend ni de la casse ni des espaces.
+  if(p.from&&p.from.trim().toLowerCase()!==(context.from||'').trim().toLowerCase())return false;
   if(type==='ping_success')return pingTargetMatches(p.to,context.to);
   if(type==='dns_success')
     // Même règle que simDNS : un nom de domaine ne dépend pas de la casse.

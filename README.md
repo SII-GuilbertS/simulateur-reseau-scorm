@@ -53,7 +53,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **281 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **285 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -68,11 +68,11 @@ Suite de **281 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 281/281 tests passés — SUCCÈS
+# ✅ 285/285 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois
@@ -198,7 +198,8 @@ node tests/sim-tests.js
     ],
     "faults": [
       { "id":1, "type":"bad_gateway", "dev":"PC-Alice", "badValue":"192.168.99.1" }
-    ]
+    ],
+    "evalOrder": ["f:1", "o:1"]
   }
 }
 ```
@@ -261,6 +262,19 @@ Le texte est généré pour `ip_configured`, `gateway_configured` et `device_add
 types, l'enseignant peut en rédiger un. Dans le builder, le bloc « Montrer une contrainte à l'élève »
 de chaque objectif propose le texte généré, qui suit les paramètres tant qu'il n'est pas modifié,
 et un lien pour y revenir.
+
+**Ordre des objectifs et des pannes.** Dans l'onglet 2, objectifs (pastille bleue numérotée) et
+pannes (pastille rouge P1, P2…) forment une seule liste, réordonnable par glisser-déposer (⠿) ou avec
+▲ ▼. L'ordre est enregistré dans `evalOrder` (clés `o:<id>` pour un objectif, `f:<id>` pour une panne) ;
+les objectifs sont présentés à l'élève dans cet ordre. Sans `evalOrder`, les objectifs viennent
+d'abord, puis les pannes. Une panne sans description est désignée par son type et l'appareil visé.
+
+**Postes à ajouter par l'élève.** Dans les listes d'appareils d'un objectif (ping depuis, câble,
+IP…), le builder propose aussi, sous « À ajouter par l'élève », les postes nommés par un objectif
+« Poste ajouté » placé au-dessus dans la liste. Un nom qui n'existe ni dans le réseau ni dans un tel
+objectif reste affiché, marqué « (introuvable) », et l'aperçu de l'objectif le signale. Côté élève, le
+nom d'un appareil est reconnu sans tenir compte de la casse ni des espaces, y compris pour l'appareil
+d'où part un ping, une résolution DNS, une page web ou une demande DHCP.
 
 **Plan d'adressage.** L'énoncé imprimable (onglet 3) contient un tableau construit à partir des
 objectifs d'adressage (`ip_configured`, `gateway_configured`, `dns_configured`, `device_added`) : une

@@ -366,7 +366,7 @@ test.describe('Builder', () => {
     await ipCard.locator('#ipr-e-5-ip').press('Tab');
 
     await page.locator('button[onclick="EvalModule.addObjective()"]').click();
-    const card = page.locator('#ev-obj-list .obj-card').last();
+    const card = page.locator('#ev-list .obj-card[data-objid]').last();
     await expect(card.locator('.obj-card-body')).toHaveClass(/open/);
     const target = card.locator('.bld-row', { hasText: 'Cible du ping' });
     await target.locator('.ipf > select').selectOption('exact');
@@ -435,6 +435,108 @@ test.describe('Builder', () => {
     await expect(sansPlan.locator('h2', { hasText: 'Objectifs' })).toBeVisible();
     await expect(sansPlan.locator('table.plan')).toHaveCount(0);
     await sansPlan.close();
+  });
+
+  test('objectifs et pannes dans une seule liste : ordre libre, conservé à l\'export et chez l\'élève', async ({ page }, info) => {
+    const { activity } = readScenario('reseau-lycee');
+    await openBuilderWith(page, 'reseau-lycee');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const cards = page.locator('#ev-list .obj-card');
+    const keys = () => cards.evaluateAll((els) => els.map((e) => e.dataset.key));
+    await expect(cards).toHaveCount(activity.objectives.length + activity.faults.length);
+    await expect(page.locator('#ev-obj-count')).toHaveText(String(activity.objectives.length));
+    await expect(page.locator('#ev-fault-count')).toHaveText(String(activity.faults.length));
+
+    // Sans ordre enregistré : les objectifs, puis les pannes (pastilles rouges P1, P2…)
+    const p1 = page.locator('[data-fltid="1"]');
+    await expect(p1.locator('.obj-num.fault')).toHaveText('P1');
+    expect((await keys()).indexOf('f:1')).toBe(activity.objectives.length);
+
+    // Flèches : la panne remonte entre deux objectifs
+    await p1.locator('.ev-move button[title="Monter"]').click();
+    await p1.locator('.ev-move button[title="Monter"]').click();
+    expect((await keys()).indexOf('f:1')).toBe(activity.objectives.length - 2);
+
+    // Glisser-déposer : le 2e objectif passe au-dessus du 1er et devient le n° 1
+    const last = activity.objectives[1];
+    await page.locator(`[data-objid="${last.id}"] .ev-handle`)
+      .dragTo(page.locator('[data-objid="1"]'), { targetPosition: { x: 60, y: 4 } });
+    expect((await keys())[0]).toBe(`o:${last.id}`);
+    await expect(page.locator(`[data-objid="${last.id}"] .obj-num`)).toHaveText('1');
+    await page.locator('#ev-list').screenshot({ path: info.outputPath('liste.png') });
+
+    // Ajout : nouvelle panne en fin de liste, ouverte
+    await page.locator('button[onclick="EvalModule.addFault()"]').click();
+    await expect(cards.last().locator('.obj-num.fault')).toHaveText(`P${activity.faults.length + 1}`);
+    await expect(cards.last().locator('.obj-card-body')).toHaveClass(/open/);
+    await cards.last().locator('.obj-card-del').click();
+
+    // Export puis réimport du scénario : même ordre
+    const order = await keys();
+    const file = await exportFile(page, 'scenario', info.outputPath('lycee-ordre.json'));
+    const exported = JSON.parse(fs.readFileSync(file, 'utf8'));
+    expect(exported.activity.evalOrder).toEqual(order);
+    expect(String(exported.activity.objectives[0].id)).toBe(String(last.id));
+    await page.goto(BUILDER_URL);
+    await page.locator('#gen-import-file').setInputFiles(file);
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    expect(await keys()).toEqual(order);
+
+    // L'élève voit les objectifs dans cet ordre
+    const html = await exportFile(page, 'html', info.outputPath('lycee-ordre.html'));
+    await page.goto(pathToFileURL(html).href);
+    await expect(page.locator('.activ-obj').first()).toContainText(last.label);
+  });
+
+  test('ping depuis un poste à ajouter : proposé dans la liste, alerte si placé avant, validé chez l\'élève', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-college');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('button[onclick="EvalModule.addObjective()"]').click();
+    const card = page.locator('#ev-list .obj-card[data-objid]').last();
+    const id = await card.getAttribute('data-objid');
+    await card.locator('.bld-row', { hasText: 'Label' }).locator('input').fill('Ping depuis le nouveau poste');
+    await card.locator('.bld-row', { hasText: 'Label' }).locator('input').press('Tab');
+
+    // Le poste demandé par l'objectif « Poste ajouté » (placé au-dessus) est proposé.
+    const from = card.locator('select[onchange*="param_from"]');
+    await expect(from.locator('optgroup[label="À ajouter par l\'élève"] option')).toHaveText(['B210-P3 (à ajouter par l\'élève)']);
+    await from.selectOption('B210-P3');
+    const target = card.locator('.bld-row', { hasText: 'Cible du ping' });
+    await target.locator('.ipf > select').selectOption('ref');
+    await target.locator('.ipf select').nth(1).selectOption('B210-P1');
+    await expect(card.locator('.obj-preview')).not.toContainText('n\'existe pas');
+
+    // Placé au-dessus du « Poste ajouté » : nom gardé, signalé introuvable, alerte.
+    const up = () => page.locator(`[data-objid="${id}"] .ev-move button[title="Monter"]`).click();
+    const keys = () => page.locator('#ev-list .obj-card').evaluateAll((els) => els.map((e) => e.dataset.key));
+    while ((await keys()).indexOf(`o:${id}`) > (await keys()).indexOf('o:3')) await up();
+    const moved = page.locator(`[data-objid="${id}"]`);
+    await moved.locator('.obj-card-hdr').click();
+    await expect(moved.locator('select[onchange*="param_from"] option:checked')).toHaveText('B210-P3 (introuvable)');
+    await expect(moved.locator('.obj-preview')).toContainText('B210-P3 n\'existe pas dans le réseau');
+
+    // Remis en dessous : plus d'alerte.
+    await moved.locator('.ev-move button[title="Descendre"]').click();
+    await expect(moved.locator('.obj-preview')).not.toContainText('n\'existe pas');
+
+    // Chez l'élève : poste ajouté, nommé en minuscules, configuré, ping réussi.
+    const file = await exportFile(page, 'html', info.outputPath('college-ping.html'));
+    await page.goto(pathToFileURL(file).href);
+    await page.evaluate(() => {
+      const sw = Object.keys(S.devs).find((k) => S.devs[k].name === 'SW-B210');
+      const pc = mkDev('pc', 900, 500);
+      S.devs[pc].name = 'b210-p3';
+      Object.assign(S.devs[pc].ifaces[0], { ip: '10.2.210.3', mask: '255.255.255.0' });
+      addLink(pc, sw);
+      render();
+    });
+    // Côté élève, l'appareil du terminal se choisit dans la liste du terminal.
+    await page.locator('.bt', { hasText: 'Terminal' }).click();
+    await page.locator('#td-sel').selectOption({ label: 'b210-p3' });
+    await page.locator('#tinput').fill('ping 10.2.210.1');
+    await page.locator('#tinput').press('Enter');
+    await page.locator('#btn-activ-tab').click();
+    await expect(page.locator('.activ-obj', { hasText: 'Ping depuis le nouveau poste' })).toHaveClass(/done/);
   });
 
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
