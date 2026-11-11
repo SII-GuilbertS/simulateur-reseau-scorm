@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.6
+#  DOC PROF  v1.7
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.6'
+    doc._subtitle    = 'Documentation v1.7'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -226,6 +226,19 @@ def build_prof(out_path):
             'Ajoutez des <b>objectifs</b> (chacun associé à un type de vérification et un nombre de '
             'points) et des <b>pannes</b> à injecter silencieusement dans le réseau de départ.',
             BODY),
+        Paragraph('• Objectifs (pastille <b>bleue</b> numérotée) et pannes (pastille <b>rouge</b> P1, P2…) '
+                  'forment <b>une seule liste</b>, avec les deux boutons d\'ajout en haut. Réordonnez-la '
+                  'en glissant la poignée à gauche de la carte ou avec les flèches <b>▲ ▼</b> : l\'élève voit les objectifs '
+                  'dans cet ordre. Une panne sans description est désignée par son type et l\'appareil visé.', BODY_L),
+        Paragraph('• Sous chaque objectif, un <b>aperçu</b> indique s\'il est atteint sur le réseau actuel et '
+                  'avertit s\'il l\'est déjà dans le réseau remis à l\'élève (points gagnés sans rien faire).', BODY_L),
+        Paragraph('• <b>Le score suit le réseau</b> : un objectif n\'est acquis que tant que sa condition reste vraie. '
+                  'Si l\'élève casse sa configuration, il perd les points ; un ping, une résolution DNS ou une page '
+                  'web réussis sont revérifiés à chaque modification. La note transmise à Moodle est donc '
+                  'celle du réseau final.', BODY_L),
+        Paragraph('• <b>Postes à ajouter par l\'élève</b> : un objectif « Poste ajouté » nommé rend ce poste '
+                  'disponible dans les listes d\'appareils des objectifs placés en dessous (ping depuis ce poste, '
+                  'câble, adresse…).', BODY_L),
         Paragraph('<b>14 types d\'objectifs disponibles :</b>', H2),
     ]
 
@@ -237,14 +250,14 @@ def build_prof(out_path):
         ['dhcp_success',       'Attribution DHCP',    'Vérifie qu\'un appareil obtient une IP via DHCP.'],
         ['cable_exists',       'Câble existant',      'Vérifie qu\'un câble relie deux appareils nommés.'],
         ['wifi_link',          'Liaison WiFi',        'Vérifie qu\'une liaison WiFi existe.'],
-        ['ip_configured',      'IP configurée',       'Vérifie qu\'un appareil a une IP précise.'],
-        ['gateway_configured', 'Passerelle',          'Vérifie la passerelle d\'un appareil.'],
-        ['dns_configured',     'DNS configuré',       'Vérifie l\'adresse DNS d\'un appareil.'],
+        ['ip_configured',      'IP configurée',       'Vérifie l\'IP d\'un appareil : exacte, dans une plage ou au choix.'],
+        ['gateway_configured', 'Passerelle',          'Vérifie la passerelle : exacte, plage ou routeur du réseau.'],
+        ['dns_configured',     'DNS configuré',       'Vérifie le DNS : adresse exacte ou adresse d\'un serveur.'],
         ['service_active',     'Service actif',       'Vérifie qu\'un service HTTP/DNS/DHCP est activé.'],
-        ['device_added',       'Appareil présent',    'Vérifie qu\'un appareil d\'un type donné est présent.'],
+        ['device_added',       'Poste ajouté',        'Vérifie qu\'un appareil est présent ou a été ajouté, et sa configuration.'],
         ['ssid_configured',    'SSID WiFi',           'Vérifie que la Box WiFi diffuse le bon SSID.'],
         ['route_exists',       'Route existante',     'Vérifie une entrée dans la table de routage.'],
-        ['dns_record',         'Enregistrement DNS',  'Vérifie qu\'un enregistrement DNS pointe vers la bonne IP.'],
+        ['dns_record',         'Enregistrement DNS',  'Vérifie qu\'un nom pointe vers une IP, ou vers l\'adresse d\'un serveur.'],
     ]
     cw = [44*mm, 36*mm, CONTENT_W-80*mm]
     rows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
@@ -254,7 +267,39 @@ def build_prof(out_path):
     story.append(Spacer(1, 10))
 
     story += [
-        Paragraph('2.2.1 Mode panne — Injecter des erreurs', H2),
+        Paragraph('2.2.1 Adresses : niveau d\'exigence', H2),
+        Paragraph(
+            'Devant chaque champ d\'adresse d\'un objectif, un menu fixe ce qui est accepté. '
+            'Pour une construction avec plan d\'adressage, laissez l\'élève choisir dans une plage '
+            'plutôt qu\'imposer une adresse unique.',
+            BODY),
+    ]
+    lvl_rows = [
+        ['Niveau', 'Exemple', 'Accepté'],
+        ['Exacte',            '192.168.1.10',     'Cette adresse seulement.'],
+        ['Plage',             '192.168.1.10-50',  'Une adresse libre de la plage : ni adresse du réseau, ni diffusion, ni déjà prise.'],
+        ['Au choix (*)',      '192.168.1.*',      'Une adresse libre de ce réseau, mêmes règles.'],
+        ['Routeur du réseau', 'passerelle',       'L\'adresse d\'un routeur ou d\'une box du même réseau, joignable.'],
+        ['L\'adresse de…',    'Srv-DNS',          'L\'adresse actuelle de cet appareil (ping, DNS, enregistrement DNS).'],
+        ['Peu importe',       '—',                'Aucune condition sur ce champ.'],
+    ]
+    lw = [36*mm, 34*mm, CONTENT_W-70*mm]
+    story.append(table_obj([[Paragraph(r[0], CELL_B), Paragraph(r[1], MONO if i>0 else CELL_B),
+                             Paragraph(r[2], CELL)] for i, r in enumerate(lvl_rows)], lw))
+    story += [
+        Spacer(1, 6),
+        Paragraph('• Le builder signale un ping, un DNS ou un enregistrement qui vise en dur une adresse '
+                  'laissée au choix de l\'élève : choisissez alors « L\'adresse de… ».', BODY_L),
+        Paragraph('• <b>Contrainte affichée à l\'élève</b> : sous chaque objectif, une phrase générée à partir '
+                  'des paramètres (« PC1 : adresse IP au choix entre 192.168.1.10 et 192.168.1.50 ») apparaît '
+                  'dans l\'activité et dans l\'énoncé. Elle est affichée par défaut pour une plage ou une '
+                  'adresse au choix, masquée pour une valeur exacte, qui donnerait la réponse. Vous pouvez la '
+                  'reformuler ou la compléter : le builder signale si les paramètres changent ensuite.', BODY_L),
+        Spacer(1, 6),
+    ]
+
+    story += [
+        Paragraph('2.2.2 Mode panne — Injecter des erreurs', H2),
         Paragraph(
             'La section <b>Pannes</b> injecte des erreurs silencieuses dans le réseau de départ. '
             'Les élèves doivent les identifier et les corriger pour valider les objectifs.',
@@ -287,7 +332,12 @@ def build_prof(out_path):
                   'Une fois en ligne, il peut être ouvert par un lien ou affiché dans une iframe. '
                   'Dans ce cas, la note n\'est pas transmise à la plateforme : utilisez le package SCORM pour cela.', BODY_L),
         Paragraph('■ <b>Énoncé imprimable</b> — Page HTML avec topologie SVG, liste des objectifs et zone élève '
-                  '(Nom/Classe/Score). Bouton Imprimer intégré, optimisé A4.', BODY_L),
+                  '(Nom/Classe/Score). Bouton Imprimer intégré, optimisé A4. Il contient un <b>plan d\'adressage</b> '
+                  'à compléter, construit à partir des objectifs d\'adressage : une ligne par appareil, regroupée '
+                  'par salle, où chaque case reprend la contrainte de l\'objectif ou reste à remplir. Une case de '
+                  'l\'onglet le retire.', BODY_L),
+        Paragraph('■ <b>Corrigé enseignant</b> — Le même document, plan d\'adressage rempli avec les adresses du '
+                  'réseau du builder, vérifiées avec les règles d\'évaluation. À ne pas distribuer.', BODY_L),
         Paragraph('■ <b>Aperçu élève</b> — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder.', BODY_L),
         Spacer(1, 4),
     ]
@@ -324,7 +374,7 @@ def build_prof(out_path):
         ['1', 'Ouvrir le Builder',        'Double-cliquez sur scorm-builder.html dans Chrome ou Firefox.'],
         ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP.'],
         ['3', 'Configurer l\'évaluation', 'Onglet 2 : objectifs, pannes, score de maîtrise.'],
-        ['4', 'Générer',                  'Onglet 3 : SCORM, HTML ou énoncé imprimable.'],
+        ['4', 'Générer',                  'Onglet 3 : SCORM, HTML, énoncé imprimable et son corrigé.'],
         ['5', 'Tester',                   'Corriger le réseau puis Réinitialiser, ou bouton "Aperçu élève".'],
         ['6', 'Déployer sur Moodle',      'Importez le .zip SCORM dans votre cours.'],
         ['7', 'Sauvegarder le scénario',  'Onglet 3 → Exporter le scénario (.json) pour réutiliser.'],
@@ -368,7 +418,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.6
+#  DOC ELEVE  v1.7
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -377,7 +427,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.6'
+    doc._subtitle    = 'Guide élève v1.7'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
@@ -492,6 +542,14 @@ def build_eleve(out_path):
             BODY),
         Paragraph('• ✅ <b>Objectif validé</b> — condition remplie, points attribués.', BODY_L),
         Paragraph('• ⭕ <b>Non validé</b> — vérifiez câblage et configuration IP.', BODY_L),
+        Paragraph('• 📐 Sous certains objectifs, une <b>contrainte</b> précise ce qui est attendu, par exemple '
+                  'une adresse à choisir dans une plage.', BODY_L),
+        callout('Un objectif reste validé tant que le réseau le permet : si vous modifiez ensuite '
+                'un réglage qui le casse, vous perdez ses points (message « Objectif perdu »). '
+                'Votre note est celle du réseau à la fin de l\'activité.', WARN, '⚠'),
+        Spacer(1, 4),
+        Paragraph('Si votre énoncé contient un <b>plan d\'adressage</b>, complétez-le avant de configurer '
+                  'les appareils : il vous sert de référence pendant la réalisation.', BODY),
         callout('Le score est automatiquement transmis à Moodle à la fermeture de l\'activité.', INFO, '■'),
         Spacer(1, 8),
     ]
