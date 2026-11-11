@@ -172,10 +172,9 @@ CHECKS = [
 
     # ── simPing : chemin internet utilise des IDs ─────────────────────────────
     (
-        "simPing internet : path contient des IDs (pas des noms)",
-        "path:[src.id,_ir.router.id,_ir.inet.id]",
-        "path:[src.name,_ir.router.name,_ir.inet.name],lat:32,internet:true}",
-        "path:[src.id,_ir.router.id,_ir.inet.id],lat:32,internet:true}"
+        "simPing internet : l'acheminement s'arrête à l'appareil Internet",
+        "if(!dstId&&r.type==='internet')return{ok:true,path:path,internet:true};",
+        None, None
     ),
 
     # ── animPath : toujours déclenché sur ping réussi (bug #2 fix) ───────────

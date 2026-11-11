@@ -174,7 +174,7 @@
           "devA": "Internet",
           "devB": "Routeur-Principal"
         },
-        "points": 5,
+        "points": 4,
         "hint": "ping 8.8.8.8 échoue depuis tous les postes ? Regardez les câbles autour du Routeur-Principal"
       },
       {
@@ -240,7 +240,7 @@
           "dev": "Box-WiFi-Eleves",
           "ssid": "WiFi-Lycee"
         },
-        "points": 5,
+        "points": 4,
         "hint": "Propriétés de Box-WiFi-Eleves : comparez le SSID avec celui attendu"
       },
       {
@@ -251,7 +251,7 @@
           "dev": "Box-WiFi-Eleves",
           "service": "dhcp"
         },
-        "points": 5,
+        "points": 4,
         "hint": "La tablette n'obtient pas d'adresse ? Vérifiez les services de la Box"
       },
       {
@@ -262,7 +262,7 @@
           "devA": "Tablette-Eleve",
           "devB": "Box-WiFi-Eleves"
         },
-        "points": 5,
+        "points": 4,
         "hint": "Rétablissez la liaison WiFi entre la Tablette-Eleve et la Box"
       },
       {
@@ -276,6 +276,17 @@
         "hint": "Terminal de la Tablette-Eleve : dhcp"
       },
       {
+        "id": 12,
+        "label": "Le Routeur-Principal connaît le réseau WiFi (192.168.2.0)",
+        "check": "route_exists",
+        "params": {
+          "dev": "Routeur-Principal",
+          "dest": "192.168.2.0"
+        },
+        "points": 4,
+        "hint": "Table de routage du Routeur-Principal (route) : la route vers 192.168.2.0 passe par la Box. Vérifiez l'adresse de la Box côté réseau local"
+      },
+      {
         "id": 11,
         "label": "Test : la Tablette-Eleve ouvre l'intranet lycee.local",
         "check": "http_success",
@@ -287,15 +298,15 @@
         "hint": "Onglet Navigateur : choisissez la Tablette-Eleve et entrez lycee.local"
       },
       {
-        "id": 12,
-        "label": "Le Routeur-Principal connaît le réseau WiFi (192.168.2.0)",
-        "check": "route_exists",
+        "id": 21,
+        "label": "Test : PC-Salle1 joint la Tablette-Eleve (ping)",
+        "check": "ping_success",
         "params": {
-          "dev": "Routeur-Principal",
-          "dest": "192.168.2.0"
+          "from": "PC-Salle1",
+          "to": "{Tablette-Eleve}"
         },
         "points": 5,
-        "hint": "Table de routage du Routeur-Principal (route) : la route vers 192.168.2.0 passe par la Box, vérifiez l'adresse de la Box côté réseau local"
+        "hint": "Terminal de PC-Salle1 : ping vers l'adresse que la tablette a reçue (ipconfig sur la tablette)"
       },
       {
         "id": 13,
@@ -451,9 +462,10 @@
       "f:5",
       "o:9",
       "o:10",
-      "o:11",
       "f:7",
       "o:12",
+      "o:11",
+      "o:21",
       "o:13",
       "o:14",
       "o:15",

@@ -53,12 +53,12 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **293 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **306 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
 - Simulation applicative : `simPing` (LAN, WiFi, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
-- Routage : `getRoutingTable`, `autoRoute` (RIP simplifié)
+- Routage : `getRoutingTable`, `autoRoute` (RIP propagé, route par défaut), acheminement par les tables, route la plus précise, retour des réponses, boucles, adresses inconnues privées ou publiques
 - Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker, références `{Appareil}`, passerelle cohérente), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
 - Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
 - Commandes élève : terminal et navigateur jusqu'à la validation des objectifs
@@ -68,7 +68,7 @@ Suite de **293 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 293/293 tests passés — SUCCÈS
+# ✅ 306/306 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
@@ -119,7 +119,7 @@ Objectifs couverts : `ping_success`, `service_active`, `dns_success`, `http_succ
 Topologie : Routeur-Principal, 2 Switches, PC-Salle1, PC-Salle2, Box-WiFi-Élèves (DHCP WiFi), Tablette-Élève, Serveur-DNS, Serveur-Web.
 Pannes (7) : câble Internet débranché, SSID incorrect, DHCP de la Box arrêté, liaison WiFi de la tablette coupée, IP incorrecte sur PC-Salle2, adresse de la Box erronée (le routeur perd la route vers le réseau WiFi), service HTTP du Serveur-Web arrêté.
 Construction : l'élève ajoute PC-Salle3 (adresse libre entre `.20` et `.49`, passerelle du routeur, DNS du Serveur-DNS) et l'enregistrement `pc-salle3.lycee.local`.
-20 objectifs de 5 points — 100 points — seuil 65 %. Chaque réparation est suivie de son test, sauf le SSID et la route : le simulateur ne tient pas encore compte du SSID, et son ping n'utilise pas les tables de routage.
+21 objectifs — 100 points — seuil 65 %. Chaque réparation est suivie de son test, sauf le SSID, dont le simulateur ne tient pas encore compte. La route rétablie se prouve par un ping de PC-Salle1 vers la tablette : tant que la Box est mal adressée, le routeur n'a pas de route vers le réseau WiFi.
 
 Objectifs couverts : **tous les 14 types** (`cable_exists`, `ssid_configured`, `service_active`, `wifi_link`, `dhcp_success`, `ip_configured`, `route_exists`, `http_success`, `device_added`, `gateway_configured`, `dns_configured`, `ping_success`, `dns_record`, `dns_success`).
 
@@ -293,6 +293,24 @@ retire le plan de l'énoncé.
 
 Le bouton **Corrigé enseignant** produit le même document, rempli avec les adresses du réseau actuel
 du builder, vérifiées avec les règles d'évaluation ; une case sans solution valide l'indique.
+
+**Acheminement d'un ping.** Le ping (et donc DNS et HTTP) suit les tables de routage, à l'aller puis au
+retour :
+
+- même réseau : livraison directe par les câbles et les switchs, ou par le pont WiFi d'une même box ;
+- sinon, passerelle de l'appareil, puis à chaque routeur la route **la plus précise** de sa table, et
+  à défaut la route par défaut (`0.0.0.0/0`) ;
+- la réponse doit revenir par le même mécanisme, sauf depuis Internet : le routeur d'accès traduit
+  les adresses (NAT) ;
+- une adresse privée (10.x, 172.16–31.x, 192.168.x), ou d'un réseau du schéma, que personne ne porte
+  est inconnue ; une adresse publique inconnue est sur Internet, joignable seulement par une route ;
+- le message d'échec nomme le routeur en cause (« Pas de route vers 192.168.2.100 sur
+  Routeur-Principal… », « la réponse ne revient pas… », boucle de routage).
+
+Les routes RIP sont recalculées (à l'ouverture de l'activité, à l'import dans le builder, à chaque
+modification d'un routeur) et se propagent de proche en proche ; l'appareil Internet annonce la route
+par défaut et n'apprend aucun réseau du schéma. Un routeur dont le routage automatique est décoché
+n'apprend rien : sans éditeur de routes, il ne communique qu'avec ses réseaux directs.
 
 **Le score suit le réseau.** Un objectif n'est acquis que tant que sa condition reste vraie : si
 l'élève casse sa configuration, il perd les points, et le score affiché est la note transmise au

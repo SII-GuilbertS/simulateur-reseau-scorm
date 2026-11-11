@@ -355,7 +355,7 @@ def build_prof(out_path):
         ['scenarios/reseau-maison.json',    'Réseau Maison — Panne WiFi',           '4e / 3e',       '7 / 60%'],
         ['scenarios/reseau-college.json',   'Réseau du collège — Adressage par salle', 'Collège',    '8 / 60%'],
         ['scenarios/reseau-entreprise.json','Réseau Entreprise — Serveur en panne', 'Term. / BTS',   '7 / 60%'],
-        ['scenarios/reseau-lycee.json',     'Réseau Lycée — Diagnostic complet',    'NSI / BTS SIO', '20 / 65%'],
+        ['scenarios/reseau-lycee.json',     'Réseau Lycée — Diagnostic complet',    'NSI / BTS SIO', '21 / 65%'],
     ]
     sw = [58*mm, 52*mm, 24*mm, CONTENT_W-134*mm]
     srows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),

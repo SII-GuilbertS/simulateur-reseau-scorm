@@ -914,74 +914,121 @@ function animPath(devIdPath){
 ───────────────────────────────────────────────────── */
 function isRouter(d){return d&&(d.type==='router'||d.type==='internet'||d.type==='wifi_router');}
 
+/* ── Acheminement d'un ping ──
+   Aller puis retour : chaque routeur suit sa table de routage (route la plus précise, puis route
+   par défaut). Les réponses venant d'Internet reviennent toujours : le routeur d'accès traduit
+   les adresses (NAT). Une adresse privée, ou d'un réseau du schéma, que personne ne porte est
+   inconnue ; une adresse publique inconnue est sur Internet. */
+var PING_MAX_HOPS=16;
+function isPrivateIP(ip){
+  var a=ip2n(ip);if(a<0)return false;
+  return (a>>>24)===10||(a>>>20)===0xAC1||(a>>>16)===0xC0A8;
+}
+/* L'adresse appartient-elle à un réseau du schéma (hors Internet) ? */
+function inLocalNetwork(ip){
+  return Object.values(S.devs).some(function(d){
+    if(d.type==='internet')return false;
+    return (d.ifaces||[]).some(function(f){return f.ip&&vMask(f.mask)&&sameNet(f.ip,f.mask,ip);});
+  });
+}
+/* Livraison sur un même réseau : câbles (via les switchs) ou pont WiFi d'une même box. */
+function l2Reach(fromId,toId){
+  if(lanSeg(fromId).indexOf(toId)!==-1)return{ok:true,path:[fromId,toId]};
+  var sharedWifi=null;
+  Object.values(S.links).forEach(function(la){
+    if(la.type!=='wifi'||sharedWifi)return;
+    var rId=(la.from===fromId)?la.to:(la.to===fromId?la.from:null);
+    if(!rId)return;
+    var rd=S.devs[rId];if(!rd||rd.type!=='wifi_router')return;
+    Object.values(S.links).forEach(function(lb){
+      if(lb.type!=='wifi')return;
+      if((lb.from===rId&&lb.to===toId)||(lb.to===rId&&lb.from===toId))sharedWifi=rId;
+    });
+  });
+  if(sharedWifi)return{ok:true,path:[fromId,sharedWifi,toId],wifi:true};
+  return{ok:false};
+}
+/* Route la plus précise de la table du routeur pour cette destination. */
+function bestRoute(r,destIP){
+  var d=ip2n(destIP),best=null,bestMask=-1;
+  getRoutingTable(r.id).forEach(function(rt){
+    var m=ip2n(rt.mask),n=ip2n(rt.dest);
+    if(m<0||n<0||((d&m)>>>0)!==((n&m)>>>0))return;
+    if(m>bestMask){best=rt;bestMask=m;}
+  });
+  return best;
+}
+/* Achemine un paquet de fromId vers destIP : appareil dstId, ou Internet si dstId est nul. */
+function routePacket(fromId,destIP,dstId){
+  var from=S.devs[fromId],path=[fromId],r,l2;
+  if(!isRouter(from)){
+    var si=mainIface(from);
+    if(dstId&&sameNet(si.ip,si.mask,destIP)){
+      l2=l2Reach(fromId,dstId);
+      if(l2.ok)return{ok:true,path:l2.path,wifi:l2.wifi};
+      return{ok:false,reason:'Même sous-réseau mais appareils non reliés physiquement'};
+    }
+    var gw=(si.gateway||'').trim();
+    if(!gw)return{ok:false,reason:'Aucune passerelle configurée sur '+from.name+' (champ Gateway)'};
+    if(!sameNet(si.ip,si.mask,gw))
+      return{ok:false,reason:'La passerelle '+gw+' n\'est pas dans le sous-réseau de '+from.name};
+    r=devByIP(gw);
+    if(!r)return{ok:false,reason:'Passerelle '+gw+' introuvable'};
+    if(!isRouter(r))return{ok:false,reason:gw+' n\'est pas un routeur'};
+    if(!l2Reach(fromId,r.id).ok)return{ok:false,reason:'Pas de liaison physique vers le routeur '+r.name};
+    path.push(r.id);
+  } else r=from;
+  var seen={};
+  for(var hop=0;hop<PING_MAX_HOPS;hop++){
+    if(seen[r.id])return{ok:false,reason:'Boucle de routage : le paquet repasse par '+r.name};
+    seen[r.id]=true;
+    if(dstId===r.id)return{ok:true,path:path};
+    if(!dstId&&r.type==='internet')return{ok:true,path:path,internet:true};
+    if(r.type==='internet'&&isPrivateIP(destIP)){
+      var last=path.length>1?S.devs[path[path.length-2]]:null;
+      return{ok:false,reason:'Pas de route vers '+destIP+(last?' sur '+last.name:'')+
+        ' : le paquet part vers Internet par la route par défaut, et Internet n\'achemine pas les adresses privées'};
+    }
+    var rt=bestRoute(r,destIP);
+    if(!rt)return{ok:false,reason:'Pas de route vers '+destIP+' dans la table de '+r.name};
+    if(!rt.gw){
+      if(!dstId)return{ok:false,reason:'Hôte '+destIP+' inconnu sur le réseau de '+r.name};
+      l2=l2Reach(r.id,dstId);
+      if(!l2.ok)return{ok:false,reason:S.devs[dstId].name+' n\'est pas relié physiquement à '+r.name};
+      return{ok:true,path:path.concat(l2.path.slice(1)),wifi:l2.wifi};
+    }
+    var nh=devByIP(rt.gw);
+    if(!nh||!isRouter(nh))return{ok:false,reason:'Le routeur suivant '+rt.gw+' (table de '+r.name+') est introuvable'};
+    if(!l2Reach(r.id,nh.id).ok)return{ok:false,reason:r.name+' n\'est pas relié physiquement au routeur suivant '+nh.name};
+    path.push(nh.id);r=nh;
+  }
+  return{ok:false,reason:'Trop de routeurs traversés (plus de '+PING_MAX_HOPS+')'};
+}
+
 function simPing(srcId,destIP){
   var src=S.devs[srcId];if(!src)return{ok:false,reason:'Appareil introuvable'};
   if(src.type==='switch')return{ok:false,reason:'Un switch n\'a pas d\'adresse IP'};
   var si=mainIface(src);
-  if(!si||!si.ip)return{ok:false,reason:'Adresse IP non configurée sur '+src.name};
-  destIP=destIP.trim();
-  if(si.ip.trim()===destIP)return{ok:true,path:[src.id],lat:0};
+  if(!isRouter(src)&&(!si||!si.ip))return{ok:false,reason:'Adresse IP non configurée sur '+src.name};
+  destIP=(destIP||'').trim();
+  if(devHasIP(src,destIP))return{ok:true,path:[src.id],lat:0};
   var dst=devByIP(destIP);
   if(!dst){
-    var _ir=routesToInternet(srcId);
-    if(_ir)return{ok:true,path:[src.id,_ir.router.id,_ir.inet.id],lat:32,internet:true};
-    return{ok:false,reason:'Hôte '+destIP+' inconnu (aucun appareil n\'a cette IP)'};
+    if(isPrivateIP(destIP)||inLocalNetwork(destIP))
+      return{ok:false,reason:'Hôte '+destIP+' inconnu (aucun appareil n\'a cette IP)'};
+    if(!findInternetDev())return{ok:false,reason:'Hôte '+destIP+' inconnu : ce réseau n\'a pas d\'accès à Internet'};
   }
-  // Même réseau direct
-  if(sameNet(si.ip,si.mask,destIP)){
-    var seg=lanSeg(srcId);
-    if(seg.indexOf(dst.id)!==-1)return{ok:true,path:[src.id,dst.id],lat:1};
-    // Pont WiFi : src et dst reliés au même wifi_router via WiFi
-    var sharedWifi=null;
-    Object.values(S.links).forEach(function(la){
-      if(la.type!=='wifi'||sharedWifi)return;
-      var rId=(la.from===srcId)?la.to:(la.to===srcId?la.from:null);
-      if(!rId)return;
-      var rd=S.devs[rId];if(!rd||rd.type!=='wifi_router')return;
-      Object.values(S.links).forEach(function(lb){
-        if(lb.type!=='wifi')return;
-        if((lb.from===rId&&lb.to===dst.id)||(lb.to===rId&&lb.from===dst.id))sharedWifi=rId;
-      });
-    });
-    if(sharedWifi)return{ok:true,path:[src.id,sharedWifi,dst.id],lat:1,wifi:true};
-    return{ok:false,reason:'Même sous-réseau mais appareils non reliés physiquement'};
+  var go=routePacket(srcId,destIP,dst?dst.id:null);
+  if(!go.ok)return go;
+  var viaInternet=go.internet||go.path.some(function(id){return S.devs[id]&&S.devs[id].type==='internet';});
+  // Retour vers la source (sauf depuis Internet, grâce au NAT, ou depuis un routeur)
+  if(dst&&!viaInternet&&!isRouter(src)){
+    var back=routePacket(dst.id,si.ip.trim(),srcId);
+    if(!back.ok)return{ok:false,reason:'Le paquet arrive à '+dst.name+', mais la réponse ne revient pas : '+back.reason};
   }
-  // Via passerelle
-  var gw=(si.gateway||'').trim();
-  if(!gw)return{ok:false,reason:'Aucune passerelle configurée sur '+src.name+' (champ Gateway)'};
-  if(!sameNet(si.ip,si.mask,gw))
-    return{ok:false,reason:'La passerelle '+gw+' n\'est pas dans le sous-réseau de '+src.name};
-  var gwDev=devByIP(gw);
-  if(!gwDev)return{ok:false,reason:'Passerelle '+gw+' introuvable'};
-  if(!isRouter(gwDev))return{ok:false,reason:gw+' n\'est pas un routeur'};
-  var srcSeg=lanSeg(srcId);
-  if(srcSeg.indexOf(gwDev.id)===-1)return{ok:false,reason:'Pas de liaison physique vers le routeur '+gwDev.name};
-  // Vérifier que le routeur peut atteindre destIP via l'une de ses interfaces
-  var found=false,rpath=null;
-  gwDev.ifaces.forEach(function(ri){
-    if(!ri.ip||found)return;
-    if(sameNet(ri.ip,ri.mask,destIP)){
-      var rSeg=lanSeg(gwDev.id);
-      if(rSeg.indexOf(dst.id)!==-1){found=true;rpath=[src.id,gwDev.id,dst.id];}
-    }
-  });
-  if(found)return{ok:true,path:rpath,lat:2,router:true};
-  // Multi-hop : BFS sur les routeurs physiquement voisins (routage RIP implicite)
-  var _q=[{r:gwDev,p:[src.id,gwDev.id]}],_vis=new Set([gwDev.id]),_mfound=false,_mpath=null;
-  for(var _qi=0;_qi<_q.length&&_qi<10&&!_mfound;_qi++){
-    var _cur=_q[_qi],_cr=_cur.r;
-    lanSeg(_cr.id).forEach(function(nid){
-      if(_mfound||_vis.has(nid))return;
-      var nd=S.devs[nid];if(!nd||!isRouter(nd))return;
-      _vis.add(nid);
-      var _hf=false;
-      nd.ifaces.forEach(function(ri){if(!ri.ip||_hf)return;if(sameNet(ri.ip,ri.mask,destIP)&&lanSeg(nd.id).indexOf(dst.id)!==-1)_hf=true;});
-      if(_hf){_mfound=true;_mpath=_cur.p.concat([nd.id,dst.id]);}
-      else _q.push({r:nd,p:_cur.p.concat([nd.id])});
-    });
-  }
-  if(_mfound)return{ok:true,path:_mpath,lat:_mpath.length-1,router:true};
-  return{ok:false,reason:'Pas de route vers '+destIP+' depuis '+gwDev.name+'. Vérifiez les interfaces des routeurs intermédiaires.'};
+  var routed=go.path.slice(1,-1).some(function(id){return isRouter(S.devs[id])&&!(go.wifi&&go.path.length===3);});
+  return{ok:true,path:go.path,lat:go.internet?32:(go.wifi?1:go.path.length-1),
+    router:routed||undefined,wifi:go.wifi||undefined,internet:go.internet||undefined};
 }
 
 function simDNS(srcId,domain){
@@ -1781,32 +1828,47 @@ function doRoute(devId){
 ───────────────────────────────────────────────────── */
 /* Calcule les routes sans rien afficher ; renvoie le nombre de routes ajoutées.
    onlyAuto : laisse de côté les routeurs dont le routage automatique est décoché. */
+/* RIP : chaque routeur apprend, de proche en proche, les réseaux connus de ses voisins (routeurs
+   qui partagent un de ses réseaux), jusqu'à ce que plus rien ne change. L'appareil Internet
+   annonce en plus la route par défaut (0.0.0.0/0). Les routes RIP sont recalculées à chaque
+   fois : elles suivent la configuration actuelle. onlyAuto : seulement les routeurs dont le
+   routage automatique est activé ; les autres gardent leurs routes. */
 function computeRoutes(onlyAuto){
   var routers=Object.values(S.devs).filter(function(d){return isRouter(d);});
+  // L'appareil Internet représente le réseau public : il n'apprend pas les réseaux du schéma.
+  var learners=routers.filter(function(r){return r.type!=='internet'&&!(onlyAuto&&r.autoRouteEnabled===false);});
   routers.forEach(function(r){r.staticRoutes=r.staticRoutes||[];});
-  var added=0;
-  routers.forEach(function(r1){
-    if(onlyAuto&&r1.autoRouteEnabled===false)return;
-    r1.ifaces.forEach(function(fi1){
-      if(!fi1.ip||!fi1.mask)return;
-      routers.forEach(function(r2){
-        if(r1.id===r2.id)return;
-        r2.ifaces.forEach(function(fi2){
-          if(!fi2.ip||!fi2.mask)return;
-          if(!sameNet(fi1.ip,fi1.mask,fi2.ip))return;
-          // r1 et r2 sont voisins via fi1/fi2 — partager les réseaux de r2 vers r1
-          r2.ifaces.forEach(function(fi2b){
-            if(!fi2b.ip||!fi2b.mask)return;
-            var net2b=netAddr(fi2b.ip,fi2b.mask);
-            var net1=netAddr(fi1.ip,fi1.mask);
-            if(net2b===net1)return;
-            var existing=r1.staticRoutes.find(function(sr){return sr.dest===net2b&&sr.mask===fi2b.mask;});
-            if(!existing){r1.staticRoutes.push({dest:net2b,mask:fi2b.mask,gw:fi2.ip,iface:fi1.name,type:'rip'});added++;}
+  learners.forEach(function(r){r.staticRoutes=r.staticRoutes.filter(function(sr){return sr.type!=='rip';});});
+  function announced(r){
+    var nets=[];
+    r.ifaces.forEach(function(f){if(f.ip&&vMask(f.mask))nets.push({dest:netAddr(f.ip,f.mask),mask:f.mask});});
+    r.staticRoutes.forEach(function(sr){nets.push({dest:sr.dest,mask:sr.mask});});
+    if(r.type==='internet')nets.push({dest:'0.0.0.0',mask:'0.0.0.0'});
+    return nets;
+  }
+  var added=0,changed=true;
+  for(var round=0;changed&&round<20;round++){
+    changed=false;
+    learners.forEach(function(r1){
+      r1.ifaces.forEach(function(fi1){
+        if(!fi1.ip||!vMask(fi1.mask))return;
+        routers.forEach(function(r2){
+          if(r1.id===r2.id)return;
+          r2.ifaces.forEach(function(fi2){
+            if(!fi2.ip||!vMask(fi2.mask)||!sameNet(fi1.ip,fi1.mask,fi2.ip))return;
+            // r1 et r2 sont voisins via fi1/fi2 : r1 apprend ce que r2 annonce
+            announced(r2).forEach(function(n){
+              var own=r1.ifaces.some(function(f){return f.ip&&vMask(f.mask)&&netAddr(f.ip,f.mask)===n.dest&&f.mask===n.mask;});
+              if(own)return;
+              if(r1.staticRoutes.some(function(sr){return sr.dest===n.dest&&sr.mask===n.mask;}))return;
+              r1.staticRoutes.push({dest:n.dest,mask:n.mask,gw:fi2.ip,iface:fi1.name,type:'rip'});
+              added++;changed=true;
+            });
           });
         });
       });
     });
-  });
+  }
   return added;
 }
 

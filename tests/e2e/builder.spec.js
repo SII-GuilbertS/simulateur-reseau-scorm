@@ -274,15 +274,15 @@ test.describe('Builder', () => {
   });
 
   /* Variantes de reseau-lycee où l'élève réussirait sans rien faire (seuil abaissé à 20).
-     Sans panne, les objectifs statiques déjà vrais valent 35 points (7 × 5), dont 5 pour la route
-     de Routeur-Principal ; la panne mineure (service HTTP arrêté) en retire 5. Ces scores exigent
+     Sans panne, les objectifs statiques déjà vrais valent 30 points, dont 4 pour la route de
+     Routeur-Principal ; la panne mineure (service HTTP arrêté) en retire 5. Ces scores exigent
      donc les pannes, les routes et le respect de la case « routage automatique ». */
   const MINOR_FAULT = { id: 1, type: 'service_down', dev: 'Serveur-Web', service: 'http' };
   const TOO_EASY = [
-    { label: 'sans panne', faults: [], score: 35 },
-    { label: 'avec une panne mineure', faults: [MINOR_FAULT], score: 30 },
-    { label: 'routage automatique décoché, sans panne', faults: [], manualRouter: true, score: 30 },
-    { label: 'routage automatique décoché, avec panne', faults: [MINOR_FAULT], manualRouter: true, score: 25 },
+    { label: 'sans panne', faults: [], score: 30 },
+    { label: 'avec une panne mineure', faults: [MINOR_FAULT], score: 25 },
+    { label: 'routage automatique décoché, sans panne', faults: [], manualRouter: true, score: 26 },
+    { label: 'routage automatique décoché, avec panne', faults: [MINOR_FAULT], manualRouter: true, score: 21 },
   ];
 
   for (const { label, faults, manualRouter, score } of TOO_EASY) {
@@ -592,8 +592,8 @@ test.describe('Builder', () => {
 
     await page.goto(BUILDER_URL);
     await page.locator('#gen-import-file').setInputFiles(file);
-    // Objectifs statiques déjà vrais dans le réseau du builder, hors route : le builder ne
-    // recalcule pas les routes à l'import (le score de départ de l'élève, lui, le fait).
+    // Objectifs statiques déjà vrais dans le réseau du builder, route comprise : comme à
+    // l'ouverture de l'activité élève, les routes sont recalculées à l'import.
     await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
   });
 });

@@ -26,7 +26,7 @@
 
 ## 🛠️ Expérience enseignant (builder)
 
-- [ ] **Éditeur de table de routage manuel** — désactiver `autoRoute` pour certains appareils et laisser l'élève saisir les routes statiques lui-même. Objectif pédagogique : `route_exists` déjà disponible.
+- [ ] **Éditeur de table de routage manuel** — désactiver `autoRoute` pour certains appareils et laisser l'élève saisir les routes statiques lui-même. Objectif pédagogique : `route_exists` déjà disponible. Depuis que le ping suit les tables de routage (aller et retour), un routeur au routage automatique décoché ne communique qu'avec ses réseaux directs : cet éditeur est le seul moyen de le réparer.
 
 - [ ] **Aperçu "vue élève" en temps réel** — split-screen dans le builder : le canevas à gauche, le rendu élève (simplifié) à droite, mis à jour en direct.
 

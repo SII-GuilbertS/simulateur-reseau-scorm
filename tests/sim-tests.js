@@ -520,15 +520,173 @@ test('ping destination inconnue → échec', function() {
   notOk(simPing(pc, '10.99.99.99').ok);
 });
 
-test('ping multi-hop (2 routeurs) → ok', function() {
+test('ping multi-hop (2 routeurs), routes RIP calculées → ok', function() {
   resetNet();
   var pc1 = mkPC('10.0.1.10','255.255.255.0','10.0.1.1');
   var r1  = mkRouter('10.0.1.1','255.255.255.0','10.0.12.1','255.255.255.0');
   var r2  = mkRouter('10.0.12.2','255.255.255.0','10.0.2.1','255.255.255.0');
   var pc2 = mkPC('10.0.2.10','255.255.255.0','10.0.2.1');
   link(pc1,r1); link(r1,r2); link(r2,pc2);
+  sandbox.autoRoute();
   var res = simPing(pc1, '10.0.2.10');
   ok(res.ok); ok(res.router);
+});
+
+/* ── Acheminement par les tables de routage ── */
+suite('Acheminement — tables de routage, retour, adresses inconnues');
+
+/* pc1 (10.0.1.0/24) — R1 — 10.0.12.0/24 — R2 — pc2 (10.0.2.0/24) */
+function twoRouters() {
+  var pc1 = mkPC('10.0.1.10','255.255.255.0','10.0.1.1');
+  var r1  = mkRouter('10.0.1.1','255.255.255.0','10.0.12.1','255.255.255.0');
+  var r2  = mkRouter('10.0.12.2','255.255.255.0','10.0.2.1','255.255.255.0');
+  var pc2 = mkPC('10.0.2.10','255.255.255.0','10.0.2.1');
+  link(pc1,r1); link(r1,r2); link(r2,pc2);
+  return { pc1:pc1, r1:r1, r2:r2, pc2:pc2 };
+}
+/* Internet — R (WAN 203.0.113.0/24) — LAN 192.168.1.0/24 */
+function withInternet() {
+  var inet = mkInternet();
+  S.devs[inet].ifaces = [{name:'eth0', ip:'203.0.113.1', mask:'255.255.255.0'},
+                         {name:'eth1', ip:'8.8.8.8', mask:'255.0.0.0'}];
+  var r  = mkRouter('203.0.113.2','255.255.255.0','192.168.1.1','255.255.255.0');
+  var pc = mkPC('192.168.1.10','255.255.255.0','192.168.1.1');
+  link(inet, r); link(r, pc);
+  return { inet:inet, r:r, pc:pc };
+}
+
+test('deux routeurs sans routes calculées → échec « pas de route »', function() {
+  resetNet();
+  var n = twoRouters();
+  var res = simPing(n.pc1, '10.0.2.10');
+  notOk(res.ok);
+  ok(res.reason.indexOf('Pas de route') >= 0, res.reason);
+});
+
+test('chaîne de trois routeurs : RIP propage les réseaux de proche en proche', function() {
+  resetNet();
+  var n = twoRouters();
+  var r3  = mkRouter('10.0.2.254','255.255.255.0','10.0.3.1','255.255.255.0');
+  var pc3 = mkPC('10.0.3.10','255.255.255.0','10.0.3.1');
+  S.devs[n.pc2].ifaces[0].gateway = '10.0.2.1';
+  var sw = mkSwitch(); delete S.links[Object.keys(S.links).find(function(k){ var l = S.links[k]; return l.from === n.r2 && l.to === n.pc2; })];
+  link(n.r2, sw); link(n.pc2, sw); link(r3, sw); link(r3, pc3);
+  sandbox.autoRoute();
+  var dests = getRoutingTable(n.r1).map(function(r){ return r.dest; });
+  ok(dests.indexOf('10.0.3.0') >= 0, 'R1 apprend le réseau de R3 via R2');
+  var res = simPing(n.pc1, '10.0.3.10');
+  ok(res.ok, res.reason);
+  eq(res.path.join(','), [n.pc1, n.r1, n.r2, r3, pc3].join(','), 'traceroute : le chemin suit les routeurs');
+});
+
+test('route la plus précise préférée à une route plus large', function() {
+  resetNet();
+  var n = twoRouters();
+  // R1 : 10.0.0.0/8 vers un routeur inexistant, 10.0.2.0/24 vers R2
+  S.devs[n.r1].staticRoutes = [
+    {dest:'10.0.0.0', mask:'255.0.0.0', gw:'10.0.12.99', iface:'eth1', type:'static'},
+    {dest:'10.0.2.0', mask:'255.255.255.0', gw:'10.0.12.2', iface:'eth1', type:'static'}];
+  S.devs[n.r2].staticRoutes = [{dest:'10.0.1.0', mask:'255.255.255.0', gw:'10.0.12.1', iface:'eth0', type:'static'}];
+  ok(simPing(n.pc1, '10.0.2.10').ok);
+});
+
+test('l\'aller arrive mais le retour échoue → échec expliqué', function() {
+  resetNet();
+  var n = twoRouters();
+  S.devs[n.r1].staticRoutes = [{dest:'10.0.2.0', mask:'255.255.255.0', gw:'10.0.12.2', iface:'eth1', type:'static'}];
+  var res = simPing(n.pc1, '10.0.2.10');
+  notOk(res.ok);
+  ok(res.reason.indexOf('la réponse ne revient pas') >= 0, res.reason);
+});
+
+test('boucle de routage détectée', function() {
+  resetNet();
+  var n = twoRouters();
+  S.devs[n.r1].staticRoutes = [{dest:'10.0.9.0', mask:'255.255.255.0', gw:'10.0.12.2', iface:'eth1', type:'static'}];
+  S.devs[n.r2].staticRoutes = [{dest:'10.0.9.0', mask:'255.255.255.0', gw:'10.0.12.1', iface:'eth0', type:'static'}];
+  var pc9 = mkPC('10.0.9.10');
+  var res = simPing(n.pc1, '10.0.9.10');
+  notOk(res.ok);
+  ok(res.reason.indexOf('Boucle') >= 0, res.reason);
+});
+
+test('routage automatique décoché : le routeur n\'apprend rien', function() {
+  resetNet();
+  var n = twoRouters();
+  S.devs[n.r1].autoRouteEnabled = false;
+  sandbox.computeRoutes(true);
+  notOk(simPing(n.pc1, '10.0.2.10').ok);
+  S.devs[n.r1].autoRouteEnabled = true;
+  sandbox.computeRoutes(true);
+  ok(simPing(n.pc1, '10.0.2.10').ok);
+});
+
+test('routes RIP recalculées : une route devenue fausse disparaît', function() {
+  resetNet();
+  var n = twoRouters();
+  sandbox.autoRoute();
+  ok(simPing(n.pc1, '10.0.2.10').ok);
+  S.devs[n.r2].ifaces[0].ip = '10.0.99.2';     // R2 n'est plus sur le réseau de transit
+  sandbox.autoRoute();
+  notOk(getRoutingTable(n.r1).some(function(r){ return r.dest === '10.0.2.0'; }));
+  notOk(simPing(n.pc1, '10.0.2.10').ok);
+});
+
+test('route par défaut : une adresse publique quelconque est joignable via Internet', function() {
+  resetNet();
+  var n = withInternet();
+  sandbox.autoRoute();
+  ok(getRoutingTable(n.r).some(function(r){ return r.dest === '0.0.0.0' && r.mask === '0.0.0.0'; }), 'route par défaut apprise');
+  var res = simPing(n.pc, '1.1.1.1');
+  ok(res.ok, res.reason); ok(res.internet);
+  ok(simPing(n.pc, '8.8.8.8').ok, 'adresse de l\'appareil Internet');
+});
+
+test('réponse depuis Internet : pas de route retour nécessaire (NAT)', function() {
+  resetNet();
+  var n = withInternet();
+  sandbox.autoRoute();
+  S.devs[n.inet].staticRoutes = [];   // Internet ne connaît pas le réseau privé
+  ok(simPing(n.pc, '8.8.8.8').ok);
+});
+
+test('réseau privé absent de la table : la route par défaut l\'envoie vers Internet, qui le refuse', function() {
+  resetNet();
+  var n = withInternet();
+  var r2 = mkRouter('192.168.1.2','255.255.255.0','192.168.5.1','255.255.255.0');
+  var far = mkPC('192.168.5.10','255.255.255.0','192.168.5.1');
+  link(r2, n.pc); link(r2, far);
+  S.devs[r2].autoRouteEnabled = false;
+  sandbox.computeRoutes(true);
+  S.devs[n.r].staticRoutes = S.devs[n.r].staticRoutes.filter(function(r){ return r.dest !== '192.168.5.0'; });
+  var res = simPing(n.pc, '192.168.5.10');
+  notOk(res.ok);
+  ok(res.reason.indexOf('Internet n\'achemine pas les adresses privées') >= 0, res.reason);
+});
+
+test('adresse publique sans accès à Internet → échec', function() {
+  resetNet();
+  var n = twoRouters();
+  sandbox.autoRoute();
+  var res = simPing(n.pc1, '1.1.1.1');
+  notOk(res.ok);
+  ok(res.reason.indexOf('Internet') >= 0, res.reason);
+});
+
+test('adresse privée que personne ne porte → hôte inconnu, même avec Internet', function() {
+  resetNet();
+  var n = withInternet();
+  sandbox.autoRoute();
+  var res = simPing(n.pc, '192.168.1.77');
+  notOk(res.ok); ok(res.reason.indexOf('inconnu') >= 0, res.reason);
+  notOk(simPing(n.pc, '10.99.99.2').ok, 'adresse privée hors du schéma');
+});
+
+test('adresse publique d\'un réseau du schéma que personne ne porte → hôte inconnu', function() {
+  resetNet();
+  var n = withInternet();
+  sandbox.autoRoute();
+  notOk(simPing(n.pc, '203.0.113.50').ok);
 });
 
 /* ── simPing — pont WiFi ── */
@@ -2568,6 +2726,9 @@ allScenarios.forEach(function(file) {
     var keys = activity.objectives.map(function(o) { return 'o:' + o.id; })
       .concat(activity.faults.map(function(f) { return 'f:' + f.id; }));
     eq(activity.evalOrder.slice().sort().join(','), keys.sort().join(','));
+    // Les objectifs du fichier sont dans le même ordre : c'est celui que voit l'élève.
+    eq(activity.objectives.map(function(o) { return 'o:' + o.id; }).join(','),
+       activity.evalOrder.filter(function(k) { return k[0] === 'o'; }).join(','));
   });
 
   test('objectifs et pannes ne citent que des appareils existants ou à ajouter', function() {
