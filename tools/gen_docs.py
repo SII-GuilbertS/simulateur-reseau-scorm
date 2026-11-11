@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.9.1
+#  DOC PROF  v1.9.2
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.9.1'
+    doc._subtitle    = 'Documentation v1.9.2'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -207,7 +207,8 @@ def build_prof(out_path):
         Paragraph('• Outil <b>Câble</b> : cliquez sur deux appareils pour les relier (le pointeur prend la forme '
                   'du câble). <b>Échap</b> revient à l\'outil Sélection depuis n\'importe quel outil ; <b>Suppr</b> '
                   'efface l\'appareil, le câble, le cadre ou le texte sélectionné.', BODY_L),
-        Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC.', BODY_L),
+        Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC. Comme une vraie box, elle relie '
+                  'ses clients WiFi et les postes câblés de son côté LAN (switch compris) ; son port WAN reste séparé.', BODY_L),
         Paragraph('• <b>Ctrl+Z / Ctrl+Y</b> : annuler / rétablir. <b>Ctrl+C / Ctrl+V</b> : copier / coller un appareil.', BODY_L),
         Paragraph('• <b>Ctrl+S</b> : sauvegarder la session dans le navigateur.', BODY_L),
         Paragraph('• Le <b>score</b> en haut à droite est <b>celui de l\'élève</b> : le réseau du builder est le '
@@ -478,7 +479,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.9.1
+#  DOC ELEVE  v1.9.2
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -487,7 +488,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.9.1'
+    doc._subtitle    = 'Guide élève v1.9.2'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
