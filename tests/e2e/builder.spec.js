@@ -356,6 +356,41 @@ test.describe('Builder', () => {
     await expect(page.locator('.ao-constraint')).toContainText(mine);
   });
 
+  test('ping vers une adresse au choix : alerte, puis cible désignée par l\'appareil', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-college');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const ipCard = page.locator('[data-objid="5"]');
+    await ipCard.locator('.obj-card-hdr').click();
+    await ipCard.locator('.ipf select').selectOption('range');
+    await ipCard.locator('#ipr-e-5-ip').fill('20');
+    await ipCard.locator('#ipr-e-5-ip').press('Tab');
+
+    await page.locator('button[onclick="EvalModule.addObjective()"]').click();
+    const card = page.locator('#ev-obj-list .obj-card').last();
+    await expect(card.locator('.obj-card-body')).toHaveClass(/open/);
+    const target = card.locator('.bld-row', { hasText: 'Cible du ping' });
+    await target.locator('.ipf > select').selectOption('exact');
+    await target.locator('.ipf input').fill('10.2.210.5');
+    await target.locator('.ipf input').press('Tab');
+    await expect(card.locator('.obj-preview')).toContainText('au choix de l\'élève');
+
+    await target.locator('.ipf > select').first().selectOption('ref');
+    await expect(target.locator('.ipf-err')).toContainText('Choisissez un appareil');
+    await target.locator('.ipf select').nth(1).selectOption('B210-P1');
+    await expect(target.locator('.ipf-help')).toContainText('adresse actuelle de cet appareil');
+    await expect(card.locator('.obj-preview')).not.toContainText('au choix de l\'élève');
+    const to = await page.evaluate(() => EvalModule.getConfig().objectives.at(-1).params.to);
+    expect(to).toBe('{B210-P1}');
+
+    // Passerelle : le niveau « Routeur du réseau » est proposé et enregistré.
+    await card.locator('.bld-row', { hasText: 'Type de vérification' }).locator('select').selectOption('gateway_configured');
+    const gw = card.locator('.bld-row', { hasText: 'Passerelle' });
+    await gw.locator('.ipf > select').selectOption('coherent');
+    await expect(gw.locator('.ipf-help')).toContainText('routeur');
+    const gateway = await page.evaluate(() => EvalModule.getConfig().objectives.at(-1).params.gateway);
+    expect(gateway).toBe('@routeur');
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));

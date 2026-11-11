@@ -53,13 +53,13 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **254 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **268 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
 - Simulation applicative : `simPing` (LAN, WiFi, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
 - Routage : `getRoutingTable`, `autoRoute` (RIP simplifié)
-- Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
+- Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker, références `{Appareil}`, passerelle cohérente), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
 - Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
 - Commandes élève : terminal et navigateur jusqu'à la validation des objectifs
 - Score et SCORM : calcul du score, seuil de réussite, échanges avec un LMS simulé
@@ -68,11 +68,11 @@ Suite de **254 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 254/254 tests passés — SUCCÈS
+# ✅ 268/268 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois
@@ -230,11 +230,19 @@ attendue (`ip`, `gateway`) peut être :
 | `192.168.1.10` | exacte |
 | `192.168.1.10-50` | plage (sur n'importe quel octet) |
 | `192.168.1.*` | au choix (joker) |
+| `@routeur` | passerelle seulement : l'adresse d'un routeur ou d'une box du même réseau que l'appareil, joignable depuis lui |
 | vide | aucune condition |
 
 Pour l'adresse d'un appareil, une plage ou un joker n'accepte qu'une adresse utilisable : ni
 l'adresse du réseau, ni la diffusion (calculées avec le masque de l'appareil), ni une adresse déjà
 prise par un autre appareil. Dans le builder, un menu devant le champ propose ces quatre niveaux.
+
+**Adresse d'un appareil.** Dans `ping_success` (`to`), `dns_configured` (`dns`) et `dns_record`
+(`ip`), la valeur `{Srv-Web}` désigne les adresses actuelles de l'appareil Srv-Web : l'objectif suit
+ses changements, par exemple quand l'élève choisit lui-même l'adresse du serveur. Pour un ping, toute
+interface de l'appareil compte (un routeur en a plusieurs) ; un nom seul, sans accolades, reste
+accepté comme dans les anciens scénarios. Le builder signale un ping, un DNS ou un enregistrement qui
+vise en dur une adresse laissée au choix de l'élève.
 
 **`device_added` sans nom** (`newdev` vide) ne compte que les appareils absents du réseau de
 départ ; avec un nom, l'appareil de ce nom suffit, même s'il était déjà là.

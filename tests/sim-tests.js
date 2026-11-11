@@ -1877,6 +1877,151 @@ test('onglet Activité : contrainte masquée → absente', function() {
   ok(sandbox.document.getElementById('activ-pane').innerHTML.indexOf('ao-constraint') < 0);
 });
 
+/* ── Références {Appareil} et passerelle cohérente ── */
+suite('Références à un appareil — {Appareil}');
+
+test('valueMatchesRef : exacte, référence, appareil absent', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.53'); S.devs[srv].name = 'Srv-DNS';
+  ok(sandbox.valueMatchesRef('192.168.1.53','192.168.1.53'));
+  notOk(sandbox.valueMatchesRef('192.168.1.54','192.168.1.53'));
+  ok(sandbox.valueMatchesRef('192.168.1.53','{Srv-DNS}'));
+  ok(sandbox.valueMatchesRef('192.168.1.53','{ srv-dns }'), 'nom insensible à la casse et aux espaces');
+  notOk(sandbox.valueMatchesRef('192.168.1.54','{Srv-DNS}'));
+  notOk(sandbox.valueMatchesRef('192.168.1.53','{Inconnu}'));
+});
+
+test('dns_configured {Srv-DNS} : suit l\'adresse du serveur', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.53'); S.devs[srv].name = 'Srv-DNS';
+  var pc = mkPC('192.168.1.10','255.255.255.0','','192.168.1.53','PC1');
+  var o = {check:'dns_configured', params:{dev:'PC1', dns:'{Srv-DNS}'}};
+  ok(checkObjectiveStatic(o));
+  S.devs[srv].ifaces[0].ip = '192.168.1.60';
+  notOk(checkObjectiveStatic(o), 'le PC pointe encore vers l\'ancienne adresse');
+  S.devs[pc].ifaces[0].dns = '192.168.1.60';
+  ok(checkObjectiveStatic(o));
+});
+
+test('dns_record {Srv-Web} : l\'enregistrement doit donner l\'adresse actuelle du serveur', function() {
+  resetNet();
+  var dns = mkServer('192.168.1.53'); S.devs[dns].name = 'Srv-DNS';
+  S.devs[dns].dns.on = true; S.devs[dns].dns.records['www.lycee.fr'] = '192.168.1.20';
+  var web = mkServer('192.168.1.20'); S.devs[web].name = 'Srv-Web';
+  var o = {check:'dns_record', params:{dev:'Srv-DNS', domain:'www.lycee.fr', ip:'{Srv-Web}'}};
+  ok(checkObjectiveStatic(o));
+  S.devs[web].ifaces[0].ip = '192.168.1.25';
+  notOk(checkObjectiveStatic(o));
+});
+
+test('ping {Srv-Web} : validé par un ping vers son adresse actuelle', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice', to:'{Srv-Web}'},100)]);
+  var n = makeLan();
+  S.devs[n.web].ifaces[0].ip = '192.168.1.33';
+  term(n.pc,'ping 192.168.1.20');
+  notOk(done(1), 'l\'ancienne adresse ne répond plus');
+  term(n.pc,'ping 192.168.1.33');
+  ok(done(1));
+});
+
+test('ping {Routeur} : toute interface du routeur compte', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC1', to:'{R1}'},100)]);
+  var sw = mkSwitch();
+  var pc = mkPC('192.168.1.10','255.255.255.0','192.168.1.1','','PC1');
+  var r = mkRouter('192.168.1.1','255.255.255.0','10.0.0.1','255.255.255.0'); S.devs[r].name = 'R1';
+  link(pc,sw); link(r,sw);
+  term(pc,'ping 10.0.0.1');
+  ok(done(1));
+  sandbox.checkAllObjectives();
+  ok(done(1), 'revérifié sur l\'interface effectivement visée');
+});
+
+test('ping vers un appareil désigné : objectif perdu puis regagné quand son adresse change', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice', to:'{Srv-Web}'},100)]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.20');
+  ok(done(1));
+  S.devs[n.web].ifaces[0].ip = '10.9.9.9';
+  sandbox.checkAllObjectives();
+  notOk(done(1), 'serveur hors du réseau du PC');
+  S.devs[n.web].ifaces[0].ip = '192.168.1.40';
+  sandbox.checkAllObjectives();
+  ok(done(1), 'joignable à sa nouvelle adresse');
+});
+
+test('ping {Inconnu} : jamais validé', function() {
+  setupActivity([objective(1,'ping_success',{from:'PC-Alice', to:'{Inconnu}'},100)]);
+  var n = makeLan();
+  term(n.pc,'ping 192.168.1.20');
+  notOk(done(1));
+});
+
+suite('Passerelle cohérente — routeur du réseau');
+
+function gwLan() {
+  var sw = mkSwitch();
+  var pc = mkPC('192.168.1.10','255.255.255.0','192.168.1.1','','PC1');
+  var r = mkRouter('192.168.1.1','255.255.255.0','10.0.0.1','255.255.255.0'); S.devs[r].name = 'R1';
+  link(pc,sw); var l = link(r,sw);
+  return { pc:pc, r:r, sw:sw, l:l };
+}
+var GW = {check:'gateway_configured', params:{dev:'PC1', gateway:'@routeur'}};
+
+test('passerelle = interface du routeur du même réseau, câblé → validé', function() {
+  resetNet(); gwLan();
+  ok(checkObjectiveStatic(GW));
+});
+
+test('passerelle = interface du routeur d\'un autre réseau → non validé', function() {
+  resetNet(); var n = gwLan();
+  S.devs[n.pc].ifaces[0].gateway = '10.0.0.1';
+  notOk(checkObjectiveStatic(GW));
+});
+
+test('passerelle = un PC du réseau → non validé', function() {
+  resetNet(); var n = gwLan();
+  mkPC('192.168.1.20','255.255.255.0','','','PC2');
+  S.devs[n.pc].ifaces[0].gateway = '192.168.1.20';
+  notOk(checkObjectiveStatic(GW));
+});
+
+test('routeur débranché → non validé ; passerelle vide → non validé', function() {
+  resetNet(); var n = gwLan();
+  delete S.links[n.l];
+  notOk(checkObjectiveStatic(GW), 'routeur injoignable');
+  link(n.r, n.sw);
+  S.devs[n.pc].ifaces[0].gateway = '';
+  notOk(checkObjectiveStatic(GW));
+});
+
+test('Box WiFi reliée en WiFi → passerelle cohérente', function() {
+  resetNet();
+  var box = mkDev('wifi_router', 10, 10); S.devs[box].name = 'Box';
+  S.devs[box].ifaces[1].ip = '192.168.1.1'; S.devs[box].ifaces[1].mask = '255.255.255.0';
+  var tel = mkPC('192.168.1.30','255.255.255.0','192.168.1.1','','PC1');
+  wifiLink(tel, box);
+  ok(checkObjectiveStatic(GW));
+});
+
+test('device_added : passerelle cohérente exigée sur le nouveau poste', function() {
+  resetNet(); var n = gwLan();
+  sandbox.START_DEV_IDS = Object.keys(S.devs);
+  try {
+    var o = {check:'device_added', params:{ip:'192.168.1.*', gateway:'@routeur'}};
+    var nw = mkPC('192.168.1.50','255.255.255.0','192.168.1.99','','PC-New'); link(nw, n.sw);
+    notOk(checkObjectiveStatic(o));
+    S.devs[nw].ifaces[0].gateway = '192.168.1.1';
+    ok(checkObjectiveStatic(o));
+  } finally { sandbox.START_DEV_IDS = null; }
+});
+
+test('contrainte : passerelle cohérente décrite sans donner l\'adresse', function() {
+  eq(sandbox.autoConstraintText({check:'gateway_configured', params:{dev:'PC1', gateway:'@routeur'}}),
+     'PC1 : passerelle vers le routeur de son réseau');
+  eq(sandbox.objectiveConstraint({check:'gateway_configured', params:{dev:'PC1', gateway:'@routeur'}}), '',
+     'masquée par défaut');
+});
+
 /* ── SCORM ── */
 suite('SCORM — échanges avec le LMS');
 

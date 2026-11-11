@@ -236,7 +236,7 @@ CHECKS = [
     # ── dns_configured : logique correcte ────────────────────────────────────
     (
         "checkObjectiveStatic dns_configured : logique correcte (non-strict)",
-        "if(!fi.dns)return false;\n      if(p.dns&&fi.dns!==p.dns)return false;",
+        "if(!fi.dns)return false;\n      if(p.dns&&!valueMatchesRef(fi.dns,p.dns))return false;",
         "case 'dns_configured':\n"
         "      d=devByName(p.dev);if(!d)return false;\n"
         "      fi=mainIface(d);if(!fi)return false;\n"
@@ -245,7 +245,7 @@ CHECKS = [
         "      d=devByName(p.dev);if(!d)return false;\n"
         "      fi=mainIface(d);if(!fi)return false;\n"
         "      if(!fi.dns)return false;\n"
-        "      if(p.dns&&fi.dns!==p.dns)return false;\n"
+        "      if(p.dns&&!valueMatchesRef(fi.dns,p.dns))return false;\n"
         "      return true;"
     ),
 

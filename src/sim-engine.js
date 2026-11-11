@@ -67,6 +67,38 @@ function ipObjectiveOK(dev,fi,pattern){
   if(!fi||!ipMatchesPattern(fi.ip||'',pattern))return false;
   return !ipPatternIsFlexible(pattern)||ipUsableBy(dev.id,fi.ip,fi.mask||'');
 }
+
+/* Référence à un appareil : « {Srv-Web} » désigne les adresses actuelles de Srv-Web,
+   et suit donc ses changements (adresse choisie par l'élève, par exemple). */
+function refName(v){var m=/^\{(.+)\}$/.exec((v||'').trim());return m?m[1].trim():null;}
+function devHasIP(d,ip){
+  ip=(ip||'').trim();
+  return !!(d&&ip&&d.ifaces&&d.ifaces.some(function(f){return f.ip&&f.ip.trim()===ip;}));
+}
+/* Valeur attendue exacte, ou référence : une des adresses de l'appareil désigné. */
+function valueMatchesRef(value,expected){
+  if(!expected)return true;
+  var n=refName(expected);
+  if(n!==null)return devHasIP(devByName(n),value);
+  return (value||'').trim()===expected.trim();
+}
+
+/* Passerelle « cohérente » : l'adresse d'un routeur (ou d'une box) du même réseau que
+   l'appareil, et joignable depuis lui. */
+var GATEWAY_COHERENT='@routeur';
+function gatewayCoherent(d,fi){
+  var gw=(fi&&fi.gateway||'').trim();
+  if(!gw||!fi.ip||gw===fi.ip.trim())return false;
+  if(!sameNet(fi.ip,fi.mask,gw))return false;
+  var r=devByIP(gw);
+  return !!r&&isRouter(r)&&simPing(d.id,gw).ok;
+}
+function gatewayOK(d,fi,pattern){
+  if(!pattern)return true;
+  if(!fi)return false;
+  if(pattern.trim()===GATEWAY_COHERENT)return gatewayCoherent(d,fi);
+  return ipMatchesPattern(fi.gateway||'',pattern);
+}
 /* ── Contrainte affichée à l'élève sous un objectif ──
    Texte généré à partir des paramètres, ou rédigé par l'enseignant (constraintText).
    Affichée par défaut seulement quand une adresse est laissée au choix (showConstraint). */
@@ -87,7 +119,8 @@ function autoConstraintText(obj){
   if(CONSTRAINT_TYPES.indexOf(obj.check)<0)return '';
   if(p.ip)parts.push('adresse IP '+addrConstraintDesc(p.ip)+(ipPatternIsFlexible(p.ip)?' (adresse libre)':''));
   if(p.mask)parts.push('masque '+p.mask.trim());
-  if(p.gateway)parts.push('passerelle '+addrConstraintDesc(p.gateway));
+  if(p.gateway&&p.gateway.trim()===GATEWAY_COHERENT)parts.push('passerelle vers le routeur de son réseau');
+  else if(p.gateway)parts.push('passerelle '+addrConstraintDesc(p.gateway));
   if(obj.check==='device_added')who='Nouveau poste'+(p.newdev?' « '+p.newdev.trim()+' »':'');
   else who=(p.dev||'').trim();
   if(!parts.length)return obj.check==='device_added'&&p.newdev?who:'';
@@ -130,13 +163,13 @@ function checkObjectiveStatic(obj){
     case 'gateway_configured':
       d=devByName(p.dev);if(!d)return false;
       fi=mainIface(d);if(!fi)return false;
-      if(p.gateway&&!ipMatchesPattern((fi&&fi.gateway)||'',p.gateway))return false;
+      if(p.gateway&&!gatewayOK(d,fi,p.gateway))return false;
       return true;
     case 'dns_configured':
       d=devByName(p.dev);if(!d)return false;
       fi=mainIface(d);if(!fi)return false;
       if(!fi.dns)return false;
-      if(p.dns&&fi.dns!==p.dns)return false;
+      if(p.dns&&!valueMatchesRef(fi.dns,p.dns))return false;
       return true;
     case 'service_active':
       d=devByName(p.dev);if(!d)return false;
@@ -158,7 +191,7 @@ function checkObjectiveStatic(obj){
         if(p.type&&nd.type!==p.type)return false;
         if(p.ip&&!ipObjectiveOK(nd,f,p.ip))return false;
         if(p.mask&&(!f||f.mask!==p.mask))return false;
-        if(p.gateway&&(!f||!ipMatchesPattern(f.gateway||'',p.gateway)))return false;
+        if(p.gateway&&!gatewayOK(nd,f,p.gateway))return false;
         return true;
       });}
     case 'wifi_link':{
@@ -183,7 +216,7 @@ function checkObjectiveStatic(obj){
       var dom=(p.domain||'').toLowerCase().trim();
       var rec=(d.dns.records||{})[dom];
       if(!rec)return false;
-      if(p.ip&&rec!==p.ip)return false;
+      if(p.ip&&!valueMatchesRef(rec,p.ip))return false;
       return true;}
     case 'ssid_configured':{
       d=devByName(p.dev);if(!d||d.type!=='wifi_router')return false;
@@ -195,19 +228,34 @@ function checkObjectiveStatic(obj){
   }
 }
 
-/* Cible d'un objectif de ping : un nom d'appareil désigne son IP actuelle. */
+/* Cible d'un objectif de ping : une adresse, ou un appareil désigné par « {nom} »
+   (ou par son nom seul, format des anciens scénarios). */
+function pingTargetDev(to){
+  if(!to)return null;
+  var n=refName(to);
+  if(n!==null)return devByName(n);
+  if(/^\d+\.\d+\.\d+\.\d+$/.test(to))return null;
+  return devByName(to);
+}
 function pingTargetIP(to){
-  if(!to||/^\d+\.\d+\.\d+\.\d+$/.test(to))return to;
-  var _ptoDev=devByName(to);
-  if(!_ptoDev)return to;
-  var f=mainIface(_ptoDev);return f&&f.ip?f.ip:to;
+  var _ptoDev=pingTargetDev(to);
+  if(!_ptoDev)return refName(to)!==null?'':to;
+  var f=mainIface(_ptoDev);return f&&f.ip?f.ip:'';
+}
+/* Le ping qu'a réussi l'élève atteint-il la cible de l'objectif ? Un appareil désigné
+   compte quelle que soit son interface visée (un routeur en a plusieurs). */
+function pingTargetMatches(to,ip){
+  if(!to)return true;
+  var _ptoDev=pingTargetDev(to);
+  if(_ptoDev)return devHasIP(_ptoDev,ip);
+  return refName(to)===null&&to.trim()===(ip||'').trim();
 }
 /* La commande que vient de réussir l'élève correspond-elle à l'objectif ? */
 function dynamicEventMatches(obj,type,context){
   var p=obj.params||{};
   if(obj.check!==type)return false;
   if(p.from&&p.from!==context.from)return false;
-  if(type==='ping_success')return !p.to||pingTargetIP(p.to)===context.to;
+  if(type==='ping_success')return pingTargetMatches(p.to,context.to);
   if(type==='dns_success')
     // Même règle que simDNS : un nom de domaine ne dépend pas de la casse.
     return !p.domain||p.domain.trim().toLowerCase()===(context.domain||'').trim().toLowerCase();
@@ -224,7 +272,9 @@ function dynamicStillHolds(obj,proof){
   if(!src)return false;
   switch(obj.check){
     case 'ping_success':{
-      var to=p.to?pingTargetIP(p.to):proof.to;
+      // Même adresse que la commande réussie tant qu'elle désigne encore la cible,
+      // sinon l'adresse actuelle de l'appareil visé.
+      var to=!p.to||pingTargetMatches(p.to,proof.to)?proof.to:pingTargetIP(p.to);
       return !!to&&simPing(src.id,to).ok;}
     case 'dns_success':return simDNS(src.id,p.domain||proof.domain||'').ok;
     case 'http_success':return simHTTP(src.id,p.url||proof.url||'',true).ok;
