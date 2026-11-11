@@ -49,8 +49,16 @@ postes en panne. Tout reste modifiable ensuite. Dans la salle de classe, l'ENT e
 Serveur-Données pour les profils des élèves.
 
 **Score affiché dans le builder** : c'est celui de l'élève. Le réseau du builder est le corrigé, mais les pannes
-de l'onglet 2 sont appliquées pour l'évaluation : une activité bien construite affiche 0 à l'import, et seules les
-commandes de test lancées dans le terminal du builder ajoutent des points.
+de l'onglet 2 sont appliquées pour l'évaluation : une activité bien construite affiche 0 à l'import. Les commandes
+de test lancées dans le terminal du builder ajoutent des points, tout comme une configuration que le professeur casse
+puis rétablit (par exemple un câble débranché puis rebranché au switch indiqué).
+
+**Indices et descriptions** (onglet 2) : chaque objectif a un champ *Indice*, affiché à l'élève sous l'objectif tant
+qu'il n'est pas atteint. Il est pré-rempli selon le type d'objectif, ses paramètres et la panne qu'il répare (« Outil
+Câble : reliez PC-Bureau à Switch-Salon », ou « ipconfig est bon mais rien ne passe ? Regardez les câbles de
+PC-Bureau » quand une panne débranche ce câble). L'indice proposé suit l'objectif et les pannes tant qu'il n'est pas
+réécrit ; ↺ revient à la proposition, un champ vide supprime l'indice. De même, la *Description de la panne* est
+pré-remplie (type et appareil) et modifiable.
 
 **🔀 Variante** : décline l'activité en cours sans toucher au réseau. *Plus guidée* (contraintes affichées,
 seuil −10), *plus exigeante* (adresses exactes laissées au choix quand rien d'autre ne les utilise, passerelle
@@ -95,7 +103,7 @@ node tests/sim-tests.js
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, câble débranché puis rebranché dans le builder, assistant « Nouvelle activité » et variante jusqu'au score de l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, câble débranché puis rebranché dans le builder, indice d'un objectif proposé, modifié et affiché à l'élève, assistant « Nouvelle activité » et variante jusqu'au score de l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois

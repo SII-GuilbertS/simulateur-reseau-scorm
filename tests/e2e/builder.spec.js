@@ -734,6 +734,44 @@ test.describe('Builder', () => {
     }
   });
 
+  test('indice d\'un objectif : proposé selon l\'objectif et la panne, modifiable, affiché à l\'élève', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('button[onclick="EvalModule.addObjective()"]').click();
+    const card = page.locator('#ev-list .obj-card[data-objid]').last();
+    const hint = card.locator('.obj-hint-in');
+    await expect(hint).toHaveValue('Terminal de … : ping …');
+    await card.locator('.bld-row', { hasText: 'Type de vérification' }).locator('select').selectOption('cable_exists');
+    await card.locator('.bld-row', { hasText: 'Appareil A' }).locator('select').selectOption('PC-Bureau');
+    await card.locator('.bld-row', { hasText: 'Appareil B' }).locator('select').selectOption('Switch-Salon');
+    await expect(hint).toHaveValue('Outil Câble : reliez PC-Bureau à Switch-Salon');
+
+    // Une panne « câble débranché » sur ce câble : l'indice proposé devient un indice de dépannage
+    await page.locator('button[onclick="EvalModule.addFault()"]').click();
+    const fcard = page.locator('#ev-list .obj-card[data-fltid]').last();
+    await fcard.locator('.bld-row', { hasText: 'Type de panne' }).locator('select').selectOption('missing_cable');
+    await fcard.locator('.bld-row', { hasText: 'Appareil A' }).locator('select').selectOption('PC-Bureau');
+    await fcard.locator('.bld-row', { hasText: 'Appareil B' }).locator('select').selectOption('Switch-Salon');
+    await expect(fcard.locator('.flt-label-in')).toHaveValue('Câble débranché · PC-Bureau – Switch-Salon');
+    await expect(hint).toHaveValue('ipconfig est bon mais rien ne passe ? Regardez les câbles de PC-Bureau');
+
+    // Réécrit par le professeur : gardé ; ↺ revient à la proposition
+    await hint.fill('Regarde derrière le bureau');
+    await hint.press('Tab');
+    await card.locator('.bld-row', { hasText: 'Points' }).locator('input').fill('12');
+    await card.locator('.bld-row', { hasText: 'Points' }).locator('input').press('Tab');
+    await expect(hint).toHaveValue('Regarde derrière le bureau');
+    await card.locator('.obj-hint-reset').click();
+    await expect(hint).toHaveValue('ipconfig est bon mais rien ne passe ? Regardez les câbles de PC-Bureau');
+    await hint.fill('Regarde derrière le bureau');
+    await hint.press('Tab');
+
+    // Chez l'élève, sous l'objectif non atteint
+    const file = await exportFile(page, 'html', info.outputPath('indice.html'));
+    await page.goto(pathToFileURL(file).href);
+    await expect(page.locator('.ao-hint', { hasText: 'Regarde derrière le bureau' })).toHaveCount(1);
+  });
+
   test('câble débranché : le professeur le rebranche dans le builder, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
     await page.locator('#btn-wizard').click();

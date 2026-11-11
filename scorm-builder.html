@@ -4782,6 +4782,106 @@ var EvalModule = (function() {
     _rerenderConstraint(id);
   }
 
+  /* ── Indices (💡 affichés à l'élève sous un objectif non atteint) ──
+     Proposés selon le type d'objectif, ses paramètres et la panne qu'il répare. Un indice
+     proposé suit les modifications de l'objectif et des pannes tant que le professeur ne l'a
+     pas réécrit ; vidé, l'objectif n'a pas d'indice. */
+  var FAULT_FIXES = {bad_ip:['ip_configured'], bad_gateway:['gateway_configured'], bad_dns:['dns_configured'],
+    service_down:['service_active'], missing_cable:['cable_exists','wifi_link'],
+    ssid_wrong:['ssid_configured','wifi_link'], wifi_pass_wrong:['wifi_link']};
+  var _autoHints = {};
+  function _hn(v) { var n = refName(v); v = (n !== null ? n : (v||'')).trim(); return v || '…'; }
+  function _sameName(a, b) { return (a||'').trim().toLowerCase() === (b||'').trim().toLowerCase() && !!(a||'').trim(); }
+  /* Panne réparée par cet objectif : même type de réparation, même appareil. */
+  function _faultFixedBy(obj) {
+    var p = obj.params || {};
+    return _config.faults.find(function(f){
+      if((FAULT_FIXES[f.type]||[]).indexOf(obj.check) < 0) return false;
+      var fp = f.params || {};
+      if(f.type === 'missing_cable')
+        return (_sameName(fp.devA,p.devA) && _sameName(fp.devB,p.devB)) || (_sameName(fp.devA,p.devB) && _sameName(fp.devB,p.devA));
+      if(obj.check === 'wifi_link') return _sameName(fp.dev,p.devA) || _sameName(fp.dev,p.devB);
+      if(f.type === 'service_down') return _sameName(fp.dev,p.dev) && (!p.service || !fp.service || p.service === fp.service);
+      return _sameName(fp.dev, p.dev);
+    }) || null;
+  }
+  function autoHint(obj) {
+    var p = obj.params || {}, f = _faultFixedBy(obj), fp = f ? (f.params||{}) : {};
+    var svc = (p.service||'').toUpperCase() || 'demandé';
+    switch(obj.check) {
+      case 'cable_exists':
+        return f ? 'ipconfig est bon mais rien ne passe ? Regardez les câbles de '+_hn(p.devA)
+                 : 'Outil Câble : reliez '+_hn(p.devA)+' à '+_hn(p.devB);
+      case 'wifi_link':
+        if(f && f.type === 'wifi_pass_wrong') {
+          var box = _sameName(fp.dev,p.devA) ? p.devB : p.devA;
+          return _hn(fp.dev)+' ne joint plus rien ? Comparez son mot de passe WiFi avec celui de la fiche de '+_hn(box);
+        }
+        if(f && f.type === 'ssid_wrong') return 'Les appareils WiFi ne se connectent plus ? Comparez le SSID de '+_hn(fp.dev)+' avec celui choisi dans leur fiche';
+        if(f) return _hn(p.devA)+' n\'est plus relié à '+_hn(p.devB)+' ? Outil Câble : refaites la liaison WiFi';
+        return 'Outil Câble : reliez '+_hn(p.devA)+' à '+_hn(p.devB)+', puis vérifiez le réseau WiFi et le mot de passe dans sa fiche';
+      case 'ip_configured':
+        return f ? 'Comparez l\'adresse de '+_hn(p.dev)+' (ipconfig) avec celles des autres postes du réseau'
+                 : 'Fiche de '+_hn(p.dev)+' : saisissez son adresse IP et son masque';
+      case 'gateway_configured':
+        return f ? _hn(p.dev)+' joint son réseau mais pas les autres ? Vérifiez sa passerelle (ipconfig)'
+                 : 'Fiche de '+_hn(p.dev)+' : la passerelle est l\'adresse du routeur de son réseau';
+      case 'dns_configured':
+        return f ? 'Le ping par adresse fonctionne mais pas les noms ? Vérifiez le serveur DNS de '+_hn(p.dev)+' (ipconfig, nslookup)'
+                 : 'Fiche de '+_hn(p.dev)+' : renseignez l\'adresse du serveur DNS';
+      case 'service_active':
+        return f ? _hn(p.dev)+' répond au ping mais pas le service '+svc+' ? Vérifiez sa fiche'
+                 : 'Fiche de '+_hn(p.dev)+' : activez le service '+svc;
+      case 'ssid_configured':
+        return f ? 'Les appareils WiFi ne se connectent plus ? Vérifiez le SSID dans la fiche de '+_hn(p.dev)
+                 : 'Fiche de '+_hn(p.dev)+' : saisissez le nom du réseau WiFi (SSID)';
+      case 'device_added':
+        return 'Faites glisser un appareil depuis la palette, nommez-le '+_hn(p.newdev)+', puis configurez son adresse dans sa fiche';
+      case 'route_exists':
+        return 'Fiche de '+_hn(p.dev)+' : vérifiez sa table de routage (commande route dans son terminal)';
+      case 'dns_record':
+        return 'Fiche de '+_hn(p.dev)+' : ajoutez l\'enregistrement '+_hn(p.domain)+((p.ip||'').trim() ? ' → '+_hn(p.ip) : '');
+      case 'ping_success':  return 'Terminal de '+_hn(p.from)+' : ping '+_hn(p.to);
+      case 'dns_success':   return 'Terminal de '+_hn(p.from)+' : nslookup '+_hn(p.domain);
+      case 'http_success':  return 'Onglet Navigateur : choisissez '+_hn(p.from)+' et entrez '+_hn(p.url);
+      case 'dhcp_success':  return 'Fiche de '+_hn(p.from)+' : bouton « Demander une adresse (DHCP) », ou commande dhcp dans son terminal';
+    }
+    return '';
+  }
+  /* Met à jour les indices encore égaux à la proposition précédente. */
+  function syncHints() {
+    _config.objectives.forEach(function(o){
+      var a = autoHint(o), prev = _autoHints[o.id];
+      if(prev !== undefined && o.hint === prev && a !== prev) {
+        o.hint = a;
+        var el = document.querySelector('[data-objid="'+o.id+'"] .obj-hint-in');
+        if(el && document.activeElement !== el) el.value = a;
+      }
+      _autoHints[o.id] = a;
+      var ph = document.querySelector('[data-objid="'+o.id+'"] .obj-hint-in');
+      if(ph) ph.placeholder = a ? 'Proposé : '+a : 'Aucun indice';
+    });
+  }
+  function setObjectiveHint(id, value) {
+    var obj = _findObj(id); if(!obj) return;
+    obj.hint = (value||'').trim();
+  }
+  function resetObjectiveHint(id) {
+    var obj = _findObj(id); if(!obj) return;
+    obj.hint = _autoHints[obj.id] = autoHint(obj);
+    var el = document.querySelector('[data-objid="'+id+'"] .obj-hint-in');
+    if(el) el.value = obj.hint;
+  }
+  function hintHTML(obj) {
+    var a = autoHint(obj);
+    return '<div class="bld-row"><label>Indice 💡 (affiché à l\'élève tant que l\'objectif n\'est pas atteint ; vide = pas d\'indice)</label>'+
+      '<div style="display:flex;gap:6px"><input class="obj-hint-in" style="flex:1" value="'+_esc(obj.hint||'')+'"'+
+      ' placeholder="'+_esc(a ? 'Proposé : '+a : 'Aucun indice')+'"'+
+      ' onchange="EvalModule.setObjectiveHint(\''+obj.id+'\',this.value)"/>'+
+      '<button type="button" class="obj-hint-reset" title="Remettre l\'indice proposé" onclick="EvalModule.resetObjectiveHint(\''+obj.id+'\')"'+
+      ' style="padding:0 9px;border:1px solid #cbd5e0;border-radius:6px;background:#fff;cursor:pointer">↺</button></div></div>';
+  }
+
   /* Aperçu sous chaque objectif : état sur le réseau actuel et dans le réseau remis à l'élève. */
   function _previewHTML(obj, startRes) {
     var isStatic = STATIC_TYPES.indexOf(obj.check) >= 0;
@@ -4796,6 +4896,7 @@ var EvalModule = (function() {
     return h;
   }
   function refreshPreviews() {
+    syncHints();
     if(!_config.objectives.length || !document.getElementById('ev-list')) return;
     var startRes = {};
     try { startRes = studentStartResults(SimModule.getState(), _config); } catch(e) {}
@@ -4839,7 +4940,8 @@ var EvalModule = (function() {
   }
 
   function setConfig(cfg) {
-    ACTIVITY_PROOFS = {};   // preuves des commandes : propres aux objectifs remplacés
+    ACTIVITY_PROOFS = {};
+    _autoHints = {};   // indices importés gardés tels quels ; les ids peuvent être réutilisés   // preuves des commandes : propres aux objectifs remplacés
     // Normalisation : garantir que tous les champs existent (robustesse si cfg est partiel ou vide)
     // Les ids sont normalisés en chaînes (les JSON scénarios peuvent avoir des ids numériques)
     _config = {
@@ -4897,6 +4999,7 @@ var EvalModule = (function() {
       params: { from: '', to: '' }
     };
     _config.objectives.push(obj);
+    obj.hint = _autoHints[obj.id] = autoHint(obj);   // indice proposé, modifiable
     renderObjectives();
     // Open the new card
     setTimeout(function(){
@@ -5126,6 +5229,7 @@ var EvalModule = (function() {
       '<select onchange="EvalModule.updateObjectiveField(\''+obj.id+'\',\'check\',this.value)">'+
       buildTypeOptionsHTML(obj.check)+'</select></div>';
     h += buildParamsHTML(obj);
+    h += hintHTML(obj);
     h += buildConstraintHTML(obj);
     h += '<div class="obj-preview" id="objprev-'+obj.id+'"></div>';
     h += '</div></div>';
@@ -5145,8 +5249,10 @@ var EvalModule = (function() {
     h += '<button class="obj-card-del" onclick="event.stopPropagation();EvalModule.removeFault(\''+flt.id+'\')" title="Supprimer">✕</button>';
     h += '</div>';
     h += '<div class="obj-card-body'+(open?' open':'')+'">';
+    // Pré-remplie avec la description automatique, qui suit le type et l'appareil tant
+    // qu'elle n'est pas modifiée ; vidée, elle redevient automatique.
     h += '<div class="bld-row"><label>Description de la panne</label>'+
-      '<input value="'+_esc(flt.label||'')+'" placeholder="Ex : IP mal configurée sur PC Élève"'+
+      '<input class="flt-label-in" value="'+_esc(flt.label||faultAutoLabel(flt))+'" placeholder="'+_esc(faultAutoLabel(flt))+'"'+
       ' onchange="EvalModule.updateFaultField(\''+flt.id+'\',\'label\',this.value)"/></div>';
     h += '<div class="bld-row"><label>Type de panne</label>'+
       '<select onchange="EvalModule.updateFaultField(\''+flt.id+'\',\'type\',this.value)">';
@@ -5250,7 +5356,7 @@ var EvalModule = (function() {
   /* ── Gestion des pannes ── */
   function addFault() {
     var ft = FAULT_TYPES[0];
-    var flt = {id:'flt_'+(_nextFaultId++), label:'Nouvelle panne', type:ft.value, params:{}};
+    var flt = {id:'flt_'+(_nextFaultId++), label:'', type:ft.value, params:{}};
     ft.params.forEach(function(p){flt.params[p]='';});
     _config.faults.push(flt);
     renderFaults();
@@ -5268,7 +5374,10 @@ var EvalModule = (function() {
   function updateFaultField(id, field, value) {
     var flt = _config.faults.find(function(f){return f.id===id;});
     if(!flt) return;
-    if(field==='label')  { flt.label=value; }
+    if(field==='label')  {
+      value=(value||'').trim();
+      flt.label=(value===faultAutoLabel(flt))?'':value;
+    }
     else if(field==='type') {
       flt.type=value;
       var ft=FAULT_TYPES.find(function(t){return t.value===value;});
@@ -5282,6 +5391,7 @@ var EvalModule = (function() {
     }
     else if(field.indexOf('fparam_')===0){flt.params[field.slice(7)]=value;}
     renderFaultHeader(id);
+    syncHints();   // l'indice de l'objectif qui répare cette panne suit
   }
 
   /* Sans description, la panne est désignée par son type et l'appareil visé. */
@@ -5301,6 +5411,8 @@ var EvalModule = (function() {
     var lEl=document.querySelector('[data-fltid="'+id+'"] .obj-card-label');
     var tEl=document.querySelector('[data-fltid="'+id+'"] .obj-card-type');
     if(lEl)lEl.innerHTML=faultLabelHTML(flt);
+    var iEl=document.querySelector('[data-fltid="'+id+'"] .flt-label-in');
+    if(iEl){iEl.placeholder=faultAutoLabel(flt);if(!flt.label&&document.activeElement!==iEl)iEl.value=faultAutoLabel(flt);}
     if(tEl){var ft=FAULT_TYPES.find(function(t){return t.value===flt.type;});tEl.textContent=ft?(ft.icon+' '+ft.label):flt.type;}
   }
 
@@ -5370,6 +5482,9 @@ var EvalModule = (function() {
     setConstraintShown: setConstraintShown,
     setConstraintText: setConstraintText,
     resetConstraintText: resetConstraintText,
+    setObjectiveHint: setObjectiveHint,
+    resetObjectiveHint: resetObjectiveHint,
+    autoHint: autoHint,
     refreshPreviews: refreshPreviews
   };
 })();
