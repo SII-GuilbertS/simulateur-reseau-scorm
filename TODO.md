@@ -1,90 +1,88 @@
 # TODO — Simulateur Réseau IPv4 · Idées d'amélioration
 
-> Généré le 23 juin 2026. Les points marqués ✅ sont déjà implémentés.
+> Mis à jour le 11 novembre 2026, après la version 1.9.2. Ce qui est déjà fait est listé en fin de fichier.
 
 ---
 
-## ⭐ Priorité haute (impact immédiat, peu de code)
+## ⭐ Priorité haute
 
-- [ ] **Bulles d'aide contextuelles** — quand un ping échoue, afficher un indice ciblé dans le terminal (`"Vérifie la passerelle de PC-Alice"`). Lire la raison retournée par `simPing()` et la traduire en conseil actionnable pour l'élève.
-
-- [ ] **Table ARP animée** — afficher la table ARP de chaque appareil se construire en temps réel lors des pings (échanges ARP request / ARP reply). Ajouter un onglet `arp` dans le panneau bas, mis à jour à chaque `simPing`.
-
-- ✅ **Génération automatique d'énoncé imprimable** — page HTML avec topologie SVG, objectifs et zone élève. Bouton dans l'onglet 3 Générer. *(fait le 23/06/2026)*
-
----
-
-## 🎓 Expérience élève
-
-- [ ] **Mode guidé pas-à-pas** — afficher les objectifs un par un avec un bouton "étape suivante" qui déverrouille progressivement. Option `displayMode: 'step'` à ajouter dans le builder (onglet Évaluation).
-
-- [ ] **Historique des tentatives** — panneau qui liste les commandes déjà tapées, leurs résultats, et affiche la solution après validation complète de l'activité.
-
-- [ ] **Mode chronomètre** — option dans le builder pour afficher un compteur de temps écoulé côté élève. Utile pour les évaluations en classe avec limite de temps.
-
----
-
-## 🛠️ Expérience enseignant (builder)
-
-- [ ] **Éditeur de table de routage manuel** — désactiver `autoRoute` pour certains appareils et laisser l'élève saisir les routes statiques lui-même. Objectif pédagogique : `route_exists` déjà disponible. Depuis que le ping suit les tables de routage (aller et retour), un routeur au routage automatique décoché ne communique qu'avec ses réseaux directs : cet éditeur est le seul moyen de le réparer.
-
-- ✅ **Assistant « Nouvelle activité » et variantes** — modèles type × thème × niveau, variantes plus guidées ou plus exigeantes, pannes déplacées, retirées ou ajoutées, contrôle avant création. *(fait le 11/11/2026)* Pistes : d'autres thèmes (deux salles de lycée, hôpital…), le type « Construction » avec routeur à configurer, « une panne de plus » sur une Box (DHCP, SSID) quand aucun poste fixe n'est libre.
-
-- [ ] **Aperçu "vue élève" en temps réel** — split-screen dans le builder : le canevas à gauche, le rendu élève (simplifié) à droite, mis à jour en direct.
-
-- [ ] **Bibliothèque de scénarios en ligne** — dépôt partagé (GitHub Pages) où les profs peuvent publier et récupérer des scénarios JSON. Bouton "Parcourir la bibliothèque" dans l'onglet 3.
-
----
-
-## 🌐 Pédagogie réseau (nouvelles fonctionnalités simulées)
-
-- [ ] **Table ARP animée** *(aussi dans priorité haute)* — voir ci-dessus.
-
-- [ ] **Connexion WiFi réelle côté terminal (SSID + mot de passe)** — aujourd'hui seule la Box a un SSID et un mot de passe : tracer une liaison WiFi suffit à connecter l'appareil, le mot de passe n'est jamais vérifié, et la panne `ssid_wrong` ne coupe rien (elle renomme seulement la Box, cf. `reseau-lycee.json`). À faire :
+- ✅ **Connexion WiFi réelle côté terminal (SSID + mot de passe)** — fait après la v1.9.2 : section « Connexion WiFi » dans la fiche, liaison en rouge et messages tant que SSID ou mot de passe ne correspondent pas, `ssid_wrong` qui déconnecte, panne `wifi_pass_wrong`, `wifi_link` qui exige l'association, scénarios Maison et Lycée et assistant mis à jour. Plan initial, pour mémoire : aujourd'hui seule la Box a un SSID et un mot de passe : tracer une liaison WiFi suffit à connecter l'appareil, le mot de passe n'est jamais vérifié, et la panne `ssid_wrong` ne coupe rien (elle renomme seulement la Box, cf. `reseau-lycee.json`, dont l'objectif SSID n'a donc pas de test). À faire :
   1. Section « Connexion WiFi » (SSID + mot de passe) dans les propriétés des terminaux capables de WiFi (portable, téléphone, tablette, PC sans modèle, serveur), pas sur le PC fixe.
   2. Liaison WiFi fonctionnelle seulement si SSID identique à celui de la Box et mot de passe correct (sauf réseau ouvert) ; sinon liaison en pointillé rouge, `ping`/`dhcp` répondent « Non connecté au WiFi : SSID inconnu / mot de passe incorrect ».
   3. Pré-remplir SSID et mot de passe de la Box quand l'enseignant trace la liaison ; il les vide ou les fausse pour en faire un exercice.
   4. Compatibilité : un terminal sans ces champs (anciens scénarios, packages déployés) reste connecté.
   5. `ssid_wrong` coupe vraiment les terminaux ; nouvelle panne « Mot de passe WiFi incorrect » sur un terminal ; l'objectif `wifi_link` vérifie aussi l'association.
-  6. Pré-remplir les terminaux WiFi de `reseau-maison.json` et `reseau-lycee.json`, revérifier le barème du lycée (sous le seuil avant réparation, 100 après), mettre à jour `sim-tests.js` et `SCENARIOS` dans `builder.spec.js`.
+  6. Pré-remplir les terminaux WiFi de `reseau-maison.json` et `reseau-lycee.json`, revérifier le barème du lycée (sous le seuil avant réparation, 100 après), ajouter un test après la réparation du SSID, mettre à jour `sim-tests.js` et `SCENARIOS` dans `builder.spec.js`.
 
-- ✅ **Pont WiFi ↔ câble sur la Box** — un client WiFi joint un poste câblé au switch de la box, comme sur une vraie box ; le port WAN n'est jamais ponté. *(fait le 11/11/2026)*
+- [ ] **Indices quand une commande échoue** — le terminal affiche déjà la raison technique renvoyée par `simPing()` / `simDNS()` (« La passerelle … n'est pas dans le sous-réseau de PC-Alice »). Y ajouter un conseil actionnable pour l'élève (« Vérifie la passerelle de PC-Alice avec ipconfig »), désactivable par l'enseignant.
 
-- [ ] **Capture de trames (Wireshark simplifié)** — panneau `📡 Trames` dans le panneau bas, listant les échanges ARP / ICMP / DNS / HTTP en clair au fil des commandes. Très parlant pédagogiquement.
+- [ ] **Éditeur de routes statiques** — laisser l'élève saisir les routes d'un routeur dont le routage automatique est décoché. L'objectif `route_exists` existe déjà. Depuis que le ping suit les tables de routage (aller et retour), un tel routeur ne communique qu'avec ses réseaux directs : cet éditeur est le seul moyen de le réparer.
 
-- [ ] **VLAN basique** — segmenter un switch en deux VLANs (access port / trunk). Objectif typique BTS SIO. Nécessite de modifier `cablePath` et `lanSeg`.
+---
 
-- [ ] **Pare-feu simple** — nouvel appareil `Firewall` avec règles allow/deny sur les ports (80, 53, etc.). Bloque certains `simPing` / `simHTTP` selon les règles.
+## 🎓 Expérience élève
 
-- [ ] **Simulation de collision / CSMA-CD** — visualisation des collisions sur un hub (à distinguer d'un switch). Surtout utile pour les classes SNT/4e.
+- [ ] **Mode guidé pas-à-pas** — afficher les objectifs un par un, chacun déverrouillé quand le précédent est atteint. Option `displayMode: 'step'` dans l'onglet Évaluation. Bien adapté au collège et à la liste ordonnée (panne → réparation → test).
+
+- [ ] **Historique des tentatives** — panneau qui liste les commandes déjà tapées et leurs résultats ; solution affichée une fois l'activité réussie.
+
+- [ ] **Mode chronomètre** — compteur de temps écoulé côté élève, réglé dans le builder. Utile pour les évaluations en classe.
+
+---
+
+## 🛠️ Expérience enseignant (builder)
+
+- [ ] **Assistant « Nouvelle activité » : d'autres modèles** — un lycée à deux salles, une construction où l'élève configure le routeur, d'autres thèmes (médiathèque, hôpital…). Chaque modèle passe automatiquement les règles des scénarios dans `sim-tests.js`.
+
+- [ ] **Variante « une panne de plus » sur une Box** — elle vise un poste à adresse fixe, ou à défaut un terminal WiFi d'une box protégée (mot de passe faux) : Maison en bénéficie. Restent le DHCP coupé et le SSID faux sur la Box elle-même.
+
+- [ ] **Aperçu élève côte à côte** — le bouton « Tester comme élève » ouvre déjà l'activité dans un onglet, et l'onglet Évaluation signale les objectifs acquis au départ. Reste un aperçu en direct, à côté du canevas, mis à jour à chaque modification.
+
+- [ ] **Bibliothèque de scénarios en ligne** — dépôt partagé (GitHub Pages) où les profs publient et récupèrent des scénarios JSON. Bouton « Parcourir la bibliothèque » dans l'onglet 3.
+
+---
+
+## 🌐 Pédagogie réseau (nouvelles fonctionnalités simulées)
+
+- [ ] **Table ARP** — table ARP de chaque appareil construite au fil des pings (requête / réponse ARP), dans un onglet `arp` du panneau bas.
+
+- [ ] **Capture de trames (Wireshark simplifié)** — panneau `📡 Trames` listant les échanges ARP / ICMP / DNS / HTTP / DHCP au fil des commandes.
+
+- [ ] **VLAN basique** — segmenter un switch en deux VLAN (port d'accès / trunk). Objectif typique BTS SIO. Touche `cablePath`, `lanSeg` et `l2Reach`.
+
+- [ ] **Pare-feu simple** — appareil `Firewall` avec règles autoriser / refuser par port (80, 53…), qui bloque certains `simPing` / `simHTTP`.
+
+- [ ] **Collisions sur un hub (CSMA/CD)** — visualiser les collisions sur un hub, par opposition au switch. Surtout pour la SNT et le collège.
 
 ---
 
 ## 🔧 Technique et robustesse
 
-- [ ] **Tests visuels automatisés** — import, exports et SCORM sont couverts par `tests/e2e/` (Playwright). Reste à couvrir : drag & drop d'appareils, câblage, énoncé imprimable.
+- [ ] **Tests navigateur à compléter** — `tests/e2e/` couvre import, exports, SCORM, assistant et variantes. Restent : glisser-déposer d'appareils, câblage à la souris, énoncé imprimable hors plan d'adressage, Firefox.
 
-- [ ] **Validation JSON Schema** — schéma JSON Schema complet dans `tools/validate.py` avec messages d'erreur explicites (champs manquants, types incorrects, IDs dupliqués).
+- [ ] **Validation des scénarios JSON** — schéma complet (champs manquants, types incorrects, identifiants en double) avec des messages clairs à l'import, et vérifié par `tools/validate.py`.
 
-- [ ] **Versionning des scénarios** — ajouter `minBuilderVersion` dans le JSON pour détecter les incompatibilités à l'import et avertir l'enseignant.
+- [ ] **Version minimale dans les scénarios** — champ `minBuilderVersion` pour avertir à l'import d'un scénario qui exige un builder plus récent.
 
-- [ ] **Export SCORM 2004 / H5P** — en plus de SCORM 1.2, supporter SCORM 2004 (xAPI) ou H5P pour une meilleure compatibilité LMS (Canvas, Chamilo, etc.).
+- [ ] **Export SCORM 2004 / xAPI / H5P** — en plus de SCORM 1.2, pour d'autres plateformes (Canvas, Chamilo…).
 
 ---
 
 ## ✅ Déjà implémenté (pour mémoire)
 
-| Fonctionnalité | Date |
+| Fonctionnalité | Version |
 |---|---|
-| Simulation ping/DNS/HTTP/DHCP/WiFi/routage RIP | mai 2026 |
-| Builder SCORM — 3 onglets, export ZIP | mai–juin 2026 |
-| 14 types d'objectifs pédagogiques | juin 2026 |
-| 7 types de pannes injectables | juin 2026 |
-| Box WiFi (wifi_router) + liaisons WiFi | 15 juin 2026 |
-| 128 tests unitaires (sim-tests.js) | 16 juin 2026 |
-| Pipeline de vérification build.py | 16 juin 2026 |
-| Undo/redo, copy/paste, multi-select | 4 juin 2026 |
-| 3 scénarios clés-en-main (scenarios/) | 18 juin 2026 |
-| Mode panne (applyFaults) | 18 juin 2026 |
-| Documentation prof + élève v1.1 | 23 juin 2026 |
-| Génération d'énoncé imprimable (PDF/print) | 23 juin 2026 |
+| Simulation ping / DNS / HTTP / DHCP / WiFi / routage RIP, Box WiFi | avant v1.5 |
+| Builder à 3 onglets, export SCORM 1.2 et HTML, énoncé imprimable | avant v1.5 |
+| 14 types d'objectifs, 7 types de pannes, mode panne | avant v1.5 |
+| Notation des scénarios à pannes | v1.5 |
+| Cartes illustrées, score en direct, Figer / Réinitialiser | v1.6 |
+| Adresses en plage ou au choix, références `{Appareil}`, passerelle « routeur du réseau », contrainte affichée à l'élève, score qui suit le réseau (objectifs perdus) | v1.7 |
+| Plan d'adressage dans l'énoncé et corrigé enseignant ; objectifs et pannes dans une liste ordonnable | v1.7 |
+| Scénarios à 0 au départ, chaque réparation suivie de son test | v1.8 |
+| Ping par les tables de routage (aller et retour), Échap / Suppr, pointeur câble, icône du routeur, badges retirés, DHCP depuis la fiche du poste | v1.9 |
+| Assistant « Nouvelle activité » et variantes, ENT hébergé sur Internet, score du builder égal à celui de l'élève | v1.9.1 |
+| Pont WiFi ↔ câble de la Box (WAN exclu) | v1.9.2 |
+| TTL selon les routeurs traversés, toutes les interfaces d'un routeur sur sa carte | à venir |
+| Connexion WiFi réelle (SSID et mot de passe), panne « mot de passe WiFi incorrect » | à venir |
+| 381 tests unitaires (`sim-tests.js`), 28 tests navigateur (`tests/e2e/`) | — |

@@ -2614,7 +2614,7 @@ const SCENARIOS_DIR = path.join(__dirname, '..', 'scenarios');
 const OBJECTIVE_TYPES = ['cable_exists','ip_configured','gateway_configured','dns_configured',
   'service_active','device_added','wifi_link','route_exists','dns_record','ssid_configured',
   'ping_success','dns_success','http_success','dhcp_success'];
-const FAULT_TYPES = ['bad_ip','bad_mask','bad_gateway','bad_dns','service_down','missing_cable','ssid_wrong'];
+const FAULT_TYPES = ['bad_ip','bad_mask','bad_gateway','bad_dns','service_down','missing_cable','ssid_wrong','wifi_pass_wrong'];
 const IPV4 = /^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+$/;
 
 function readScenario(file) {
@@ -2710,6 +2710,9 @@ function applySolution(data) {
     if(o.check === 'wifi_link' && (created[p.devA] || created[p.devB])) {
       var lid = 'l' + (S.nid++);
       S.links[lid] = {id: lid, from: devByName(p.devA).id, to: devByName(p.devB).id, type: 'wifi'};
+      // L'élève choisit le réseau de la box et tape son mot de passe
+      var t = created[p.devA] ? devByName(p.devA) : devByName(p.devB), box = created[p.devA] ? devByName(p.devB) : devByName(p.devA);
+      t.wifi = {ssid: box.ssid || '', pass: box.wifiPass || ''};
     }
   });
   // Poste ajouté sans câble demandé : relié au switch d'un appareil du même réseau.
@@ -2804,6 +2807,122 @@ test('box sans WAN configuré : ses câbles vers un switch restent côté LAN', 
   var lid = 'l' + (S.nid++);
   S.links[lid] = {id: lid, from: lap, to: box, type: 'wifi'};
   ok(simPing(lap, '192.168.5.10').ok);
+});
+
+/* ── TTL des réponses au ping et interfaces sur la carte d'un routeur ── */
+suite('Ping — TTL selon les routeurs traversés ; carte du routeur');
+
+test('TTL : 64 sur le même réseau (box comprise), moins 1 par routeur traversé', function() {
+  openScenario(readScenario('reseau-maison.json'), false);
+  var pc = devByName('PC-Bureau'), lap = devByName('Laptop');
+  term(lap.id, 'dhcp');
+  eq(sandbox.pingTTL(simPing(pc.id, '192.168.1.1')), 64, 'la box elle-même');
+  eq(sandbox.pingTTL(simPing(lap.id, mainIface(pc).ip)), 64, 'pont WiFi ↔ câble de la box');
+  eq(sandbox.pingTTL(simPing(pc.id, '8.8.8.8')), 63, 'Internet, derrière la box');
+  var sc = sandbox.ActivityWizard.build({type: 'decouverte', theme: 'entreprise', level: 'bts'});
+  openScenario(sc, false);
+  eq(sandbox.pingTTL(simPing(devByName('PC-Accueil').id, '192.168.2.100')), 63, 'serveur derrière le routeur');
+});
+
+test('carte d\'un routeur : ses trois interfaces sont affichées', function() {
+  var sc = sandbox.ActivityWizard.build({type: 'decouverte', theme: 'classe', level: 'bts'});
+  openScenario(sc, false);
+  sandbox.renderDevs();
+  var r = devByName('Routeur'), svg = _docElements['layer-devs'].innerHTML;
+  var card = svg.slice(svg.indexOf('id="gd' + r.id + '"'));
+  card = card.slice(0, card.indexOf('</g>'));
+  ['eth0: 10.0.0.2', 'eth1: 192.168.10.1', 'eth2: 192.168.20.1'].forEach(function(t) {
+    ok(card.indexOf(t) >= 0, 'manque « ' + t + ' »');
+  });
+  r.ifaces.push({name: 'eth3', ip: '192.168.30.1', mask: '255.255.255.0'});
+  sandbox.renderDevs();
+  svg = _docElements['layer-devs'].innerHTML;
+  card = svg.slice(svg.indexOf('id="gd' + r.id + '"'));
+  ok(card.indexOf('+ 2 interfaces') >= 0, 'au-delà de trois, le reste est résumé');
+});
+
+/* ── Connexion WiFi : SSID et mot de passe du terminal ── */
+suite('Connexion WiFi — SSID et mot de passe sur le terminal');
+
+test('mot de passe faux : pas d\'adresse DHCP, liaison en rouge, objectif WiFi perdu ; corrigé, tout repart', function() {
+  var wdata = readScenario('reseau-maison.json');
+  wdata.activity.objectives = [objective(1, 'wifi_link', {devA: 'Laptop', devB: 'Box-WiFi'}, 100)];
+  openScenario(wdata, false);
+  var lap = devByName('Laptop');
+  sandbox.checkAllObjectives();
+  ok(done(1), 'connecté au départ');
+  sandbox.setTermWifi(lap.id, 'pass', 'maison000');
+  var r = simDHCP(lap.id);
+  notOk(r.ok);
+  eq(r.reason, 'Non connecté au WiFi : mot de passe incorrect pour « WiFi-Maison »');
+  eq(simPing(lap.id, '192.168.1.1').reason, 'Non connecté au WiFi : mot de passe incorrect pour « WiFi-Maison »');
+  sandbox.renderLinks();
+  ok(_docElements['layer-links'].innerHTML.indexOf('#e53e3e') >= 0, 'liaison non associée en rouge');
+  sandbox.checkAllObjectives();
+  notOk(done(1), 'wifi_link exige l\'association');
+  sandbox.setTermWifi(lap.id, 'pass', 'maison123');
+  ok(simDHCP(lap.id).ok);
+  sandbox.checkAllObjectives();
+  ok(done(1));
+});
+
+test('SSID de la box changé (panne ssid_wrong) : la tablette du lycée se déconnecte', function() {
+  var data = readScenario('reseau-lycee.json');
+  openScenario(data, false);
+  var tab = devByName('Tablette-Eleve'), box = devByName('Box-WiFi-Eleves');
+  ok(simDHCP(tab.id).ok, 'connectée sans la panne');
+  box.ssid = 'WiFi-Invite';
+  var r = simDHCP(tab.id);
+  notOk(r.ok);
+  ok(/SSID « WiFi-Lycee » inconnu/.test(r.reason), r.reason);
+  ok(simPing(devByName('PC-Salle1').id, mainIface(tab).ip).reason.indexOf('n\'est pas connecté au WiFi') >= 0,
+    'la destination signale aussi la déconnexion');
+  box.ssid = 'WiFi-Lycee';
+  ok(simDHCP(tab.id).ok, 'reconnectée une fois le SSID rétabli');
+});
+
+test('liaison tracée par l\'élève : SSID choisi, mot de passe à saisir sur un réseau protégé', function() {
+  openScenario(readScenario('reseau-maison.json'), false);
+  var box = devByName('Box-WiFi');
+  var tab = mkDev('pc', 10, 10, 'tablet');
+  S.devs[tab].name = 'Tablette';
+  S.devs[tab].ifaces[0].dhcpMode = true;
+  ok(addLink(tab, box.id), 'liaison WiFi créée');
+  eq(S.devs[tab].wifi.ssid, 'WiFi-Maison');
+  eq(S.devs[tab].wifi.pass, '');
+  notOk(simDHCP(tab).ok, 'pas de mot de passe');
+  sandbox.setTermWifi(tab, 'pass', 'maison123');
+  ok(simDHCP(tab).ok);
+  ok(sandbox.wifiPropsHTML(tab, true).indexOf('Connecté à « WiFi-Maison »') >= 0, 'fiche : connecté');
+});
+
+test('réseau ouvert : seul le SSID compte ; terminal sans réglage WiFi (ancien scénario) connecté', function() {
+  openScenario(readScenario('reseau-lycee.json'), false);
+  var tab = devByName('Tablette-Eleve');
+  tab.wifi = {ssid: 'WiFi-Lycee', pass: 'nimporte'};
+  ok(simDHCP(tab.id).ok, 'mot de passe ignoré sur un réseau ouvert');
+  delete tab.wifi;
+  ok(simDHCP(tab.id).ok, 'sans champ wifi : connecté');
+});
+
+test('dans l\'activité, changer le mot de passe de la box déconnecte ses clients', function() {
+  openScenario(readScenario('reseau-maison.json'), false);
+  var box = devByName('Box-WiFi'), lap = devByName('Laptop');
+  sandbox.setBoxWifi(box.id, 'pass', 'nouveau');
+  eq(box.wifiPass, 'nouveau');
+  eq(lap.wifi.pass, 'maison123', 'le terminal garde l\'ancien mot de passe');
+  notOk(simDHCP(lap.id).ok);
+});
+
+test('panne « mot de passe WiFi incorrect » : injectée sur le terminal, réparée par l\'élève', function() {
+  var data = readScenario('reseau-maison.json');
+  data.activity.faults = [{id: 1, type: 'wifi_pass_wrong', dev: 'Laptop', badValue: 'maison321'}];
+  openScenario(data, true);
+  var lap = devByName('Laptop');
+  eq(lap.wifi.pass, 'maison321');
+  eq(lap.wifi.ssid, 'WiFi-Maison');
+  notOk(simDHCP(lap.id).ok);
+  term(lap.id, 'ipconfig');
 });
 
 const allScenarios = fs.readdirSync(SCENARIOS_DIR).filter(function(f) { return f.endsWith('.json'); });

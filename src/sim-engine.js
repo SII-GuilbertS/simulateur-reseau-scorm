@@ -354,7 +354,7 @@ function checkObjectiveStatic(obj){
       var wA=devByName(p.devA),wB=devByName(p.devB);
       if(!wA||!wB)return false;
       return !!Object.values(S.links).find(function(l){
-        return l.type==='wifi'&&
+        return l.type==='wifi'&&wifiLinkUp(l)&&
           ((l.from===wA.id&&l.to===wB.id)||(l.from===wB.id&&l.to===wA.id));
       });}
     case 'route_exists':{
@@ -837,13 +837,100 @@ function addLink(a,b){
   }
   var id='l'+(S.nid++);S.links[id]={id:id,from:a,to:b};
   setTimeout(function(){checkAllObjectives();},50);
-  if(isWifi)S.links[id].type='wifi';
+  if(isWifi){S.links[id].type='wifi';wifiPrefill(da.type==='wifi_router'?db:da,da.type==='wifi_router'?da:db);}
   return id;
+}
+
+/* ── Connexion WiFi d'un terminal ──────────────────────────────
+   d.wifi = {ssid, pass} : réseau choisi et mot de passe saisi sur le terminal. La liaison WiFi
+   tracée vers une box ne transporte rien tant que le SSID n'est pas celui de la box et, pour un
+   réseau protégé, que le mot de passe n'est pas le bon. Sans d.wifi (scénarios antérieurs),
+   le terminal est connecté à la box qu'il touche. */
+function isBuilderApp(){return typeof EvalModule!=='undefined';}
+function wifiLinkOf(d){
+  return d?Object.values(S.links).find(function(l){
+    if(l.type!=='wifi'||(l.from!==d.id&&l.to!==d.id))return false;
+    var o=S.devs[l.from===d.id?l.to:l.from];return !!o&&o.type==='wifi_router';
+  })||null:null;
+}
+function wifiBoxOf(d){var l=wifiLinkOf(d);return l?S.devs[l.from===d.id?l.to:l.from]:null;}
+/* {ok} ou {ok:false, why:'ssid'|'pass'} pour le terminal t et la box b. */
+function wifiAssoc(t,b){
+  if(!t||!b)return{ok:false,why:'ssid'};
+  if(!t.wifi)return{ok:true};
+  if((t.wifi.ssid||'').trim()!==(b.ssid||'').trim())return{ok:false,why:'ssid'};
+  if(b.wifiPass&&(t.wifi.pass||'')!==b.wifiPass)return{ok:false,why:'pass'};
+  return{ok:true};
+}
+function wifiLinkUp(l){
+  if(!l||l.type!=='wifi')return true;
+  var a=S.devs[l.from],b=S.devs[l.to];if(!a||!b)return false;
+  if(a.type==='wifi_router'&&b.type==='wifi_router')return true;
+  return a.type==='wifi_router'?wifiAssoc(b,a).ok:wifiAssoc(a,b).ok;
+}
+/* Message quand le terminal n'est relié que par un WiFi qui ne s'associe pas ; '' sinon. */
+function wifiProblem(devId){
+  var d=S.devs[devId],l=wifiLinkOf(d);
+  if(!l||wifiLinkUp(l))return '';
+  var wired=Object.values(S.links).some(function(k){return k.type!=='wifi'&&(k.from===devId||k.to===devId);});
+  if(wired)return '';
+  var st=wifiAssoc(d,wifiBoxOf(d)),ss=(d.wifi&&d.wifi.ssid||'').trim();
+  if(st.why==='pass')return 'Non connecté au WiFi : mot de passe incorrect pour « '+ss+' »';
+  return ss?'Non connecté au WiFi : SSID « '+ss+' » inconnu (aucune box ne le diffuse ici)'
+    :'Non connecté au WiFi : aucun réseau choisi dans la fiche de '+d.name;
+}
+/* Liaison tracée : le terminal choisit le réseau de la box. Dans le builder, le mot de passe est
+   aussi saisi ; dans l'activité, l'élève le tape lui-même (il figure dans la fiche de la box). */
+function wifiPrefill(t,b){
+  if(!t||!b||t.type==='wifi_router')return;
+  if(t.wifi&&(t.wifi.ssid||'').trim())return;
+  t.wifi={ssid:b.ssid||'',pass:isBuilderApp()?(b.wifiPass||''):''};
+}
+function setTermWifi(id,field,value){
+  var d=S.devs[id];if(!d)return;
+  if(!d.wifi){var b=wifiBoxOf(d);d.wifi={ssid:b?b.ssid||'':'',pass:b?b.wifiPass||'':''};}
+  d.wifi[field]=value;
+  render();showProps(id);
+}
+/* Box : dans le builder, les terminaux qui étaient connectés suivent le nouveau SSID ou mot de
+   passe ; dans l'activité, ils se déconnectent, comme avec une vraie box. */
+function setBoxWifi(id,field,value){
+  var b=S.devs[id];if(!b)return;
+  var key=field==='ssid'?'ssid':'pass',old=field==='ssid'?b.ssid||'':b.wifiPass||'';
+  if(isBuilderApp())Object.values(S.links).forEach(function(l){
+    if(l.type!=='wifi'||(l.from!==id&&l.to!==id))return;
+    var t=S.devs[l.from===id?l.to:l.from];
+    if(t&&t.wifi&&(t.wifi[key]||'')===old)t.wifi[key]=value;
+  });
+  if(field==='ssid')b.ssid=value;else b.wifiPass=value;
+  render();showProps(id);
+}
+/* Section « Connexion WiFi » de la fiche d'un terminal relié en WiFi à une box. */
+function wifiPropsHTML(id,editable){
+  var d=S.devs[id],b=wifiBoxOf(d);
+  if(!d||!b||(d.type!=='pc'&&d.type!=='server'))return '';
+  var w=d.wifi||{ssid:b.ssid||'',pass:b.wifiPass||''},st=wifiAssoc(d,b);
+  var h='<div class="psection">Connexion WiFi</div>';
+  h+='<div class="pr" style="font-size:.8em;font-weight:700;color:'+(st.ok?'#276749':'#c53030')+'">'+
+    (st.ok?'✅ Connecté à « '+esc(b.ssid||'')+' » ('+esc(b.name)+')'
+      :'❌ '+esc(wifiProblem(id)||'Non connecté au WiFi').replace('Non connecté au WiFi : ','Non connecté : '))+'</div>';
+  if(editable){
+    h+='<div class="pr"><label>Réseau WiFi (SSID)</label><input value="'+esc(w.ssid||'')+'" placeholder="'+esc(b.ssid||'')+'"'+
+      ' onchange="setTermWifi(\''+id+'\',\'ssid\',this.value)"/></div>';
+    h+='<div class="pr"><label>Mot de passe WiFi</label><input type="text" value="'+esc(w.pass||'')+'"'+
+      ' placeholder="'+(b.wifiPass?'mot de passe de la box':'(réseau ouvert)')+'"'+
+      ' onchange="setTermWifi(\''+id+'\',\'pass\',this.value)"/></div>';
+  } else {
+    h+='<div class="pr"><label>Réseau WiFi (SSID)</label><div class="mono">'+esc(w.ssid||'—')+'</div></div>';
+  }
+  return h;
 }
 
 function nbrs(devId){
   var r=[];
-  Object.values(S.links).forEach(function(l){if(l.from===devId)r.push(l.to);else if(l.to===devId)r.push(l.from);});
+  Object.values(S.links).forEach(function(l){
+    if(!wifiLinkUp(l))return;
+    if(l.from===devId)r.push(l.to);else if(l.to===devId)r.push(l.from);});
   return r;
 }
 
@@ -965,6 +1052,7 @@ function l2Reach(fromId,toId){
     for(var i=0;i<links.length;i++){
       var l=links[i];
       if(l.from!==cur.id&&l.to!==cur.id)continue;
+      if(!wifiLinkUp(l))continue;
       if(!start&&d.type==='wifi_router'&&boxLinkIsWan(d,l))continue;
       var n=l.from===cur.id?l.to:l.from;
       if(n===toId&&box)return{ok:true,path:[fromId,box,toId],wifi:true};
@@ -972,6 +1060,13 @@ function l2Reach(fromId,toId){
     }
   }
   return{ok:false};
+}
+/* TTL affiché par ping : 64 moins les routeurs traversés. Les switchs et le pont d'une box
+   (WiFi ↔ câble, même réseau) ne le décrémentent pas. */
+function pingTTL(res){
+  if(!res||!res.path)return 64;
+  if(res.wifi&&res.path.length===3)return 64;
+  return 64-res.path.slice(1,-1).filter(function(id){return isRouter(S.devs[id]);}).length;
 }
 /* Route la plus précise de la table du routeur pour cette destination. */
 function bestRoute(r,destIP){
@@ -1033,11 +1128,14 @@ function routePacket(fromId,destIP,dstId){
 function simPing(srcId,destIP){
   var src=S.devs[srcId];if(!src)return{ok:false,reason:'Appareil introuvable'};
   if(src.type==='switch')return{ok:false,reason:'Un switch n\'a pas d\'adresse IP'};
+  var wp=wifiProblem(srcId);if(wp)return{ok:false,reason:wp};
   var si=mainIface(src);
   if(!isRouter(src)&&(!si||!si.ip))return{ok:false,reason:'Adresse IP non configurée sur '+src.name};
   destIP=(destIP||'').trim();
   if(devHasIP(src,destIP))return{ok:true,path:[src.id],lat:0};
   var dst=devByIP(destIP);
+  if(dst&&wifiProblem(dst.id))return{ok:false,reason:dst.name+' n\'est pas connecté au WiFi ('+
+    wifiProblem(dst.id).replace('Non connecté au WiFi : ','')+')'};
   if(!dst){
     if(isPrivateIP(destIP)||inLocalNetwork(destIP))
       return{ok:false,reason:'Hôte '+destIP+' inconnu (aucun appareil n\'a cette IP)'};
@@ -1107,9 +1205,9 @@ function renderLinks(){
     else if(isAnim&&S.animPhase==='ret')cls='cable-ret';
     // base color by connectivity
     var ai=mainIface(a),bi=mainIface(b);
-    var isWifiLink=(l.type==='wifi');
-    var baseColor=isWifiLink?'#a78bfa':((ai&&bi&&ai.ip&&bi.ip)?'#7abfff':'#b0bec5');
-    var midFill=isAnim?(S.animPhase==='fwd'?'#48bb78':'#63b3ed'):(isWifiLink?'#7c3aed':(ai&&bi&&ai.ip&&bi.ip?'#4299e1':'#a0aec0'));
+    var isWifiLink=(l.type==='wifi'),wifiDown=isWifiLink&&!wifiLinkUp(l);
+    var baseColor=wifiDown?'#e53e3e':isWifiLink?'#a78bfa':((ai&&bi&&ai.ip&&bi.ip)?'#7abfff':'#b0bec5');
+    var midFill=isAnim?(S.animPhase==='fwd'?'#48bb78':'#63b3ed'):(wifiDown?'#c53030':isWifiLink?'#7c3aed':(ai&&bi&&ai.ip&&bi.ip?'#4299e1':'#a0aec0'));
     // Zone de clic invisible épaisse (12px) pour faciliter la sélection
     h+='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"'+
       ' stroke="transparent" stroke-width="12" stroke-linecap="round"'+
@@ -1186,7 +1284,12 @@ function renderDevs(){
     if(d.type==='router'||d.type==='wifi_router'){
       var ifs=d.ifaces.filter(function(f){return f.ip;});
       subFull=ifs.map(function(f){return f.name+':'+f.ip;}).join(' | ')||'non configuré';
-      subLines=ifs.length?ifs.slice(0,2).map(function(f){return truncSVG(f.name+': '+f.ip,20);}):['non configuré'];
+      // Toutes les interfaces tiennent sur la carte jusqu'à 3 lignes (2 sous le SSID d'une box) ;
+      // au-delà, la dernière ligne résume le reste (détail complet dans l'infobulle).
+      var maxL=(d.type==='wifi_router'&&d.ssid)?2:3;
+      subLines=ifs.map(function(f){return truncSVG(f.name+': '+f.ip,20);});
+      if(subLines.length>maxL)subLines=subLines.slice(0,maxL-1).concat(['+ '+(ifs.length-maxL+1)+' interfaces']);
+      if(!subLines.length)subLines=['non configuré'];
     } else if(d.type!=='switch'){
       var fi=mainIface(d);
       if(fi&&fi.dhcpMode&&!fi.ip){subFull='DHCP…';subLines=['DHCP…'];}
@@ -1613,7 +1716,7 @@ function doPing(devId,target){
   var disp=hostname?hostname+'['+target+']':target;
   if(res.ok){
     tpr('Ping de '+disp+' avec 32 octets de données :','info');
-    for(var i=0;i<4;i++)tpr('Réponse de '+disp+' : octets=32 durée='+(res.lat+i%2)+'ms TTL='+(64-res.path.length+1),'ok');
+    for(var i=0;i<4;i++)tpr('Réponse de '+disp+' : octets=32 durée='+(res.lat+i%2)+'ms TTL='+pingTTL(res),'ok');
     tpr('');tpr('Statistiques : Envoyés=4, Reçus=4, Perdus=0 (0%)','ok');
     var pathNames=res.path.map(function(id){return S.devs[id]?S.devs[id].name:id;});
     if(res.path.length>1)tpr('Chemin : '+pathNames.join(' → '),'info');
@@ -1643,7 +1746,9 @@ function doIPCfg(devId){
     if(d.type==='wifi_router'&&d.dhcp&&d.dhcp.on)
       tpr('Service DHCP : actif ('+d.dhcp.start+' — '+d.dhcp.end+')','ok');
   } else {
-    var fi=mainIface(d)||{};
+    var fi=mainIface(d)||{},wb=wifiBoxOf(d);
+    if(wb){var wpb=wifiProblem(devId);
+      tpr('WiFi        : '+(wpb?wpb.replace('Non connecté au WiFi : ','non connecté — '):'connecté à '+wb.ssid),wpb?'err':'ok');}
     if(fi.dhcpMode)tpr('Mode        : DHCP automatique','info');
     tpr('Adresse IP  : '+(fi.ip||'non configurée'),fi.ip?'ok':'warn');
     tpr('Masque      : '+(fi.mask||'—'),'');
@@ -1782,6 +1887,7 @@ function renderPackets(){
 function simDHCP(srcId){
   var src=S.devs[srcId];if(!src)return{ok:false,reason:'Appareil introuvable'};
   if(src.type==='switch'||isRouter(src))return{ok:false,reason:'Seuls PC et Serveur peuvent faire une demande DHCP'};
+  var wp=wifiProblem(srcId);if(wp)return{ok:false,reason:wp};
   var seg=lanSeg(srcId);
   var dhcpSrv=null;
   seg.forEach(function(nid){
@@ -1968,6 +2074,11 @@ function injectFaults(faults){
       case 'ssid_wrong':
         d=devByName(fdev);if(!d||d.type!=='wifi_router')return;
         d.ssid=fbadVal||'';break;
+      case 'wifi_pass_wrong':{
+        d=devByName(fdev);if(!d||d.type==='wifi_router')return;
+        var wb=wifiBoxOf(d);
+        d.wifi={ssid:d.wifi?d.wifi.ssid:(wb?wb.ssid||'':''),pass:fbadVal||''};
+        break;}
     }
   });
 }

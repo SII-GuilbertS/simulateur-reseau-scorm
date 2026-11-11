@@ -6,8 +6,7 @@ MSG="${1:-update}"
 cd "$(dirname "$0")/.."
 
 git add scorm-builder.html tests/sim-tests.js README.md \
-        docs/doc-prof.pdf docs/doc-prof.docx \
-        docs/doc-eleve.pdf docs/doc-eleve.docx 2>/dev/null
+        docs/doc-prof.pdf docs/doc-eleve.pdf 2>/dev/null
 
 STAGED=$(git diff --cached --name-only)
 if [ -z "$STAGED" ]; then

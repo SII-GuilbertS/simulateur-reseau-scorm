@@ -635,6 +635,39 @@ test.describe('Builder', () => {
     expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(false);
   });
 
+  test('Connexion WiFi : SSID suivi dans le builder, mot de passe faux puis corrigé chez l\'élève', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    // Builder : renommer le réseau de la box, les terminaux connectés suivent
+    const box = await deviceId(page, 'Box-WiFi');
+    await page.locator(`#gd${box}`).click();
+    const ssid = page.locator('#props-body .pr', { hasText: 'SSID (nom du réseau)' }).locator('input');
+    await ssid.fill('WiFi-Famille');
+    await ssid.press('Tab');
+    const laptop = await deviceId(page, 'Laptop');
+    await page.locator(`#gd${laptop}`).click();
+    await expect(page.locator('#props-body')).toContainText('Connecté à « WiFi-Famille »');
+
+    // Élève : on repart du scénario d'origine
+    await openBuilderWith(page, 'reseau-maison');
+    const file = await exportFile(page, 'html', info.outputPath('maison-wifi.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+    const lap = await deviceId(page, 'Laptop');
+    await page.locator(`#gd${lap}`).click();
+    await expect(page.locator('#props-body')).toContainText('Connecté à « WiFi-Maison »');
+    const pass = page.locator('#props-body .pr', { hasText: 'Mot de passe WiFi' }).locator('input');
+    await pass.fill('maison000');
+    await pass.press('Tab');
+    await expect(page.locator('#props-body')).toContainText('Non connecté : mot de passe incorrect');
+    await page.locator('#props-body button', { hasText: 'Demander une adresse (DHCP)' }).click();
+    await studentScore(page, 0);
+    await pass.fill('maison123');
+    await pass.press('Tab');
+    await expect(page.locator('#props-body')).toContainText('Connecté à « WiFi-Maison »');
+    await page.locator('#props-body button', { hasText: 'Demander une adresse (DHCP)' }).click();
+    await studentScore(page, 10);
+  });
+
   test('DHCP depuis la fiche : recocher la case ou cliquer sur le bouton valide l\'objectif', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     const file = await exportFile(page, 'html', info.outputPath('maison-dhcp.html'));

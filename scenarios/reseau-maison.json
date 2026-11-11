@@ -63,6 +63,7 @@
         "id": "d5",
         "type": "pc", "kind": "laptop",
         "name": "Laptop",
+        "wifi": {"ssid": "WiFi-Maison", "pass": "maison123"},
         "x": 580, "y": 80,
         "mac": "AA:BB:CC:DD:EE:05",
         "ifaces": [
@@ -74,6 +75,7 @@
         "id": "d6",
         "type": "pc", "kind": "phone",
         "name": "Smartphone",
+        "wifi": {"ssid": "WiFi-Maison", "pass": "maison123"},
         "x": 880, "y": 160,
         "mac": "AA:BB:CC:DD:EE:06",
         "ifaces": [

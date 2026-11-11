@@ -202,6 +202,7 @@ function showPropsSimu(id){
       h+=row('Passerelle',fi.gateway,true);
       h+=row('Serveur DNS',fi.dns,true);
     }
+    h+=wifiPropsHTML(id,false);
   }
   if(d.type==='router'||d.type==='internet'){
     h+='<div class="psection">Interfaces réseau</div>';
@@ -240,7 +241,7 @@ function showPropsSimu(id){
     });
     var wifiClients=Object.values(S.links)
       .filter(function(l){return (l.from===id||l.to===id)&&l.type==='wifi';})
-      .map(function(l){return S.devs[l.from===id?l.to:l.from];})
+      .map(function(l){var c=S.devs[l.from===id?l.to:l.from];if(c)c._wifiUp=wifiLinkUp(l);return c;})
       .filter(Boolean);
     h+='<div class="psection">Appareils connectés en WiFi</div>';
     if(!wifiClients.length){
@@ -248,7 +249,8 @@ function showPropsSimu(id){
     } else {
       wifiClients.forEach(function(c){
         var ci=mainIface(c)||{};
-        h+='<div class="iface-box"><div class="iface-title"><span>💻 '+esc(c.name)+'</span></div>'
+        h+='<div class="iface-box"><div class="iface-title"><span>💻 '+esc(c.name)+'</span>'
+          +(c._wifiUp?'':'<span style="color:#c53030;font-size:.85em">❌ non connecté</span>')+'</div>'
           +'<div style="font-family:monospace;font-size:.8em;color:#2d3748;padding:2px 4px">'
           +esc(ci.ip||'—')+'</div></div>';
       });
@@ -360,6 +362,7 @@ function showProps(id){
       // Même effet que la commande dhcp du terminal
       h+='<button class="pb pb-blue" onclick="doDHCP(\''+id+'\')">📡 '+(fi.ip?'Renouveler l\'adresse (DHCP)':'Demander une adresse (DHCP)')+'</button>';
     }
+    h+=wifiPropsHTML(id,true);
   }
 
 
@@ -384,9 +387,9 @@ function showProps(id){
   if(d.type==='wifi_router'){
     h+='<div class="psection">Configuration WiFi</div>';
     h+='<div class="pr"><label>SSID (nom du réseau)</label><input value="'+esc(d.ssid||'')+'" placeholder="MonWiFi"'+
-      ' onchange="S.devs[\''+id+'\'].ssid=this.value;render();showProps(\''+id+'\')"/></div>';
+      ' onchange="setBoxWifi(\''+id+'\',\'ssid\',this.value)"/></div>';
     h+='<div class="pr"><label>Mot de passe WiFi</label><input value="'+esc(d.wifiPass||'')+'" placeholder="(laisser vide = réseau ouvert)"'+
-      ' onchange="S.devs[\''+id+'\'].wifiPass=this.value"/></div>';
+      ' onchange="setBoxWifi(\''+id+'\',\'pass\',this.value)"/></div>';
     h+='<div class="psection">Interfaces réseau</div>';
     d.ifaces.forEach(function(fi,i){
       h+='<div class="iface-box">'+

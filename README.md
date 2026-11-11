@@ -74,14 +74,15 @@ actuelle pour garder les deux versions.
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **373 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **381 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
 - Simulation applicative : `simPing` (LAN, WiFi, pont WiFi ↔ câble de la box, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
 - Routage : `getRoutingTable`, `autoRoute` (RIP propagé, route par défaut), acheminement par les tables, route la plus précise, retour des réponses, boucles, adresses inconnues privées ou publiques
 - Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker, références `{Appareil}`, passerelle cohérente), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
-- Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
+- Mode panne : `applyFaults` (8 types de pannes, formats plat et imbriqué)
+- Connexion WiFi : SSID et mot de passe du terminal, liaison inactive et messages tant qu'ils ne correspondent pas à la box
 - Commandes élève : terminal et navigateur jusqu'à la validation des objectifs
 - Score et SCORM : calcul du score, seuil de réussite, échanges avec un LMS simulé
 - Session : sauvegarde, reprise, réseau de départ
@@ -90,7 +91,7 @@ Suite de **373 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 373/373 tests passés — SUCCÈS
+# ✅ 381/381 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
@@ -107,7 +108,7 @@ Ces tests ne remplacent pas un essai sur un vrai Moodle, et ne couvrent ni le dr
 
 ### Scénarios prêts à l'emploi (`scenarios/`)
 
-Quatre scénarios JSON complets couvrant les 14 types d'objectifs et 5 des 7 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
+Quatre scénarios JSON complets couvrant les 14 types d'objectifs et 5 des 8 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
 
 Tous démarrent avec un score de **0** : chaque point se gagne en réparant une panne, en construisant ce qui est demandé ou en prouvant par une commande (ping, nslookup, navigateur, dhcp) que le réseau fonctionne. Les tests vérifient ce score de départ pour chaque fichier de `scenarios/`.
 
@@ -141,7 +142,7 @@ Objectifs couverts : `ping_success`, `service_active`, `dns_success`, `http_succ
 Topologie : Routeur-Principal, 2 Switches, PC-Salle1, PC-Salle2, Box-WiFi-Élèves (DHCP WiFi), Tablette-Élève, Serveur-DNS, Serveur-Web.
 Pannes (7) : câble Internet débranché, SSID incorrect, DHCP de la Box arrêté, liaison WiFi de la tablette coupée, IP incorrecte sur PC-Salle2, adresse de la Box erronée (le routeur perd la route vers le réseau WiFi), service HTTP du Serveur-Web arrêté.
 Construction : l'élève ajoute PC-Salle3 (adresse libre entre `.20` et `.49`, passerelle du routeur, DNS du Serveur-DNS) et l'enregistrement `pc-salle3.lycee.local`.
-21 objectifs — 100 points — seuil 65 %. Chaque réparation est suivie de son test, sauf le SSID, dont le simulateur ne tient pas encore compte. La route rétablie se prouve par un ping de PC-Salle1 vers la tablette : tant que la Box est mal adressée, le routeur n'a pas de route vers le réseau WiFi.
+21 objectifs — 100 points — seuil 65 %. Chaque réparation est suivie de son test ; le SSID de la Box, la liaison WiFi et le DHCP de la tablette se prouvent ensemble par la demande DHCP de la tablette. La route rétablie se prouve par un ping de PC-Salle1 vers la tablette : tant que la Box est mal adressée, le routeur n'a pas de route vers le réseau WiFi.
 
 Objectifs couverts : **tous les 14 types** (`cable_exists`, `ssid_configured`, `service_active`, `wifi_link`, `dhcp_success`, `ip_configured`, `route_exists`, `http_success`, `device_added`, `gateway_configured`, `dns_configured`, `ping_success`, `dns_record`, `dns_success`).
 
@@ -161,10 +162,10 @@ Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`, `ping_succ
 
 ### Documentation
 
-#### `docs/doc-prof.pdf` / `docs/doc-prof.docx`
-Guide complet pour les **enseignants** : présentation, 3 onglets du builder, 14 types d'objectifs, mode panne, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
+#### `docs/doc-prof.pdf`
+Guide complet pour les **enseignants** : présentation, 3 onglets du builder, assistant « Nouvelle activité » et variantes, 14 types d'objectifs, mode panne, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
 
-#### `docs/doc-eleve.pdf` / `docs/doc-eleve.docx`
+#### `docs/doc-eleve.pdf`
 Guide de prise en main pour les **élèves** : interface, modes Configuration/Simulation, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `traceroute`…), onglet Navigateur pour le web, objectifs et score, exemple guidé, résolution de problèmes.
 
 ---
@@ -334,12 +335,23 @@ modification d'un routeur) et se propagent de proche en proche ; l'appareil Inte
 par défaut et n'apprend aucun réseau du schéma. Un routeur dont le routage automatique est décoché
 n'apprend rien : sans éditeur de routes, il ne communique qu'avec ses réseaux directs.
 
+**Connexion WiFi.** Une liaison WiFi tracée vers une box ne transporte rien tant que le terminal n'a
+pas choisi le réseau de la box (SSID) et, pour un réseau protégé, saisi son mot de passe : liaison en
+pointillé rouge, `ping` et `dhcp` répondent « Non connecté au WiFi : mot de passe incorrect » ou
+« SSID … inconnu ». La fiche du terminal a une section **Connexion WiFi** (état, SSID, mot de passe) ;
+`ipconfig` indique l'état. Quand une liaison est tracée, le terminal prend le SSID de la box ; dans le
+builder il prend aussi le mot de passe, dans l'activité l'élève le tape (il figure dans la fiche de la
+box). Dans le builder, changer le SSID ou le mot de passe d'une box met à jour ses terminaux
+connectés ; dans l'activité, ils se déconnectent, comme avec une vraie box. Un terminal d'un scénario
+antérieur, sans réglage WiFi (`wifi` absent), reste connecté. L'objectif `wifi_link` exige une liaison
+associée.
+
 **Le score suit le réseau.** Un objectif n'est acquis que tant que sa condition reste vraie : si
 l'élève casse sa configuration, il perd les points, et le score affiché est la note transmise au
 LMS. Un objectif de simulation (ping, DNS, HTTP, DHCP) se valide par une commande réussie, puis cette
 commande est rejouée sans affichage à chaque modification du réseau.
 
-**7 types de pannes (`faults`) :**
+**8 types de pannes (`faults`) :**
 
 | Type | Effet | Paramètres |
 |------|-------|------------|
@@ -349,7 +361,8 @@ commande est rejouée sans affichage à chaque modification du réseau.
 | `bad_dns` | DNS incorrect | `dev`, `badValue` |
 | `service_down` | Service désactivé | `dev`, `service` |
 | `missing_cable` | Câble débranché | `devA`, `devB` |
-| `ssid_wrong` | SSID WiFi incorrect | `dev`, `badValue` |
+| `ssid_wrong` | SSID WiFi incorrect : les terminaux de la box se déconnectent | `dev`, `badValue` |
+| `wifi_pass_wrong` | Mot de passe WiFi incorrect sur un terminal | `dev`, `badValue` |
 
 ---
 

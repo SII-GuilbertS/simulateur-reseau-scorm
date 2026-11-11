@@ -97,6 +97,7 @@
         "id": "d8",
         "type": "pc", "kind": "tablet",
         "name": "Tablette-Eleve",
+        "wifi": {"ssid": "WiFi-Lycee", "pass": ""},
         "x": 760, "y": 80,
         "mac": "AA:BB:CC:DD:EE:08",
         "ifaces": [
