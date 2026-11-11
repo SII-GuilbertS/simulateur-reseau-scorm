@@ -363,6 +363,52 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 
 /* ── Builder nav pushes everything down ── */
 body{padding-top:0}/* nav is flex child */
+/* ── Assistant « Nouvelle activité » et variantes ── */
+.bld-nav-btn{padding:5px 12px;margin-right:8px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);
+  border-radius:6px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap;align-self:center}
+.bld-nav-btn:hover{background:rgba(255,255,255,.2)}
+.wz-ovl{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:3000;display:none;align-items:center;justify-content:center;
+  font-family:'Segoe UI',Arial,sans-serif}
+.wz-ovl.open{display:flex}
+.wz-box{background:#fff;border-radius:12px;width:min(1040px,96vw);max-height:92vh;display:flex;flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.wz-hdr{display:flex;align-items:center;padding:14px 20px;background:#1a365d;color:#fff;font-weight:800;font-size:1.05em}
+.wz-hdr span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wz-x{background:none;border:none;color:#fff;font-size:1.1em;cursor:pointer;padding:2px 6px}
+.wz-body{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;padding:16px 20px;overflow-y:auto}
+.wz-step{font-weight:800;color:#1a365d;font-size:.88em;margin:6px 0 7px}
+.wz-cards{display:grid;gap:8px;margin-bottom:10px}
+.wz-cards-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.wz-cards-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.wz-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 10px;border:2px solid #e2e8f0;
+  border-radius:9px;background:#fff;cursor:pointer;font-family:inherit;color:#2d3748;transition:border-color .15s,background .15s}
+.wz-card:hover{border-color:#90cdf4}
+.wz-card.on{border-color:#3182ce;background:#ebf8ff}
+.wz-card b{font-size:.86em}
+.wz-card small{font-size:.74em;color:#718096;line-height:1.3}
+.wz-ic{font-size:1.25em}
+.wz-note{font-size:.76em;color:#718096;margin:6px 0 0;line-height:1.4}
+.wz-preview{background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-width:0}
+.wz-prev-title{font-weight:800;color:#1a365d}
+.wz-prev-meta{font-size:.76em;color:#718096;margin:2px 0 8px}
+.wz-list{margin:0;padding:0;list-style:none;font-size:.8em}
+.wz-list li{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px dashed #e2e8f0}
+.wz-list li.f{color:#9b2c2c}
+.wz-li-t{flex:1;min-width:0}
+.wz-pts{color:#4a5568;font-weight:700;white-space:nowrap}
+.wz-audit{margin-top:10px;font-size:.78em;padding:7px 9px;border-radius:7px;line-height:1.4}
+.wz-audit.ok{background:#f0fff4;color:#276749;border:1px solid #c6f6d5}
+.wz-audit.warn{background:#fffaf0;color:#9c4221;border:1px solid #feebc8}
+.wz-report{margin:0 0 10px;padding:0;list-style:none;font-size:.8em;color:#276749}
+.wz-report li{padding:2px 0}
+.wz-report li.warn{color:#9c4221}
+.wz-empty{color:#718096;font-size:.85em}
+.wz-foot{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0;background:#fff;flex-wrap:wrap}
+.wz-sp{flex:1}
+.wz-btn{padding:8px 14px;border-radius:7px;font-weight:700;font-size:.84em;cursor:pointer;font-family:inherit;border:1px solid #cbd5e0;background:#fff;color:#2d3748}
+.wz-btn.main{background:#3182ce;border-color:#3182ce;color:#fff}
+.wz-btn.main:disabled{background:#a0aec0;border-color:#a0aec0;cursor:not-allowed}
+@media (max-width:820px){.wz-body{grid-template-columns:1fr}.wz-cards-3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -384,8 +430,20 @@ body{padding-top:0}/* nav is flex child */
       <span class="bld-tab-num">3</span>Générer SCORM
     </button>
   </div>
-  <button onclick="GenModule.previewAsStudent()" title="Ouvrir la vue élève dans un nouvel onglet" style="margin-left:auto;margin-right:10px;padding:5px 13px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap">👁️ Tester comme élève</button>
+  <button class="bld-nav-btn" id="btn-wizard" style="margin-left:auto" onclick="WizardUI.open('new')" title="Créer une activité à partir d'un modèle : type, thème et niveau">✨ Nouvelle activité</button>
+  <button class="bld-nav-btn" id="btn-variant" onclick="WizardUI.open('variant')" title="Décliner l'activité en cours : plus guidée, plus exigeante, autres pannes">🔀 Variante</button>
+  <button onclick="GenModule.previewAsStudent()" title="Ouvrir la vue élève dans un nouvel onglet" style="margin-right:10px;padding:5px 13px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap">👁️ Tester comme élève</button>
   <div class="bld-hint">Ctrl+1 / Ctrl+2 / Ctrl+3 pour naviguer</div>
+</div>
+
+
+<!-- Fenêtre de l'assistant « Nouvelle activité » et des variantes (WizardUI) -->
+<div id="wz-ovl" class="wz-ovl" onclick="if(event.target===this)WizardUI.close()">
+  <div class="wz-box" role="dialog" aria-modal="true">
+    <div class="wz-hdr"><span id="wz-title"></span><button type="button" class="wz-x" onclick="WizardUI.close()" title="Fermer">✕</button></div>
+    <div class="wz-body" id="wz-body"></div>
+    <div class="wz-foot" id="wz-foot"></div>
+  </div>
 </div>
 
 
@@ -3624,6 +3682,15 @@ function checkAllObjectives(){
   var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
   if(!cfg||!cfg.objectives||!cfg.objectives.length)return;
   evaluateObjectives(cfg.objectives);
+  // Le réseau du builder est le corrigé : un objectif de configuration ne compte que s'il est
+  // vrai chez l'élève, pannes de l'onglet 2 appliquées. Le score de départ est donc celui de
+  // l'élève (0 pour une activité bien construite) ; les commandes de test gardent leurs points.
+  if(cfg.faults&&cfg.faults.length){
+    var atStart=studentStartResults(SimModule.getState(),cfg,true);
+    cfg.objectives.forEach(function(o){
+      if(STATIC_TYPES.indexOf(o.check)>=0&&!atStart[o.id])ACTIVITY_RESULTS[o.id]=false;
+    });
+  }
   updateActivityScore();
   if(EvalModule.refreshPreviews)EvalModule.refreshPreviews();
 }
@@ -3675,15 +3742,16 @@ function freezeStart(silent){
   if(!silent)notif('📌 État de départ figé : '+Object.keys(S.devs).length+' appareils, '+Object.keys(S.links).length+' câbles','ok');
 }
 /* Objectifs déjà atteints dans le réseau que recevra l'élève : réseau actuel + pannes.
-   Le réseau du builder est remis tel quel ensuite. */
-function studentStartResults(net,cfg){
+   Le réseau du builder est remis tel quel ensuite. keepStart : garder les appareils de départ
+   du builder (un poste ajouté par le professeur compte alors comme ajouté). */
+function studentStartResults(net,cfg,keepStart){
   var keys=['devs','links','nid','frames','texts','activeLinks','animPhase'];
   var saved={},savedIds=START_DEV_IDS,res={};
   keys.forEach(function(k){saved[k]=S[k];});
   try{
     applyNetworkData(JSON.parse(JSON.stringify({devs:net.devs,links:net.links,nid:net.nid,frames:net.frames,texts:net.texts})));
     applyFaults(cfg.faults);
-    START_DEV_IDS=Object.keys(net.devs||{});
+    if(!keepStart)START_DEV_IDS=Object.keys(net.devs||{});
     (cfg.objectives||[]).forEach(function(o){
       res[o.id]=STATIC_TYPES.indexOf(o.check)>=0&&!!checkObjectiveStatic(o);
     });
@@ -5352,7 +5420,7 @@ var GenModule = (function() {
     bldNotif('💾 Scénario exporté','ok');
   }
 
-  function _applyScenario(sc) {
+  function _applyScenario(sc, msg) {
     if(!sc.network || !sc.activity) throw new Error('Format de scénario invalide');
     // Normalisation rétrocompat : "type" → "check" dans les objectifs
     (sc.activity.objectives||[]).forEach(function(obj){
@@ -5384,7 +5452,7 @@ var GenModule = (function() {
     var pwdEl = document.getElementById('gen-pwd');
     if(pwdEl && sc.teacherPwd) pwdEl.value = sc.teacherPwd;
     resetScore();
-    bldNotif('📂 Scénario importé : '+Object.keys(sc.network.devs||{}).length+' appareils, '+(sc.activity.objectives||[]).length+' objectifs','ok');
+    bldNotif(msg || '📂 Scénario importé : '+Object.keys(sc.network.devs||{}).length+' appareils, '+(sc.activity.objectives||[]).length+' objectifs','ok');
     showBuilderTab(1);
   }
 
@@ -5737,8 +5805,932 @@ var GenModule = (function() {
     bldNotif((corrige?'🔑 Corrigé':'📄 Énoncé')+' ouvert — utilisez Ctrl+P pour imprimer ou générer un PDF','ok');
   }
 
-  return { generate: generate, generateHtml: generateHtml, previewAsStudent: previewAsStudent, exportScenario: exportScenario, importScenario: importScenario, updateSummary: updateSummary, generateEnonce: generateEnonce,
+  return { generate: generate, generateHtml: generateHtml, previewAsStudent: previewAsStudent, exportScenario: exportScenario, importScenario: importScenario,
+           applyScenario: function(sc, msg){ try{ _applyScenario(sc, msg); return true; }catch(ex){ bldNotif('❌ '+ex.message,'err'); return false; } },
+           updateSummary: updateSummary, generateEnonce: generateEnonce,
            generateCorrige: function(){ generateEnonce(true); } };
+})();
+
+
+/* WIZARD-START ──────────────────────────────────────────────
+   Assistant « Nouvelle activité » et variantes d'une activité.
+   Fonctions sans interface, sur des scénarios {network, activity} au format des fichiers de
+   scenarios/. tests/sim-tests.js extrait ce bloc et vérifie chaque modèle et chaque variante
+   comme un scénario fourni : score 0 à l'ouverture, 100 une fois corrigé, sous le seuil tant
+   que les pannes restent. */
+var ActivityWizard=(function(){
+  'use strict';
+
+  var TYPES=[
+    {id:'construction',label:'Construction',icon:'🏗️',desc:"L'élève ajoute un poste, le configure, puis teste chaque étape."},
+    {id:'depannage',label:'Dépannage',icon:'🔧',desc:"Des pannes sont injectées : l'élève diagnostique, corrige et teste."},
+    {id:'decouverte',label:'Découverte',icon:'🔍',desc:"Le réseau fonctionne : l'élève l'explore avec ping, nslookup et le navigateur."}
+  ];
+  var THEMES=[
+    {id:'maison',label:'Maison',icon:'🏠',desc:'Box WiFi, PC fixe, portable en WiFi'},
+    {id:'entreprise',label:'Entreprise',icon:'🏢',desc:'Routeur, postes de bureau, serveur intranet'},
+    {id:'classe',label:'Salle de classe',icon:'🏫',desc:'Routeur, postes élèves, serveur de données ; ENT sur Internet'}
+  ];
+  var LEVELS=[
+    {id:'college',label:'Collège',full:'Collège (4e / 3e)',desc:'Valeurs données à l\'élève, consignes détaillées'},
+    {id:'lycee',label:'Lycée',full:'Lycée (SNT / NSI)',desc:'Adresse à choisir dans une plage, passerelle à trouver'},
+    {id:'bts',label:'BTS / Terminale',full:'Terminale NSI / BTS SIO',desc:'Adresses libres, contraintes masquées, deux réseaux'}
+  ];
+  var MASTERY={college:50,lycee:60,bts:70};
+
+  function clone(x){return JSON.parse(JSON.stringify(x));}
+  function pick(list,id){return list.filter(function(t){return t.id===id;})[0]||list[0];}
+  function rotate(list,n){n=list.length?n%list.length:0;return list.slice(n).concat(list.slice(0,n));}
+
+  /* ── Réseau ── */
+  function newNet(){return {nid:1,devs:{},links:{},frames:{},texts:{}};}
+  function hex2(n){return ('0'+(n&255).toString(16).toUpperCase()).slice(-2);}
+  function addDev(net,type,name,x,y,ifaces,extra){
+    var id='d'+(net.nid++);
+    var d={id:id,type:type,name:name,x:x,y:y,mac:'AA:BB:CC:DD:EE:'+hex2(net.nid-1),ifaces:ifaces||[],staticRoutes:[]};
+    if(type==='router'||type==='wifi_router'||type==='internet')d.autoRouteEnabled=true;
+    Object.keys(extra||{}).forEach(function(k){d[k]=extra[k];});
+    net.devs[id]=d;return d;
+  }
+  function addLink(net,a,b,wifi){
+    var id='l'+(net.nid++);
+    net.links[id]={id:id,from:a.id,to:b.id};
+    if(wifi)net.links[id].type='wifi';
+  }
+  function eth(ip,gw,dns){return {name:'eth0',ip:ip,mask:'255.255.255.0',gateway:gw||'',dns:dns||''};}
+  function rif(name,ip,mask){return {name:name,ip:ip,mask:mask||'255.255.255.0'};}
+  function devNamed(net,name){
+    return Object.keys(net.devs).map(function(k){return net.devs[k];}).filter(function(d){return d.name===name;})[0]||null;
+  }
+  function addInternet(net){
+    return addDev(net,'internet','Internet',100,280,[rif('eth0','10.0.0.1'),rif('eth1','8.8.8.8','255.0.0.0')],
+      {dns:{on:true,records:{'www.exemple.fr':'8.8.8.8'}},
+       http:{on:true,title:'Exemple',content:'Bienvenue sur www.exemple.fr : votre connexion à Internet fonctionne.',htmlMode:false}});
+  }
+  function mkCtx(net,theme,level,router,rname){
+    return {net:net,theme:theme,level:level,router:router,rname:rname,lans:[],hosts:[],dhcpHosts:[],
+      lanOf:{},ip:{},server:null,lanServer:null,dnsIP:'',site:'',domain:'',newdev:'',seed:0};
+  }
+  function addHost(ctx,name,lan,oct,x,y,kind){
+    var L=ctx.lans[lan],ip=L.prefix+oct;
+    var d=addDev(ctx.net,'pc',name,x,y,[eth(ip,L.gw,ctx.dnsIP)],kind?{kind:kind}:{});
+    addLink(ctx.net,devNamed(ctx.net,L.sw),d);
+    ctx.hosts.push(name);ctx.lanOf[name]=lan;ctx.ip[name]=ip;
+  }
+  function addServer(ctx,name,lan,oct,x,y,site,title,content){
+    var L=ctx.lans[lan],ip=L.prefix+oct,rec={};
+    rec[site]=ip;
+    var d=addDev(ctx.net,'server',name,x,y,[eth(ip,L.gw,ip)],
+      {dns:{on:true,records:rec},http:{on:true,title:title,content:content,htmlMode:false},serverFiles:{}});
+    addLink(ctx.net,devNamed(ctx.net,L.sw),d);
+    ctx.server=name;ctx.ip[name]=ip;ctx.lanOf[name]=lan;ctx.site=site;
+  }
+
+  function themeMaison(level){
+    var net=newNet(),inet=addInternet(net);
+    var box=addDev(net,'wifi_router','Box',380,280,
+      [{name:'WAN',ip:'10.0.0.2',mask:'255.255.255.0',gateway:'10.0.0.1',dns:''},rif('WiFi','192.168.1.1')],
+      {ssid:'WiFi-Maison',wifiPass:'maison123',
+       dhcp:{on:true,start:'192.168.1.100',end:'192.168.1.200',mask:'255.255.255.0',gateway:'192.168.1.1',dns:'8.8.8.8'}});
+    var sw=addDev(net,'switch','Switch-Salon',660,280,[]);
+    addLink(net,inet,box);addLink(net,box,sw);
+    var ctx=mkCtx(net,'maison',level,'Box','la Box');
+    ctx.lans=[{prefix:'192.168.1.',gw:'192.168.1.1',sw:'Switch-Salon'}];
+    ctx.dnsIP='8.8.8.8';ctx.site='www.exemple.fr';ctx.newdev='PC-Chambre';
+    (level==='college'?['PC-Bureau']:['PC-Bureau','PC-Salon']).forEach(function(n,i){
+      addHost(ctx,n,0,10+i,560+i*240,500,'desktop');
+    });
+    (level==='bts'?[['Laptop','laptop'],['Smartphone','phone']]:[['Laptop','laptop']]).forEach(function(w,i){
+      var d=addDev(net,'pc',w[0],600+i*260,80,
+        [{name:'eth0',ip:'',mask:'255.255.255.0',gateway:'',dns:'',dhcpMode:true}],{kind:w[1]});
+      addLink(net,d,box,true);ctx.dhcpHosts.push(w[0]);
+    });
+    return ctx;
+  }
+  function themeOffice(level,theme){
+    var bts=level==='bts',cls=theme==='classe';
+    var net=newNet(),inet=addInternet(net);
+    var p1=cls?'192.168.10.':'192.168.1.',p2=cls?'192.168.20.':'192.168.2.';
+    var ifs=[rif('eth0','10.0.0.2'),rif('eth1',p1+'1')];
+    if(bts)ifs.push(rif('eth2',p2+'1'));
+    var r=addDev(net,'router','Routeur',340,280,ifs);
+    var sw=addDev(net,'switch',cls?'Switch-Salle':'Switch-LAN',620,280,[]);
+    addLink(net,inet,r);addLink(net,r,sw);
+    var ctx=mkCtx(net,theme,level,'Routeur','le Routeur');
+    ctx.lans=[{prefix:p1,gw:p1+'1',sw:sw.name}];
+    if(bts){
+      var sw2=addDev(net,'switch',cls?'Switch-Salle2':'Switch-Serveurs',340,520,[]);
+      addLink(net,r,sw2);
+      ctx.lans.push({prefix:p2,gw:p2+'1',sw:sw2.name});
+    }
+    var srvLan=bts&&!cls?1:0;
+    // Établissement : l'ENT est hébergé sur Internet, les postes utilisent un DNS public.
+    ctx.dnsIP=cls?'8.8.8.8':ctx.lans[srvLan].prefix+'100';
+    var names=cls?['Poste-Prof','Poste-1','Poste-2']:['PC-Accueil','PC-Compta'];
+    if(level!=='college')names.push(cls?'Poste-3':'PC-Direction');
+    names.forEach(function(n,i){addHost(ctx,n,0,10+i,500+i*180,500,'desktop');});
+    if(cls){
+      // ENT chez un hébergeur, derrière Internet : adresse publique, nom résolu par le DNS public.
+      inet.ifaces.push(rif('eth2','51.75.20.1'));
+      inet.dns.records['ent.etablissement.fr']='51.75.20.10';
+      var ent=addDev(net,'server','Serveur-ENT',100,520,[eth('51.75.20.10','51.75.20.1','8.8.8.8')],
+        {dns:{on:false,records:{}},serverFiles:{},
+         http:{on:true,title:'ENT de l\'établissement',content:'Bienvenue sur l\'ENT : cahier de textes, notes, messagerie.',htmlMode:false}});
+      addLink(net,inet,ent);
+      ctx.site='ent.etablissement.fr';
+      // Dans l'établissement : le serveur de données qui garde les profils des élèves.
+      var dIP=p1+'100';
+      var data=addDev(net,'server','Serveur-Données',880,60,[eth(dIP,p1+'1','8.8.8.8')],
+        {dns:{on:false,records:{}},http:{on:false,title:'Ma page web',content:'',htmlMode:false},
+         serverFiles:{'profils-eleves.txt':'Profils et dossiers personnels des élèves'}});
+      addLink(net,sw,data);
+      ctx.lanServer='Serveur-Données';ctx.ip[ctx.lanServer]=dIP;ctx.lanOf[ctx.lanServer]=0;
+      ctx.newdev='Poste-'+names.length;
+      if(bts)['Poste-B1','Poste-B2'].forEach(function(n,i){addHost(ctx,n,1,11+i,200+i*220,720,'desktop');});
+    } else {
+      addServer(ctx,'Serveur',srvLan,100,bts?340:880,bts?720:60,'intranet.entreprise.fr','Intranet',
+        'Bienvenue sur l\'intranet de l\'entreprise.');
+      ctx.lanServer='Serveur';ctx.domain='entreprise.fr';ctx.newdev='PC-Stagiaire';
+    }
+    return ctx;
+  }
+
+  /* ── Exigence selon le niveau ── */
+  function ipSpec(ctx,ip,lo,hi){
+    var pre=ip.replace(/\d+$/,'');
+    if(ctx.level==='college')return ip;
+    return ctx.level==='lycee'?pre+lo+'-'+hi:pre+'*';
+  }
+  function ipText(ctx,ip,lo,hi){
+    var pre=ip.replace(/\d+$/,'');
+    if(ctx.level==='college')return 'l\'adresse '+ip;
+    if(ctx.level==='lycee')return 'une adresse libre entre '+pre+lo+' et '+pre+hi;
+    return 'une adresse libre du réseau '+pre+'0/24';
+  }
+  function gwSpec(ctx,L){return ctx.level==='college'?L.gw:'@routeur';}
+  function gwText(ctx,dev,L){
+    return ctx.level==='college'?'La passerelle de '+dev+' est '+ctx.rname+' ('+L.gw+')'
+      :dev+' utilise le routeur de son réseau comme passerelle';
+  }
+  function dnsSpec(ctx){return ctx.level==='college'||!ctx.server?ctx.dnsIP:'{'+ctx.server+'}';}
+  function dnsText(ctx,dev){
+    return ctx.level==='college'||!ctx.server?dev+' utilise le serveur DNS '+ctx.dnsIP
+      :dev+' utilise le serveur DNS du réseau ('+ctx.server+')';
+  }
+  function shown(ctx){return ctx.level!=='bts';}
+
+  /* ── Liste ordonnée d'objectifs (o) et de pannes (f) ── */
+  function O(items,check,params,label,hint,w,show){
+    items.push({o:{label:label,check:check,params:params,hint:hint,w:w,show:show}});
+  }
+  function F(items,fault){items.push({f:fault});}
+
+  function constructionItems(ctx){
+    var c=ctx,L=c.lans[0],n=c.newdev,ip=L.prefix+'20',it=[],sh=shown(c);
+    O(it,'device_added',{newdev:n,type:'pc',ip:ipSpec(c,ip,20,49),mask:'255.255.255.0'},
+      'Le poste '+n+' est ajouté avec '+ipText(c,ip,20,49),
+      'Ajoutez un PC, nommez-le '+n+', puis saisissez son adresse IP et son masque dans sa fiche',3,sh);
+    O(it,'cable_exists',{devA:n,devB:L.sw},n+' est relié au '+L.sw,'Outil câble : reliez '+n+' au '+L.sw,2);
+    O(it,'ping_success',{from:n,to:L.gw},'Test : '+n+' joint '+c.rname+' (ping '+L.gw+')',
+      'Terminal de '+n+' : ping '+L.gw,2);
+    O(it,'gateway_configured',{dev:n,gateway:gwSpec(c,L)},gwText(c,n,L),
+      c.level==='college'?'Fiche de '+n+' : passerelle '+L.gw
+        :'Quelle est l\'adresse de '+c.rname+' sur ce réseau ? Regardez ipconfig sur '+c.hosts[0],3,sh);
+    O(it,'ping_success',{from:n,to:'8.8.8.8'},'Test : '+n+' accède à Internet (ping 8.8.8.8)',
+      'Terminal de '+n+' : ping 8.8.8.8',2);
+    O(it,'dns_configured',{dev:n,dns:dnsSpec(c)},dnsText(c,n),
+      c.level==='college'?'Fiche de '+n+' : serveur DNS '+c.dnsIP:'Reprenez le DNS configuré sur '+c.hosts[0]+' (ipconfig)',3);
+    O(it,'http_success',{from:n,url:c.site},'Test : '+n+' ouvre le site '+c.site,
+      'Onglet Navigateur : choisissez '+n+' et entrez '+c.site,2);
+    if(c.level==='bts'&&c.server){
+      var rec=n.toLowerCase()+'.'+c.domain;
+      O(it,'dns_record',{dev:c.server,domain:rec,ip:'{'+n+'}'},'Le DNS associe '+rec+' à '+n,
+        'Fiche du '+c.server+' : ajoutez l\'enregistrement '+rec+' avec l\'adresse choisie pour '+n,3);
+      O(it,'dns_success',{from:c.hosts[0],domain:rec},'Test : '+c.hosts[0]+' résout '+rec+' (nslookup)',
+        'Terminal de '+c.hosts[0]+' : nslookup '+rec,2);
+    }
+    if(c.theme==='maison'&&c.level!=='college'){
+      O(it,'device_added',{newdev:'Tablette',type:'pc'},'La Tablette est ajoutée au réseau',
+        'Ajoutez une tablette et nommez-la Tablette',2);
+      O(it,'wifi_link',{devA:'Tablette',devB:c.router},'La Tablette est connectée en WiFi à la Box',
+        'Outil câble : reliez la Tablette à la Box (liaison WiFi)',2);
+      O(it,'dhcp_success',{from:'Tablette'},'Test : la Tablette obtient une adresse par DHCP',
+        'Fiche de la Tablette : bouton « Demander une adresse (DHCP) »',2);
+      O(it,'http_success',{from:'Tablette',url:c.site},'Test : la Tablette ouvre le site '+c.site,
+        'Onglet Navigateur : choisissez la Tablette et entrez '+c.site,2);
+    }
+    return it;
+  }
+
+  /* Une panne, sa réparation, puis le test qui la vérifie. */
+  function faultItems(ctx,kind,t){
+    var c=ctx,it=[],L=t?c.lans[c.lanOf[t]]:null,ip=t?c.ip[t]:'',sh=shown(c);
+    switch(kind){
+      case 'cable':
+        F(it,{type:'missing_cable',devA:t,devB:L.sw});
+        O(it,'cable_exists',{devA:t,devB:L.sw},t+' est rebranché au '+L.sw,
+          'ipconfig est bon mais rien ne passe ? Regardez les câbles de '+t,3);
+        O(it,'ping_success',{from:t,to:L.gw},'Test : '+t+' joint '+c.rname+' (ping '+L.gw+')',
+          'Terminal de '+t+' : ping '+L.gw,2);
+        break;
+      case 'ip':
+        F(it,{type:'bad_ip',dev:t,badValue:'10.99.99.'+ip.split('.')[3]});
+        O(it,'ip_configured',{dev:t,ip:ipSpec(c,ip,10,49),mask:'255.255.255.0'},
+          t+' a '+ipText(c,ip,10,49),
+          'Comparez l\'adresse de '+t+' (ipconfig) avec celles des autres postes du réseau',3,sh);
+        O(it,'ping_success',{from:t,to:L.gw},'Test : '+t+' joint '+c.rname+' (ping '+L.gw+')',
+          'Terminal de '+t+' : ping '+L.gw,2);
+        break;
+      case 'gateway':
+        F(it,{type:'bad_gateway',dev:t,badValue:L.prefix+'254'});
+        O(it,'gateway_configured',{dev:t,gateway:gwSpec(c,L)},gwText(c,t,L),
+          'Comparez la passerelle de '+t+' (ipconfig) avec celle d\'un poste qui accède à Internet',3,sh);
+        O(it,'ping_success',{from:t,to:'8.8.8.8'},'Test : '+t+' accède à Internet (ping 8.8.8.8)',
+          'Terminal de '+t+' : ping 8.8.8.8',2);
+        break;
+      case 'dns':
+        F(it,{type:'bad_dns',dev:t,badValue:L.prefix+'53'});
+        O(it,'dns_configured',{dev:t,dns:dnsSpec(c)},dnsText(c,t),
+          'Le navigateur de '+t+' ne trouve pas le site ? Vérifiez son serveur DNS (ipconfig)',3);
+        O(it,'http_success',{from:t,url:c.site},'Test : '+t+' ouvre le site '+c.site,
+          'Onglet Navigateur : choisissez '+t+' et entrez '+c.site,2);
+        break;
+      case 'srv_dns':
+        F(it,{type:'service_down',dev:c.server,service:'dns'});
+        O(it,'service_active',{dev:c.server,service:'dns'},'Le service DNS du '+c.server+' est actif',
+          'nslookup échoue sur tous les postes ? Vérifiez les services du '+c.server,3);
+        O(it,'dns_success',{from:t,domain:c.site},'Test : '+t+' résout '+c.site+' (nslookup)',
+          'Terminal de '+t+' : nslookup '+c.site,2);
+        break;
+      case 'dhcp':
+        var lap=c.dhcpHosts[0];
+        F(it,{type:'service_down',dev:c.router,service:'dhcp'});
+        O(it,'service_active',{dev:c.router,service:'dhcp'},'Le service DHCP de la Box est actif',
+          'Le '+lap+' n\'obtient pas d\'adresse ? Vérifiez les services de la Box',3);
+        O(it,'dhcp_success',{from:lap},'Test : le '+lap+' obtient une adresse par DHCP',
+          'Fiche du '+lap+' : bouton « Demander une adresse (DHCP) »',2);
+        O(it,'http_success',{from:lap,url:c.site},'Test : le '+lap+' ouvre le site '+c.site,
+          'Onglet Navigateur : choisissez le '+lap+' et entrez '+c.site,2);
+        break;
+    }
+    return it;
+  }
+  function lanHosts(ctx,lan){return ctx.hosts.filter(function(h){return ctx.lanOf[h]===lan;});}
+  function faultPlan(ctx){
+    var h=rotate(lanHosts(ctx,0),ctx.seed),b=lanHosts(ctx,1),m=ctx.theme==='maison';
+    function at(i){return h[i%h.length];}
+    if(ctx.level==='college')return [['cable',at(0)],['gateway',m?at(0):at(1)]];
+    if(ctx.level==='lycee')return m?[['ip',at(0)],['dhcp',null],['dns',at(1)]]
+      :[['ip',at(0)],['gateway',at(1)],ctx.server?['srv_dns',at(2)]:['dns',at(2)]];
+    return m?[['ip',at(0)],['gateway',at(1)],['dhcp',null],['dns',at(1)]]
+      :[['ip',at(0)],['gateway',b.length?rotate(b,ctx.seed)[0]:at(1)],
+        ctx.server?['srv_dns',at(1)]:['cable',at(1)],['dns',at(2)]];
+  }
+  function depannageItems(ctx){
+    var it=[];
+    faultPlan(ctx).forEach(function(p){it=it.concat(faultItems(ctx,p[0],p[1]));});
+    return it;
+  }
+
+  function decouverteItems(ctx){
+    var c=ctx,it=[],h=lanHosts(c,0),L=c.lans[0],lyc=c.level!=='college';
+    function ping(from,to,label,w){O(it,'ping_success',{from:from,to:to},label,'Terminal de '+from+' : ping '+
+      (/^\{/.test(to)?'(adresse de '+to.slice(1,-1)+', voir ipconfig)':to),w||2);}
+    if(c.theme==='maison'){
+      var lap=c.dhcpHosts[0];
+      O(it,'dhcp_success',{from:lap},'Le '+lap+' obtient une adresse par DHCP',
+        'Fiche du '+lap+' : bouton « Demander une adresse (DHCP) », ou commande dhcp',2);
+      ping(lap,L.gw,'Le '+lap+' joint la Box (ping '+L.gw+')');
+      ping(h[0],'8.8.8.8',h[0]+' accède à Internet (ping 8.8.8.8)');
+      O(it,'http_success',{from:lap,url:c.site},'Le '+lap+' ouvre le site '+c.site,
+        'Onglet Navigateur : choisissez le '+lap+' et entrez '+c.site,2);
+      if(lyc){
+        O(it,'dns_success',{from:h[0],domain:c.site},h[0]+' résout '+c.site+' (nslookup)',
+          'Terminal de '+h[0]+' : nslookup '+c.site,2);
+        ping(h[1],'{'+h[0]+'}',h[1]+' joint '+h[0]+' (ping)');
+      }
+      if(c.level==='bts'){
+        var ph=c.dhcpHosts[1];
+        O(it,'dhcp_success',{from:ph},'Le '+ph+' obtient une adresse par DHCP',
+          'Fiche du '+ph+' : bouton « Demander une adresse (DHCP) »',2);
+        ping(ph,'{'+lap+'}','Le '+ph+' joint le '+lap+' (ping, tous deux en WiFi)');
+      }
+      return it;
+    }
+    ping(h[0],'{'+h[1]+'}',h[0]+' joint '+h[1]+' (ping)');
+    ping(h[0],L.gw,h[0]+' joint '+c.rname+' (ping '+L.gw+')');
+    ping(h[0],'8.8.8.8',h[0]+' accède à Internet (ping 8.8.8.8)');
+    O(it,'http_success',{from:h[0],url:c.site},h[0]+' ouvre le site '+c.site,
+      'Onglet Navigateur : choisissez '+h[0]+' et entrez '+c.site,2);
+    if(lyc){
+      O(it,'dns_success',{from:h[1],domain:c.site},h[1]+' résout '+c.site+' (nslookup)',
+        'Terminal de '+h[1]+' : nslookup '+c.site,2);
+      ping(h[2],'{'+c.lanServer+'}',h[2]+' joint le '+c.lanServer+' (ping)');
+    }
+    if(c.level==='bts'){
+      var b=lanHosts(c,1);
+      if(b.length){
+        ping(h[0],'{'+b[0]+'}',h[0]+' joint '+b[0]+', dans l\'autre salle (ping)');
+        O(it,'http_success',{from:b[0],url:c.site},b[0]+' ouvre le site '+c.site,
+          'Onglet Navigateur : choisissez '+b[0]+' et entrez '+c.site,2);
+      } else {
+        O(it,'dns_success',{from:h[0],domain:c.site},h[0]+' résout '+c.site+' (nslookup)',
+          'Terminal de '+h[0]+' : nslookup '+c.site,2);
+        O(it,'http_success',{from:h[2],url:c.site},h[2]+' ouvre le site '+c.site,
+          'Onglet Navigateur : choisissez '+h[2]+' et entrez '+c.site,2);
+      }
+    }
+    return it;
+  }
+
+  /* Points répartis selon les poids, pour un total exact, par pas de « step » points
+     (5 pour des barèmes lisibles) quand il y a assez de points pour tous. */
+  function distribute(weights,total,step){
+    if(!weights.length)return [];
+    step=step||1;
+    if(step>1&&total%step===0&&weights.length*step<=total)
+      return distribute(weights,total/step).map(function(u){return u*step;});
+    var sum=weights.reduce(function(a,b){return a+b;},0)||1;
+    var raw=weights.map(function(w){return w*total/sum;});
+    var pts=raw.map(function(r){return Math.max(1,Math.floor(r));});
+    var left=total-pts.reduce(function(a,b){return a+b;},0);
+    var idx=raw.map(function(r,i){return i;}).sort(function(a,b){
+      return (raw[b]-Math.floor(raw[b]))-(raw[a]-Math.floor(raw[a]))||a-b;});
+    for(var i=0;left>0;i=(i+1)%idx.length){pts[idx[i]]++;left--;}
+    while(left<0){var j=pts.indexOf(Math.max.apply(null,pts));pts[j]--;left++;}
+    return pts;
+  }
+  function finish(items){
+    var objs=[],faults=[],order=[];
+    items.forEach(function(it){
+      if(it.f){var f={id:faults.length+1};Object.keys(it.f).forEach(function(k){f[k]=it.f[k];});
+        faults.push(f);order.push('f:'+f.id);return;}
+      var s=it.o,o={id:objs.length+1,label:s.label,check:s.check,params:s.params,points:s.w,hint:s.hint};
+      if(typeof s.show==='boolean')o.showConstraint=s.show;
+      objs.push(o);order.push('o:'+o.id);
+    });
+    var pts=distribute(objs.map(function(o){return o.points;}),100,5);
+    objs.forEach(function(o,i){o.points=pts[i];});
+    return {objectives:objs,faults:faults,evalOrder:order};
+  }
+
+  var PLACE={maison:' de la maison',entreprise:' de l\'entreprise',classe:' de la salle de classe'};
+  function instructions(type,ctx,nFaults){
+    var txt=instructionsText(type,ctx,nFaults);
+    if(ctx.theme!=='classe')return txt;
+    return txt+'\n\nℹ️ L\'ENT de l\'établissement ('+ctx.site+') est hébergé sur Internet, chez un prestataire. '+
+      'Dans l\'établissement, le '+ctx.lanServer+' garde les profils des élèves.';
+  }
+  function instructionsText(type,ctx,nFaults){
+    var c=ctx,L=c.lans[0],t=PLACE[c.theme],lyc=c.level!=='college';
+    if(type==='construction'){
+      var s='Un nouveau poste, '+c.newdev+', doit rejoindre le réseau'+t+'.\n\n🔍 Votre mission :\n'+
+        '1. En mode Configuration, ajoutez un PC nommé '+c.newdev+' et reliez-le au '+L.sw+'.\n'+
+        '2. Dans sa fiche, configurez son adresse IP'+(lyc?'':' ('+L.prefix+'20, masque 255.255.255.0)')+
+        ', sa passerelle et son serveur DNS.\n'+
+        '3. Passez en mode Simulation et testez : ping vers '+c.rname+', ping 8.8.8.8, puis le site '+c.site+
+        ' dans l\'onglet Navigateur.';
+      var k=4;
+      if(c.level==='bts'&&c.server)s+='\n'+(k++)+'. Ajoutez sur le '+c.server+' l\'enregistrement DNS de '+c.newdev+
+        ', puis vérifiez-le avec nslookup depuis '+c.hosts[0]+'.';
+      if(c.theme==='maison'&&lyc)s+='\n'+(k++)+'. Ajoutez une tablette nommée Tablette, connectez-la en WiFi à la Box '+
+        'et obtenez une adresse par DHCP.';
+      return s+'\n\n💡 Astuce : ipconfig sur un poste qui fonctionne montre les réglages du réseau.';
+    }
+    if(type==='depannage'){
+      return 'Le réseau'+t+' ne fonctionne plus correctement'+
+        (c.level==='bts'?' : plusieurs pannes sont à trouver.':' : '+nFaults+' panne'+(nFaults>1?'s sont':' est')+' à trouver.')+
+        '\n\n🔍 Votre mission :\n'+
+        '1. Passez en mode Simulation et testez les appareils : ping'+(lyc?', nslookup':'')+', onglet Navigateur.\n'+
+        '2. Utilisez ipconfig pour comparer les réglages des appareils qui fonctionnent et de ceux qui ne fonctionnent pas.\n'+
+        '3. Repassez en mode Configuration pour corriger, puis refaites les tests.\n\n'+
+        '💡 Astuce : chaque objectif « Test : » vérifie une réparation.';
+    }
+    return 'Le réseau'+t+' fonctionne. Explorez-le pour comprendre comment les appareils communiquent.\n\n'+
+      '🔍 Votre mission :\n1. Passez en mode Simulation.\n'+
+      (c.theme==='maison'?'2. Le '+c.dhcpHosts[0]+' doit d\'abord obtenir une adresse par DHCP (bouton de sa fiche, ou commande dhcp).\n3. ':'2. ')+
+      'Réalisez les objectifs dans l\'ordre avec le terminal (ipconfig, ping'+(lyc?', nslookup':'')+') et l\'onglet Navigateur.\n\n'+
+      '💡 Astuce : ipconfig affiche l\'adresse IP, la passerelle et le serveur DNS d\'un poste.';
+  }
+
+  /* Nouvelle activité : {type, theme, level, seed} → scénario complet. */
+  function build(opts){
+    opts=opts||{};
+    var type=pick(TYPES,opts.type),theme=pick(THEMES,opts.theme),level=pick(LEVELS,opts.level);
+    var ctx=theme.id==='maison'?themeMaison(level.id):themeOffice(level.id,theme.id);
+    ctx.seed=Math.abs(parseInt(opts.seed,10)||0);
+    var items=type.id==='construction'?constructionItems(ctx):type.id==='depannage'?depannageItems(ctx):decouverteItems(ctx);
+    var r=finish(items);
+    return {
+      version:1,createdAt:new Date().toISOString(),teacherPwd:'prof',
+      network:ctx.net,
+      activity:{
+        title:'Réseau'+PLACE[theme.id]+' — '+type.label,
+        level:level.full,
+        instructions:instructions(type.id,ctx,r.faults.length),
+        masteryscore:MASTERY[level.id],
+        displayMode:'full',
+        objectives:r.objectives,faults:r.faults,evalOrder:r.evalOrder
+      }
+    };
+  }
+
+  /* ── Vérification d'un scénario, sans toucher au réseau affiché ── */
+  var STATE_KEYS=['devs','links','nid','frames','texts','activeLinks','animPhase'];
+  function withNetwork(network,faults,fn){
+    var saved={},ids=START_DEV_IDS,proofs=ACTIVITY_PROOFS;
+    STATE_KEYS.forEach(function(k){saved[k]=S[k];});
+    try{
+      applyNetworkData(clone({devs:network.devs||{},links:network.links||{},nid:network.nid||1,frames:{},texts:{}}));
+      START_DEV_IDS=Object.keys(S.devs);
+      applyFaults(faults&&faults.length?clone(faults):[]);
+      return fn();
+    }finally{
+      STATE_KEYS.forEach(function(k){S[k]=saved[k];});
+      START_DEV_IDS=ids;ACTIVITY_PROOFS=proofs;
+    }
+  }
+  /* L'objectif est-il atteint, en jouant la commande de l'élève s'il est dynamique ? */
+  function holds(o){
+    var p=o.params||{};
+    if(DYNAMIC_OBJ_TYPES.indexOf(o.check)<0)return !!checkObjectiveStatic(o);
+    var from=devByName(p.from);if(!from)return false;
+    switch(o.check){
+      case 'ping_success':var ip=pingTargetIP(p.to);return !!ip&&!!simPing(from.id,ip).ok;
+      case 'dns_success':return !!simDNS(from.id,p.domain||'').ok;
+      case 'http_success':return !!simHTTP(from.id,p.url||'',true).ok;
+      case 'dhcp_success':return !!simDHCP(from.id).ok;
+    }
+    return false;
+  }
+  function pts(o){return +o.points||0;}
+  function sum(objs){return objs.reduce(function(s,o){return s+pts(o);},0);}
+  function dhcpFirst(objs){
+    return objs.filter(function(o){return o.check==='dhcp_success';})
+      .concat(objs.filter(function(o){return o.check!=='dhcp_success';}));
+  }
+  /* Objectifs qui portent sur ce que l'élève doit construire : ils ne peuvent pas être
+     vérifiés sur le réseau du scénario. */
+  function toBuild(sc){
+    var net=sc.network,objs=sc.activity.objectives||[],names={},domains={},ips={};
+    objs.forEach(function(o){
+      var p=o.params||{};
+      if(o.check==='device_added'&&p.newdev&&!devNamed(net,p.newdev))names[p.newdev]=1;
+    });
+    objs.forEach(function(o){
+      var p=o.params||{},who=o.check==='device_added'?p.newdev:o.check==='ip_configured'?p.dev:null;
+      if(who&&names[who]&&p.ip&&!ipPatternIsFlexible(p.ip)&&refName(p.ip)===null)ips[p.ip.trim()]=1;
+    });
+    objs.forEach(function(o){
+      var p=o.params||{},srv=o.check==='dns_record'&&devNamed(net,p.dev);
+      if(srv&&p.domain&&!((srv.dns||{}).records||{})[p.domain.toLowerCase().trim()])domains[p.domain.toLowerCase().trim()]=1;
+    });
+    return objs.filter(function(o){
+      var p=o.params||{};
+      if(Object.keys(p).some(function(k){
+        var v=String(p[k]||'').trim(),r=refName(v);
+        return names[v]||(r!==null&&names[r])||(k==='to'&&ips[v]);
+      }))return true;
+      var dom=String(p.domain||p.url||'').toLowerCase().trim();
+      return !!domains[dom];
+    });
+  }
+  function audit(sc){
+    var a=sc.activity,objs=a.objectives||[],faults=a.faults||[],build=toBuild(sc),res={};
+    var later=function(o){return build.indexOf(o)>=0;};
+    withNetwork(sc.network,faults,function(){
+      res.start=sum(objs.filter(function(o){
+        return STATIC_OBJ_TYPES.indexOf(o.check)>=0&&checkObjectiveStatic(o);}));
+      res.unfixed=sum(dhcpFirst(objs).filter(holds));
+    });
+    withNetwork(sc.network,[],function(){
+      var fail=dhcpFirst(objs).filter(function(o){return !later(o)&&!holds(o);});
+      res.failing=fail.map(function(o){return o.label||o.check;});
+      res.solved=sum(objs)-sum(fail);
+    });
+    res.total=sum(objs);res.mastery=+a.masteryscore||0;
+    res.toBuild=build.length;res.faults=faults.length;
+    res.problems=[];
+    if(res.total!==100)res.problems.push('total des points : '+res.total+' au lieu de 100');
+    if(res.start>0)res.problems.push(res.start+' point'+(res.start>1?'s':'')+' acquis dès l\'ouverture');
+    if(res.failing.length)res.problems.push('objectif'+(res.failing.length>1?'s':'')+' impossible'+
+      (res.failing.length>1?'s':'')+' une fois le réseau corrigé : '+res.failing.join(' ; '));
+    if((faults.length||build.length)&&res.unfixed>=res.mastery)
+      res.problems.push('l\'élève atteint le seuil ('+res.unfixed+' / '+res.mastery+' %) sans rien réparer ni construire');
+    res.ok=!res.problems.length;
+    return res;
+  }
+
+  /* ── Variantes d'une activité existante ── */
+  var REPAIR={bad_ip:['ip_configured'],bad_mask:['ip_configured'],bad_gateway:['gateway_configured'],
+    bad_dns:['dns_configured'],service_down:['service_active'],missing_cable:['cable_exists','wifi_link'],
+    ssid_wrong:['ssid_configured']};
+  var IFACE_FIELD={bad_ip:'ip',bad_mask:'mask',bad_gateway:'gateway',bad_dns:'dns'};
+  var FAULT_LABEL={bad_ip:'IP incorrecte',bad_mask:'Masque incorrect',bad_gateway:'Passerelle incorrecte',
+    bad_dns:'DNS incorrect',service_down:'Service désactivé',missing_cable:'Câble débranché',ssid_wrong:'SSID WiFi incorrect'};
+  var INFRA=['switch','router','wifi_router','internet'];
+  function fp(f){return f.params||f;}
+  function faultText(f){
+    var p=fp(f),on=p.dev||(p.devA&&p.devB?p.devA+' – '+p.devB:'');
+    return (f.label||FAULT_LABEL[f.type]||f.type)+(f.label||!on?'':' · '+on)+(p.service&&!f.label?' ('+p.service+')':'');
+  }
+  function objOf(a,id){return (a.objectives||[]).filter(function(o){return String(o.id)===String(id);})[0];}
+  function faultOf(a,id){return (a.faults||[]).filter(function(f){return String(f.id)===String(id);})[0];}
+  function normalizeOrder(a){
+    var out=[],seen={};
+    function add(k){k=String(k);if(seen[k])return;
+      if((k[0]==='o'&&objOf(a,k.slice(2)))||(k[0]==='f'&&faultOf(a,k.slice(2)))){seen[k]=1;out.push(k);}}
+    (a.evalOrder||[]).forEach(add);
+    (a.objectives||[]).forEach(function(o){add('o:'+o.id);});
+    (a.faults||[]).forEach(function(f){add('f:'+f.id);});
+    a.evalOrder=out;
+    a.objectives=out.filter(function(k){return k[0]==='o';}).map(function(k){return objOf(a,k.slice(2));});
+    a.faults=out.filter(function(k){return k[0]==='f';}).map(function(k){return faultOf(a,k.slice(2));});
+  }
+  function devNames(p){return ['dev','devA','devB','from','newdev'].map(function(k){return p[k];}).filter(Boolean);}
+  function mentions(o,name){
+    var p=o.params||{};
+    return Object.keys(p).some(function(k){var v=String(p[k]||'').trim();return v===name||refName(v)===name;});
+  }
+  /* Réparation de la panne et tests « Test : » qui la suivent dans la liste. */
+  function faultBlock(a,f){
+    var ord=a.evalOrder,i=ord.indexOf('f:'+f.id),rep=REPAIR[f.type]||[],names=devNames(fp(f)),res=[],seen=false;
+    if(i<0)return res;
+    for(var j=i+1;j<ord.length&&ord[j][0]!=='f';j++){
+      var o=objOf(a,ord[j].slice(2));if(!o)continue;
+      var q=o.params||{};
+      if(rep.indexOf(o.check)>=0&&names.some(function(n){return devNames(q).indexOf(n)>=0;})){res.push(o);seen=true;continue;}
+      if(seen&&/^\s*test\b/i.test(o.label||'')){res.push(o);continue;}
+      if(seen)break;
+    }
+    return res;
+  }
+  function rebalance(a){
+    var p=distribute((a.objectives||[]).map(function(o){return Math.max(1,pts(o));}),100);
+    a.objectives.forEach(function(o,i){o.points=p[i];});
+  }
+  function nextId(list,prefix){
+    var ids=list.map(function(x){return String(x.id);});
+    if(ids.every(function(s){return /^\d+$/.test(s);}))
+      return ids.reduce(function(m,s){return Math.max(m,+s);},0)+1;
+    var n=1;while(ids.indexOf(prefix+n)>=0)n++;return prefix+n;
+  }
+  function esc(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+  function replaceToken(text,from,to){
+    if(!text||!from)return text;
+    var re=/^[\d.]+$/.test(from)
+      ?'(^|[^\\d.])'+esc(from)+'(?!\\d|\\.\\d)'
+      :'(^|[^\\w-])'+esc(from)+'(?![\\w-])';
+    return text.replace(new RegExp(re,'g'),function(m,pre){return pre+to;});
+  }
+  function linkedSwitch(net,name,wiredOnly){
+    var d=devNamed(net,name);if(!d)return null;
+    var sw=null;
+    Object.keys(net.links).forEach(function(k){
+      var l=net.links[k],other=l.from===d.id?l.to:l.to===d.id?l.from:null;
+      if(!other||(wiredOnly&&l.type==='wifi'))return;
+      var o=net.devs[other];
+      if(o&&o.type==='switch'&&!sw)sw=o.name;
+    });
+    return sw;
+  }
+
+  /* Mêmes pannes sur un autre appareil : la réparation et ses tests suivent. */
+  function moveFault(sc,f,seed){
+    var a=sc.activity,net=sc.network,p=fp(f),field=IFACE_FIELD[f.type],cable=f.type==='missing_cable';
+    if(!field&&!cable)return null;
+    var oldName=cable?[p.devA,p.devB].filter(function(n){var d=devNamed(net,n);return d&&INFRA.indexOf(d.type)<0;})[0]:p.dev;
+    var oldDev=oldName&&devNamed(net,oldName);if(!oldDev)return null;
+    var oldSw=cable?(p.devA===oldName?p.devB:p.devA):null;
+    if(cable&&(!devNamed(net,oldSw)||devNamed(net,oldSw).type!=='switch'))return null;
+    var block=faultBlock(a,f);if(!block.length)return null;
+    var faulted={};(a.faults||[]).forEach(function(g){devNames(fp(g)).forEach(function(n){faulted[n]=1;});});
+    var cands=Object.keys(net.devs).map(function(k){return net.devs[k];}).filter(function(d){
+      var fi=d.ifaces&&d.ifaces[0];
+      if(d.name===oldName||d.type!==oldDev.type||faulted[d.name]||!fi||fi.dhcpMode||!fi.ip)return false;
+      if(field&&!fi[field])return false;
+      if(cable&&!linkedSwitch(net,d.name,true))return false;
+      return !block.some(function(o){return mentions(o,d.name)||(o.label||'').indexOf(d.name)>=0;});
+    });
+    var free=cands.filter(function(d){return !(a.objectives||[]).some(function(o){return mentions(o,d.name);});});
+    cands=free.concat(cands.filter(function(d){return free.indexOf(d)<0;}));
+    cands=rotate(free,seed).concat(cands.filter(function(d){return free.indexOf(d)<0;}));
+    if(!cands.length)return null;
+    var oi=oldDev.ifaces[0];
+    for(var c=0;c<cands.length;c++){
+      var nd=cands[c],ni=nd.ifaces[0],trial=clone(sc),ta=trial.activity,tf=faultOf(ta,f.id),tp=fp(tf);
+      var subs=[[oldName,nd.name]];
+      ['ip','gateway','dns'].forEach(function(k){if(oi[k]&&ni[k]&&oi[k]!==ni[k])subs.push([oi[k],ni[k]]);});
+      var newSw=cable?linkedSwitch(net,nd.name,true):null;
+      if(cable){if(tp.devA===oldName){tp.devA=nd.name;tp.devB=newSw;}else{tp.devB=nd.name;tp.devA=newSw;}
+        if(newSw!==oldSw)subs.push([oldSw,newSw]);}
+      else tp.dev=nd.name;
+      if(f.type==='bad_ip'&&tp.badValue===ni.ip)tp.badValue='10.99.99.'+ni.ip.split('.')[3];
+      block.forEach(function(bo){
+        var o=objOf(ta,bo.id),q=o.params||{};
+        Object.keys(q).forEach(function(k){
+          var v=String(q[k]||'');
+          subs.forEach(function(s){
+            if(v.trim()===s[0])q[k]=s[1];
+            else if(refName(v)===s[0])q[k]='{'+s[1]+'}';
+          });
+          if(k==='ip'&&o.check==='ip_configured'&&q.dev===nd.name&&!ipMatchesPattern(ni.ip,q.ip))q.ip=ni.ip;
+        });
+        ['label','hint','constraintText'].forEach(function(k){
+          if(o[k])subs.forEach(function(s){o[k]=replaceToken(o[k],s[0],s[1]);});
+        });
+      });
+      if(audit(trial).ok)return {scenario:trial,from:oldName,to:nd.name};
+    }
+    return null;
+  }
+
+  /* Dernière panne dont le retrait laisse une activité valide (un test retiré peut servir
+     aux objectifs suivants : une adresse obtenue par DHCP, par exemple). */
+  function removeFault(sc){
+    for(var i=(sc.activity.faults||[]).length-1;i>=0;i--){
+      var trial=clone(sc),a=trial.activity,f=a.faults[i],block=faultBlock(a,f);
+      if(!block.length)continue;
+      a.faults.splice(i,1);
+      a.objectives=a.objectives.filter(function(o){return block.indexOf(o)<0;});
+      normalizeOrder(a);rebalance(a);
+      if(audit(trial).ok)return {scenario:trial,fault:f,removed:block.length};
+    }
+    return null;
+  }
+
+  /* Une panne de plus sur un poste du réseau qui n'en a pas encore. */
+  function addFault(sc,seed){
+    var a=sc.activity,net=sc.network,faulted={};
+    (a.faults||[]).forEach(function(g){devNames(fp(g)).forEach(function(n){faulted[n]=1;});});
+    var hosts=Object.keys(net.devs).map(function(k){return net.devs[k];}).filter(function(d){
+      var fi=d.ifaces&&d.ifaces[0];
+      return d.type==='pc'&&!faulted[d.name]&&fi&&!fi.dhcpMode&&fi.ip&&fi.gateway&&linkedSwitch(net,d.name,true);
+    });
+    var free=hosts.filter(function(d){return !(a.objectives||[]).some(function(o){return mentions(o,d.name);});});
+    hosts=rotate(free,seed).concat(rotate(hosts.filter(function(d){return free.indexOf(d)<0;}),seed));
+    var kinds=rotate(['gateway','cable','ip'],seed);
+    for(var h=0;h<hosts.length;h++)for(var k=0;k<kinds.length;k++){
+      var d=hosts[h],fi=d.ifaces[0],gwDev=null;
+      withNetwork(net,[],function(){gwDev=devByIP(fi.gateway);});
+      if(!gwDev)continue;
+      var ctx={level:'college',theme:'',rname:(gwDev.type==='wifi_router'?'la ':'le ')+gwDev.name,
+        lans:[{prefix:fi.ip.replace(/\d+$/,''),gw:fi.gateway,sw:linkedSwitch(net,d.name,true)}],
+        lanOf:{},ip:{},hosts:[d.name],server:null};
+      ctx.lanOf[d.name]=0;ctx.ip[d.name]=fi.ip;
+      if(fi.mask!=='255.255.255.0'&&kinds[k]==='ip')continue;
+      var trial=clone(sc),ta=trial.activity,avg=100/Math.max(1,ta.objectives.length);
+      normalizeOrder(ta);
+      faultItems(ctx,kinds[k],d.name).forEach(function(it){
+        if(it.f){var f={id:nextId(ta.faults,'flt_')};Object.keys(it.f).forEach(function(x){f[x]=it.f[x];});
+          ta.faults.push(f);ta.evalOrder.push('f:'+f.id);return;}
+        var s=it.o,o={id:nextId(ta.objectives,'obj_'),label:s.label,check:s.check,params:s.params,
+          points:Math.max(1,Math.round(avg*s.w/2.5)),hint:s.hint};
+        if(typeof s.show==='boolean')o.showConstraint=s.show;
+        ta.objectives.push(o);ta.evalOrder.push('o:'+o.id);
+      });
+      normalizeOrder(ta);rebalance(ta);
+      if(audit(trial).ok)return {scenario:trial,dev:d.name,kind:kinds[k]};
+    }
+    return null;
+  }
+
+  /* Adresse exacte d'un poste, que rien d'autre n'utilise : peut devenir « au choix ». */
+  function freeExactIP(sc,o,ip){
+    if(!ip||ipPatternIsFlexible(ip)||refName(ip)!==null)return false;
+    var net=sc.network,a=sc.activity,owner=null,used=false;
+    Object.keys(net.devs).forEach(function(k){
+      var d=net.devs[k];
+      (d.ifaces||[]).forEach(function(f){
+        if(f.ip===ip)owner=d;
+        if(f.gateway===ip||f.dns===ip)used=true;
+      });
+      if(d.dns&&d.dns.records)Object.keys(d.dns.records).forEach(function(r){if(d.dns.records[r]===ip)used=true;});
+      if(d.dhcp&&d.dhcp.on&&(d.dhcp.gateway===ip||d.dhcp.dns===ip))used=true;
+    });
+    if(owner&&owner.type!=='pc')return false;
+    (a.objectives||[]).concat(a.faults||[]).forEach(function(x){
+      if(x===o)return;
+      var p=x.params||x;
+      Object.keys(p).forEach(function(k){if(String(p[k]).trim()===ip)used=true;});
+    });
+    return !used;
+  }
+  function stricter(sc,report){
+    var a=sc.activity,n=0,g=0,h=0;
+    a.objectives.forEach(function(o){
+      var p=o.params||{};
+      if((o.check==='ip_configured'||o.check==='device_added')&&p.ip&&(!p.mask||p.mask==='255.255.255.0')&&freeExactIP(sc,o,p.ip)){
+        var pre=p.ip.replace(/\d+$/,'');
+        p.ip=pre+'*';n++;
+        o.label=o.check==='device_added'
+          ?'Le poste '+(p.newdev||'ajouté')+' a une adresse libre du réseau '+pre+'0/24'
+          :p.dev+' a une adresse libre de son réseau ('+pre+'0/24)';
+      }
+      if(o.check==='gateway_configured'&&p.gateway&&p.gateway.trim()!==GATEWAY_COHERENT&&!ipPatternIsFlexible(p.gateway)){
+        var ok=false;
+        withNetwork(sc.network,[],function(){var r=devByIP(p.gateway.trim());ok=!!r&&isRouter(r);});
+        if(ok){p.gateway=GATEWAY_COHERENT;g++;o.label=p.dev+' utilise le routeur de son réseau comme passerelle';}
+      }
+      if(CONSTRAINT_TYPES.indexOf(o.check)>=0)o.showConstraint=false;
+      if(o.hint){delete o.hint;h++;}
+      delete o.constraintText;
+    });
+    if(n)report.push(n+' adresse'+(n>1?'s':'')+' exacte'+(n>1?'s':'')+' laissée'+(n>1?'s':'')+' au choix de l\'élève');
+    if(g)report.push(g+' passerelle'+(g>1?'s':'')+' à trouver (« routeur du réseau »)');
+    report.push('contraintes masquées'+(h?', '+h+' indice'+(h>1?'s':'')+' retiré'+(h>1?'s':''):''));
+  }
+  function guided(sc,report){
+    var n=0;
+    sc.activity.objectives.forEach(function(o){
+      if(CONSTRAINT_TYPES.indexOf(o.check)>=0&&o.showConstraint!==true){o.showConstraint=true;n++;}
+    });
+    sc.activity.displayMode='full';
+    report.push(n?'contrainte affichée sous '+n+' objectif'+(n>1?'s':''):'contraintes déjà affichées');
+  }
+
+  /* Variante : {exigence:'same'|'guided'|'demanding', faults:'same'|'move'|'remove'|'add', seed}. */
+  function makeVariant(source,opts){
+    opts=opts||{};
+    var sc=clone(source),a=sc.activity,report=[],warn=[],seed=Math.abs(parseInt(opts.seed,10)||0),tags=[];
+    a.objectives=a.objectives||[];a.faults=a.faults||[];
+    normalizeOrder(a);
+    if(opts.faults==='move'){
+      var moved=0;
+      a.faults.slice().forEach(function(f){
+        var r=moveFault(sc,faultOf(a,f.id),seed);
+        if(r){sc=r.scenario;a=sc.activity;moved++;report.push(faultText(f)+' : déplacée de '+r.from+' vers '+r.to);}
+        else warn.push(faultText(f)+' : conservée (aucun autre appareil ne convient)');
+      });
+      if(moved)tags.push('autres pannes');
+    } else if(opts.faults==='remove'){
+      if(a.faults.length<2)warn.push('Une seule panne : elle est conservée');
+      else{
+        var rm=removeFault(sc);
+        if(rm){sc=rm.scenario;a=sc.activity;report.push('Panne retirée : '+faultText(rm.fault)+', avec '+rm.removed+' objectif'+(rm.removed>1?'s':'')+' de réparation et de test');tags.push('une panne de moins');}
+        else warn.push('Aucune panne n\'a de réparation identifiable dans la liste : rien n\'est retiré');
+      }
+    } else if(opts.faults==='add'){
+      var ad=addFault(sc,seed);
+      if(ad){sc=ad.scenario;a=sc.activity;
+        report.push('Panne ajoutée : '+FAULT_LABEL[{gateway:'bad_gateway',cable:'missing_cable',ip:'bad_ip'}[ad.kind]]+' sur '+ad.dev+', avec sa réparation et son test');
+        tags.push('une panne de plus');}
+      else warn.push('Aucun poste à adresse fixe, sans panne, ne permet d\'ajouter une panne vérifiable');
+    }
+    var ms=+a.masteryscore||60;
+    if(opts.exigence==='guided'){
+      guided(sc,report);a.masteryscore=Math.max(30,ms-10);
+      report.push('seuil de réussite : '+ms+' % → '+a.masteryscore+' %');tags.push('version guidée');
+    } else if(opts.exigence==='demanding'){
+      stricter(sc,report);a.masteryscore=Math.min(90,ms+10);
+      report.push('seuil de réussite : '+ms+' % → '+a.masteryscore+' %');tags.push('version exigeante');
+    }
+    normalizeOrder(a);
+    if(tags.length)a.title=(a.title||'Activité')+' — '+tags.join(', ');
+    var au=audit(sc);
+    return {scenario:sc,report:report,warnings:warn,audit:au,changed:tags.length>0};
+  }
+
+  /* Liste ordonnée, pour l'aperçu. */
+  function orderedItems(a){
+    var c=clone(a);normalizeOrder(c);
+    return c.evalOrder.map(function(k){
+      if(k[0]==='f')return {fault:true,text:faultText(faultOf(c,k.slice(2)))};
+      var o=objOf(c,k.slice(2));
+      return {fault:false,text:o.label||o.check,points:o.points};
+    });
+  }
+
+  return {TYPES:TYPES,THEMES:THEMES,LEVELS:LEVELS,build:build,audit:audit,makeVariant:makeVariant,
+    orderedItems:orderedItems,distribute:distribute};
+})();
+/* WIZARD-END */
+
+/* ── Fenêtres « Nouvelle activité » et « Variante » ─────────────────────── */
+var WizardUI=(function(){
+  'use strict';
+  var AW=ActivityWizard;
+  var LEVEL_ICONS={college:'🌱',lycee:'📘',bts:'🚀'};
+  var EXIGENCES=[
+    {id:'same',icon:'＝',label:'Identique',desc:'Mêmes adresses, contraintes et indices'},
+    {id:'guided',icon:'🤝',label:'Plus guidée',desc:'Contraintes affichées, seuil abaissé de 10 points'},
+    {id:'demanding',icon:'🎯',label:'Plus exigeante',desc:'Adresses au choix, contraintes et indices masqués, seuil relevé de 10 points'}
+  ];
+  var FAULT_OPTS=[
+    {id:'same',icon:'＝',label:'Les mêmes',desc:'Pannes inchangées'},
+    {id:'move',icon:'🔀',label:'Autres appareils',desc:'Mêmes pannes, sur d\'autres postes : réparations et tests suivent'},
+    {id:'remove',icon:'➖',label:'Une de moins',desc:'Retire la dernière panne, sa réparation et ses tests'},
+    {id:'add',icon:'➕',label:'Une de plus',desc:'Ajoute une panne sur un poste, avec sa réparation et son test'}
+  ];
+  var st={mode:'new',type:'depannage',theme:'maison',level:'college',seed:0,exigence:'same',faults:'same',source:null,result:null};
+
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function ovl(){return document.getElementById('wz-ovl');}
+  function currentScenario(){
+    var net=SimModule.getState(),cfg=EvalModule.getConfig();
+    return JSON.parse(JSON.stringify({version:1,createdAt:new Date().toISOString(),
+      teacherPwd:(document.getElementById('gen-pwd')||{}).value||'prof',
+      network:{devs:net.devs,links:net.links,nid:net.nid,frames:S.frames||{},texts:S.texts||{}},
+      activity:cfg}));
+  }
+  function cards(group,list,cur,icons){
+    return '<div class="wz-cards wz-cards-'+list.length+'">'+list.map(function(t){
+      return '<button type="button" class="wz-card'+(t.id===cur?' on':'')+'" data-group="'+group+'" data-id="'+t.id+'"'+
+        ' onclick="WizardUI.set(\''+group+'\',\''+t.id+'\')">'+
+        '<span class="wz-ic">'+(icons?icons[t.id]:t.icon)+'</span><b>'+esc(t.label)+'</b><small>'+esc(t.desc)+'</small></button>';
+    }).join('')+'</div>';
+  }
+  function auditHTML(au){
+    if(!au.ok)return '<div class="wz-audit warn">⚠️ À revoir : '+au.problems.map(esc).join(' ; ')+'</div>';
+    var parts=['<b>'+au.start+'</b> point à l\'ouverture'];
+    if(au.faults||au.toBuild)parts.push('<b>'+au.unfixed+'</b> sans rien '+(au.faults?'réparer':'construire')+' (seuil '+au.mastery+' %)');
+    parts.push('tous les objectifs atteignables une fois le travail fait');
+    return '<div class="wz-audit ok">✅ Vérifié : '+parts.join(' · ')+'</div>';
+  }
+  function previewHTML(sc){
+    var a=sc.activity,n=Object.keys(sc.network.devs||{}).length,l=Object.keys(sc.network.links||{}).length;
+    var items=AW.orderedItems(a);
+    return '<div class="wz-prev-title">'+esc(a.title)+'</div>'+
+      '<div class="wz-prev-meta">'+esc(a.level||'')+' · '+n+' appareil'+(n>1?'s':'')+', '+l+' câble'+(l>1?'s':'')+
+        ' · '+a.objectives.length+' objectif'+(a.objectives.length>1?'s':'')+', '+a.faults.length+' panne'+(a.faults.length>1?'s':'')+
+        ' · seuil '+a.masteryscore+' %</div>'+
+      '<ol class="wz-list">'+items.map(function(it){
+        return '<li class="'+(it.fault?'f':'o')+'"><span class="ev-dot'+(it.fault?' fault':'')+'"></span>'+
+          '<span class="wz-li-t">'+esc(it.text)+'</span>'+(it.fault?'':'<span class="wz-pts">'+it.points+' pt</span>')+'</li>';
+      }).join('')+'</ol>'+auditHTML(AW.audit(sc));
+  }
+
+  function render(){
+    var body=document.getElementById('wz-body'),foot=document.getElementById('wz-foot'),title=document.getElementById('wz-title');
+    var left,right,canCreate=true,reroll=false;
+    if(st.mode==='new'){
+      st.result=AW.build({type:st.type,theme:st.theme,level:st.level,seed:st.seed});
+      title.textContent='✨ Nouvelle activité';
+      left='<div class="wz-step">1. Type d\'activité</div>'+cards('type',AW.TYPES,st.type)+
+        '<div class="wz-step">2. Thème</div>'+cards('theme',AW.THEMES,st.theme)+
+        '<div class="wz-step">3. Niveau</div>'+cards('level',AW.LEVELS,st.level,LEVEL_ICONS)+
+        '<p class="wz-note">L\'activité remplace le réseau et l\'évaluation en cours. Tout reste modifiable ensuite '+
+        'dans les onglets Réseau et Évaluation.</p>';
+      reroll=st.type==='depannage'&&JSON.stringify(st.result.activity.faults)!==
+        JSON.stringify(AW.build({type:st.type,theme:st.theme,level:st.level,seed:st.seed+1}).activity.faults);
+      right=previewHTML(st.result);
+    } else {
+      var r=AW.makeVariant(st.source,{exigence:st.exigence,faults:st.faults,seed:st.seed});
+      st.result=r.scenario;canCreate=r.changed;
+      title.textContent='🔀 Variante de « '+(st.source.activity.title||'l\'activité')+' »';
+      left='<div class="wz-step">Niveau d\'exigence</div>'+cards('exigence',EXIGENCES,st.exigence)+
+        '<div class="wz-step">Pannes</div>'+cards('faults',FAULT_OPTS,st.faults)+
+        '<p class="wz-note">Le réseau ne change pas. La variante remplace l\'activité en cours : '+
+        'exportez d\'abord celle-ci pour garder les deux versions.</p>';
+      reroll=(st.faults==='move'||st.faults==='add')&&r.changed&&JSON.stringify(r.scenario.activity)!==
+        JSON.stringify(AW.makeVariant(st.source,{exigence:st.exigence,faults:st.faults,seed:st.seed+1}).scenario.activity);
+      right=(r.report.length||r.warnings.length?'<ul class="wz-report">'+
+          r.report.map(function(t){return '<li>✔️ '+esc(t)+'</li>';}).join('')+
+          r.warnings.map(function(t){return '<li class="warn">⚠️ '+esc(t)+'</li>';}).join('')+'</ul>'
+        :'<p class="wz-empty">Choisissez ce qui change dans la variante.</p>')+
+        (r.changed?previewHTML(r.scenario):'');
+    }
+    body.innerHTML='<div class="wz-choices">'+left+'</div><div class="wz-preview">'+right+'</div>';
+    foot.innerHTML=
+      (st.mode==='variant'?'<button type="button" class="wz-btn sec" onclick="GenModule.exportScenario()">💾 Exporter l\'activité actuelle</button>':'')+
+      (reroll?'<button type="button" class="wz-btn sec" id="wz-reroll" onclick="WizardUI.reroll()">🎲 Autres appareils</button>':'')+
+      '<span class="wz-sp"></span>'+
+      '<button type="button" class="wz-btn sec" onclick="WizardUI.close()">Annuler</button>'+
+      '<button type="button" class="wz-btn main" id="wz-create" onclick="WizardUI.create()"'+(canCreate?'':' disabled')+'>'+
+        (st.mode==='new'?'Créer l\'activité':'Créer la variante')+'</button>';
+  }
+
+  function open(mode){
+    st.mode=mode==='variant'?'variant':'new';
+    if(st.mode==='variant'){
+      st.source=currentScenario();
+      if(!(st.source.activity.objectives||[]).length){
+        bldNotif('🔀 Aucun objectif à décliner : créez ou importez d\'abord une activité','err');return;
+      }
+      st.exigence='same';st.faults='same';
+    }
+    st.seed=0;
+    render();
+    ovl().classList.add('open');
+  }
+  function close(){ovl().classList.remove('open');}
+  function set(k,v){st[k]=v;if(k!=='exigence')st.seed=0;render();}
+  function reroll(){st.seed++;render();}
+  function create(){
+    var sc=JSON.parse(JSON.stringify(st.result));
+    if(st.mode==='new'){
+      var busy=Object.keys(S.devs||{}).length||(EvalModule.getConfig().objectives||[]).length;
+      if(busy&&!confirm('Remplacer le réseau et l\'évaluation en cours par cette nouvelle activité ?\n\n'+
+        'Exportez d\'abord le scénario actuel (onglet 3) si vous voulez le garder.'))return;
+    }
+    if(GenModule.applyScenario(sc,(st.mode==='new'?'✨ Activité créée : ':'🔀 Variante créée : ')+sc.activity.title)){
+      close();
+    }
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&ovl()&&ovl().classList.contains('open')){close();e.stopPropagation();}
+  },true);
+  return {open:open,close:close,set:set,reroll:reroll,create:create};
 })();
 
 

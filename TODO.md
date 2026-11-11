@@ -28,6 +28,8 @@
 
 - [ ] **Éditeur de table de routage manuel** — désactiver `autoRoute` pour certains appareils et laisser l'élève saisir les routes statiques lui-même. Objectif pédagogique : `route_exists` déjà disponible. Depuis que le ping suit les tables de routage (aller et retour), un routeur au routage automatique décoché ne communique qu'avec ses réseaux directs : cet éditeur est le seul moyen de le réparer.
 
+- ✅ **Assistant « Nouvelle activité » et variantes** — modèles type × thème × niveau, variantes plus guidées ou plus exigeantes, pannes déplacées, retirées ou ajoutées, contrôle avant création. *(fait le 11/11/2026)* Pistes : d'autres thèmes (deux salles de lycée, hôpital…), le type « Construction » avec routeur à configurer, « une panne de plus » sur une Box (DHCP, SSID) quand aucun poste fixe n'est libre.
+
 - [ ] **Aperçu "vue élève" en temps réel** — split-screen dans le builder : le canevas à gauche, le rendu élève (simplifié) à droite, mis à jour en direct.
 
 - [ ] **Bibliothèque de scénarios en ligne** — dépôt partagé (GitHub Pages) où les profs peuvent publier et récupérer des scénarios JSON. Bouton "Parcourir la bibliothèque" dans l'onglet 3.
@@ -45,6 +47,8 @@
   4. Compatibilité : un terminal sans ces champs (anciens scénarios, packages déployés) reste connecté.
   5. `ssid_wrong` coupe vraiment les terminaux ; nouvelle panne « Mot de passe WiFi incorrect » sur un terminal ; l'objectif `wifi_link` vérifie aussi l'association.
   6. Pré-remplir les terminaux WiFi de `reseau-maison.json` et `reseau-lycee.json`, revérifier le barème du lycée (sous le seuil avant réparation, 100 après), mettre à jour `sim-tests.js` et `SCENARIOS` dans `builder.spec.js`.
+
+- [ ] **Pont WiFi ↔ câble sur la Box** — un appareil en WiFi ne joint pas un poste câblé au switch de la même Box (« Même sous-réseau mais appareils non reliés physiquement »), alors qu'une vraie box relie les deux. Internet et la Box elle-même restent joignables. L'assistant évite ce cas (ping WiFi → WiFi seulement).
 
 - [ ] **Capture de trames (Wireshark simplifié)** — panneau `📡 Trames` dans le panneau bas, listant les échanges ARP / ICMP / DNS / HTTP en clair au fil des commandes. Très parlant pédagogiquement.
 

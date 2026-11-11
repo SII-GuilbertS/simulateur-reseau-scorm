@@ -38,6 +38,27 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 | **2 Évaluation** | Définir les objectifs pédagogiques, les points, le score de maîtrise et les pannes à injecter |
 | **3 Générer** | Exporter en SCORM (.zip) ou HTML standalone, importer/exporter un scénario JSON |
 
+**✨ Nouvelle activité** (barre du haut) : choisir un type (Construction, Dépannage, Découverte), un thème
+(Maison, Entreprise, Salle de classe) et un niveau (Collège, Lycée, BTS / Terminale). Le builder propose le
+réseau, les objectifs, les pannes, le barème et les consignes, et vérifie l'activité avant de la créer : score
+de 0 à l'ouverture, seuil impossible à atteindre sans réparer ni construire, chaque objectif atteignable. Le
+niveau règle l'exigence : adresses données au collège, à choisir dans une plage au lycée, libres avec
+contraintes masquées en BTS ; deux réseaux routés en BTS. En dépannage, 🎲 *Autres appareils* tire d'autres
+postes en panne. Tout reste modifiable ensuite. Dans la salle de classe, l'ENT est hébergé sur Internet (serveur
+à adresse publique relié au nœud Internet, nom résolu par le DNS public) ; le réseau de l'établissement a son
+Serveur-Données pour les profils des élèves.
+
+**Score affiché dans le builder** : c'est celui de l'élève. Le réseau du builder est le corrigé, mais les pannes
+de l'onglet 2 sont appliquées pour l'évaluation : une activité bien construite affiche 0 à l'import, et seules les
+commandes de test lancées dans le terminal du builder ajoutent des points.
+
+**🔀 Variante** : décline l'activité en cours sans toucher au réseau. *Plus guidée* (contraintes affichées,
+seuil −10), *plus exigeante* (adresses exactes laissées au choix quand rien d'autre ne les utilise, passerelle
+« routeur du réseau », contraintes et indices masqués, seuil +10) ; pannes *sur d'autres appareils* (la
+réparation et ses tests suivent, adresses et libellés compris), *une de moins* ou *une de plus* (avec sa
+réparation et son test). La fenêtre liste ce qui change et vérifie la variante ; exporter d'abord l'activité
+actuelle pour garder les deux versions.
+
 **Types d'appareils disponibles :** PC, Serveur (HTTP/DNS/DHCP), Switch, Routeur, Box WiFi, Internet, Cadre, Annotation texte.
 
 **Utilisation :**
@@ -53,7 +74,7 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **312 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **370 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -65,14 +86,15 @@ Suite de **312 tests** couvrant le moteur de simulation réseau, l'évaluation e
 - Score et SCORM : calcul du score, seuil de réussite, échanges avec un LMS simulé
 - Session : sauvegarde, reprise, réseau de départ
 - Scénarios : pour chaque fichier de `scenarios/`, cohérence, score de 100 une fois le réseau corrigé, et score sous le seuil tant que les pannes ne sont pas réparées
+- Assistant et variantes : les mêmes règles pour chaque modèle (27 combinaisons, 3 tirages) et chaque variante des scénarios fournis
 
 ```bash
 node tests/sim-tests.js
-# ✅ 312/312 tests passés — SUCCÈS
+# ✅ 370/370 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
-Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
+Suite Playwright qui pilote le vrai builder dans Chrome : import et export des 4 scénarios, score de départ de chaque activité, réparation d'une panne, terminal du builder, adresse en plage et contrainte affichée à l'élève, cible de ping désignée par un appareil, plan d'adressage de l'énoncé et du corrigé, ordre de la liste des objectifs et des pannes, ping depuis un poste à ajouter par l'élève, assistant « Nouvelle activité » et variante jusqu'au score de l'élève, contenu du ZIP SCORM, note, statut et reprise avec un LMS simulé. Chrome doit être installé ; aucun autre navigateur n'est téléchargé.
 
 ```bash
 npm --prefix tests/e2e ci     # la première fois

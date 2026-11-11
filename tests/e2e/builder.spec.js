@@ -260,17 +260,17 @@ test.describe('Vue élève (export HTML)', () => {
 
 test.describe('Builder', () => {
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
-    // Réseau du builder sans pannes : DNS actif (20) et passerelle de PC-Bob (20) déjà acquis.
+    // Réseau du builder sans pannes, mais score de l'élève : les réparations ne comptent pas.
     await openBuilderWith(page, 'reseau-entreprise');
-    await expect(builderScore(page)).toHaveText('📊 Score : 40 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
     await page.locator('#btn-sim').click();
 
     await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
     await expect(page.locator('#tout')).toContainText('192.168.1.100');
-    await expect(builderScore(page)).toHaveText('📊 Score : 40 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
 
     await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
-    await expect(builderScore(page)).toHaveText('📊 Score : 50 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 10 / 100 pts');
   });
 
   /* Variantes de reseau-lycee où l'élève réussirait sans rien faire (seuil abaissé à 20).
@@ -658,6 +658,74 @@ test.describe('Builder', () => {
     expect(await page.evaluate((id) => S.devs[id].ifaces[0].ip, phone)).toMatch(/^192\.168\.1\./);
   });
 
+  test('Nouvelle activité : modèle choisi, vérifié, créé, puis réussi à 100 par l\'élève', async ({ page }, info) => {
+    await page.goto(BUILDER_URL);
+    await page.locator('#btn-wizard').click();
+    const card = (group, id) => page.locator(`.wz-card[data-group="${group}"][data-id="${id}"]`);
+    await card('type', 'decouverte').click();
+    await card('theme', 'classe').click();
+    await card('level', 'lycee').click();
+    await expect(card('level', 'lycee')).toHaveClass(/on/);
+    await expect(page.locator('.wz-prev-title')).toHaveText('Réseau de la salle de classe — Découverte');
+    await expect(page.locator('.wz-audit')).toContainText('Vérifié');
+    await expect(page.locator('#wz-reroll')).toHaveCount(0);   // rien à tirer sans panne
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+    await expect(page.locator('#ev-title')).toHaveValue('Réseau de la salle de classe — Découverte');
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(9);   // dont l'ENT, sur Internet
+
+    const file = await exportFile(page, 'html', info.outputPath('wizard-classe.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+    await studentTerminal(page, 'Poste-Prof', 'ping 192.168.10.11');
+    await studentTerminal(page, 'Poste-Prof', 'ping 192.168.10.1');
+    await studentTerminal(page, 'Poste-Prof', 'ping 8.8.8.8');
+    await studentBrowse(page, 'Poste-Prof', 'ent.etablissement.fr');
+    await studentTerminal(page, 'Poste-1', 'nslookup ent.etablissement.fr');
+    await studentTerminal(page, 'Poste-2', 'ping 192.168.10.100');
+    await studentScore(page, 100);
+  });
+
+  test('le builder affiche le score de départ de l\'élève : 0 pour chaque scénario et chaque dépannage de l\'assistant', async ({ page }) => {
+    for (const { name } of SCENARIOS) {
+      await openBuilderWith(page, name);
+      await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    }
+    for (const theme of ['maison', 'entreprise', 'classe']) {
+      await page.locator('#btn-wizard').click();
+      await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
+      await page.locator(`.wz-card[data-group="theme"][data-id="${theme}"]`).click();
+      await page.locator('#wz-create').click();
+      await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+      await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    }
+  });
+
+  test('Variante : plus exigeante, panne déplacée, puis réparée chez l\'élève', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await page.locator('#btn-variant').click();
+    await expect(page.locator('#wz-create')).toBeDisabled();    // rien ne change encore
+    await page.locator('.wz-card[data-group="exigence"][data-id="demanding"]').click();
+    await page.locator('.wz-card[data-group="faults"][data-id="move"]').click();
+    await expect(page.locator('.wz-report')).toContainText('déplacée de PC-Bob vers PC-Charlie');
+    await expect(page.locator('.wz-audit')).toContainText('Vérifié');
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#ev-title')).toHaveValue(/autres pannes, version exigeante$/);
+    await expect(page.locator('#ev-mastery')).toHaveValue('70');
+    const cfg = await page.evaluate(() => EvalModule.getConfig());
+    expect(cfg.faults.map((f) => f.params.dev)).toEqual(['Serveur', 'PC-Charlie']);
+    const gw = cfg.objectives.find((o) => o.check === 'gateway_configured');
+    expect(gw.params).toEqual({ dev: 'PC-Charlie', gateway: '@routeur' });
+    expect(cfg.objectives.some((o) => o.hint)).toBe(false);
+
+    const file = await exportFile(page, 'html', info.outputPath('variante-entreprise.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+    await expect(page.locator('.ao-hint')).toHaveCount(0);
+    await setGateway(page, 'PC-Charlie', '192.168.1.1');
+    await studentScore(page, gw.points);
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));
@@ -674,9 +742,8 @@ test.describe('Builder', () => {
 
     await page.goto(BUILDER_URL);
     await page.locator('#gen-import-file').setInputFiles(file);
-    // Objectifs statiques déjà vrais dans le réseau du builder, route comprise : comme à
-    // l'ouverture de l'activité élève, les routes sont recalculées à l'import.
-    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
+    // Comme chez l'élève : pannes appliquées et routes recalculées à l'import, rien n'est acquis.
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
   });
 });
 

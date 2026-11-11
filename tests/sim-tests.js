@@ -153,6 +153,16 @@ try {
   process.exit(1);
 }
 
+// Assistant « Nouvelle activité » et variantes : bloc du builder, sans interface
+const wzMatch = html.match(/\/\* WIZARD-START[\s\S]*?\/\* WIZARD-END \*\//);
+if (!wzMatch) { console.error('FATAL: bloc WIZARD non trouvé dans le builder'); process.exit(1); }
+try {
+  vm.runInContext(wzMatch[0], sandbox);
+} catch(e) {
+  console.error('FATAL: erreur dans le bloc WIZARD :', e.message);
+  process.exit(1);
+}
+
 // Le template définit "var ACTIVITY_CONFIG = null" (valeur injectée à l'export).
 // On le réinitialise APRÈS runInContext pour que les fonctions d'évaluation aient
 // un objet valide à lire pendant les tests.
@@ -2695,6 +2705,13 @@ function applySolution(data) {
     if(o.check === 'cable_exists' && (created[p.devA] || created[p.devB]))
       link(devByName(p.devA).id, devByName(p.devB).id);
   });
+  objs.forEach(function(o) {
+    var p = o.params || {};
+    if(o.check === 'wifi_link' && (created[p.devA] || created[p.devB])) {
+      var lid = 'l' + (S.nid++);
+      S.links[lid] = {id: lid, from: devByName(p.devA).id, to: devByName(p.devB).id, type: 'wifi'};
+    }
+  });
   // Poste ajouté sans câble demandé : relié au switch d'un appareil du même réseau.
   Object.keys(created).forEach(function(name) {
     var id = created[name], fi = mainIface(S.devs[id]);
@@ -2858,6 +2875,235 @@ allScenarios.forEach(function(file) {
     assert(S.score < data.activity.masteryscore,
       'score ' + S.score + ' sans corriger de panne, pour un seuil de ' + data.activity.masteryscore);
   });
+});
+
+/* ─────────────────────────────────────────────────────
+   ASSISTANT « NOUVELLE ACTIVITÉ » ET VARIANTES (bloc WIZARD du builder)
+───────────────────────────────────────────────────── */
+const AW = sandbox.ActivityWizard;
+
+/* Les règles des scénarios fournis, pour un scénario produit par l'assistant ou une variante. */
+function scenarioBattery(data, where) {
+  var a = data.activity, net = data.network;
+  function fail(msg) { throw new Error(where + ' : ' + msg); }
+  if(a.objectives.reduce(function(s,o) { return s + o.points; }, 0) !== 100) fail('total des points différent de 100');
+  if(!(a.masteryscore >= 1 && a.masteryscore <= 100)) fail('seuil invalide');
+  var ids = a.objectives.map(function(o) { return String(o.id); });
+  if(new Set(ids).size !== ids.length) fail('identifiants d\'objectifs en double');
+  a.objectives.forEach(function(o) { if(OBJECTIVE_TYPES.indexOf(o.check) < 0) fail('type inconnu ' + o.check); });
+  a.faults.forEach(function(f) { if(FAULT_TYPES.indexOf(f.type) < 0) fail('panne inconnue ' + f.type); });
+  var names = Object.values(net.devs).map(function(d) { return d.name; });
+  if(new Set(names).size !== names.length) fail('noms d\'appareils en double');
+  Object.values(net.links).forEach(function(l) { if(!net.devs[l.from] || !net.devs[l.to]) fail('câble orphelin ' + l.id); });
+  var keys = a.objectives.map(function(o) { return 'o:' + o.id; }).concat(a.faults.map(function(f) { return 'f:' + f.id; }));
+  if(a.evalOrder.slice().sort().join(',') !== keys.slice().sort().join(',')) fail('ordre de la liste incomplet');
+  if(a.objectives.map(function(o) { return 'o:' + o.id; }).join(',') !==
+     a.evalOrder.filter(function(k) { return k[0] === 'o'; }).join(',')) fail('objectifs hors de l\'ordre de la liste');
+  var known = new Set(names);
+  a.objectives.forEach(function(o) { if(o.check === 'device_added' && o.params.newdev) known.add(o.params.newdev); });
+  a.objectives.concat(a.faults).forEach(function(x) {
+    var p = x.params || x;
+    ['dev','devA','devB','from'].forEach(function(k) { if(p[k] && !known.has(p[k])) fail('appareil inconnu ' + p[k]); });
+    ['to','ip','dns','gateway'].forEach(function(k) {
+      var n = p[k] && sandbox.refName(p[k]);
+      if(n && !known.has(n)) fail('référence inconnue ' + p[k]);
+    });
+  });
+  // Ouverture : aucun point
+  openScenario(data, true);
+  sandbox.checkAllObjectives();
+  if(S.score !== 0) fail('score ' + S.score + ' à l\'ouverture');
+  // Réseau corrigé et construit : 100
+  openScenario(data, false);
+  applySolution(data);
+  playObjectives(a.objectives);
+  var missing = a.objectives.filter(function(o) { return !done(o.id); }).map(function(o) { return '#' + o.id + ' ' + o.label; });
+  if(missing.length) fail('non atteints une fois corrigé : ' + missing.join(' ; '));
+  // Sans réparer ni construire : sous le seuil
+  if(a.faults.length || a.objectives.some(function(o) { return o.check === 'device_added'; })) {
+    openScenario(data, true);
+    playObjectives(a.objectives);
+    if(S.score >= a.masteryscore) fail('score ' + S.score + ' sans rien réparer, seuil ' + a.masteryscore);
+  }
+  // Le contrôle de l'assistant arrive à la même conclusion
+  var au = AW.audit(data);
+  if(!au.ok) fail('audit : ' + au.problems.join(' ; '));
+}
+
+suite('Assistant « Nouvelle activité » — chaque modèle est une activité valide');
+
+AW.TYPES.forEach(function(t) {
+  AW.THEMES.forEach(function(th) {
+    AW.LEVELS.forEach(function(lv) {
+      test(t.label + ' · ' + th.label + ' · ' + lv.label + ' (3 tirages)', function() {
+        for(var seed = 0; seed < 3; seed++) {
+          var sc = AW.build({type: t.id, theme: th.id, level: lv.id, seed: seed});
+          scenarioBattery(JSON.parse(JSON.stringify(sc)), 'tirage ' + seed);
+          if(t.id === 'depannage') ok(sc.activity.faults.length >= 2, 'au moins deux pannes');
+          else eq(sc.activity.faults.length, 0);
+        }
+      });
+    });
+  });
+});
+
+suite('Assistant « Nouvelle activité » — niveau, tirage, consignes');
+
+test('l\'exigence suit le niveau : adresse exacte, plage, puis libre et contrainte masquée', function() {
+  function added(level) {
+    return AW.build({type: 'construction', theme: 'entreprise', level: level}).activity.objectives
+      .filter(function(o) { return o.check === 'device_added'; })[0];
+  }
+  eq(added('college').params.ip, '192.168.1.20');
+  eq(added('college').showConstraint, true);
+  eq(added('lycee').params.ip, '192.168.1.20-49');
+  eq(added('bts').params.ip, '192.168.1.*');
+  eq(added('bts').showConstraint, false);
+  var gw = AW.build({type: 'construction', theme: 'classe', level: 'lycee'}).activity.objectives
+    .filter(function(o) { return o.check === 'gateway_configured'; })[0];
+  eq(gw.params.gateway, '@routeur');
+});
+
+test('un autre tirage met les pannes sur d\'autres postes', function() {
+  function targets(seed) {
+    return AW.build({type: 'depannage', theme: 'classe', level: 'lycee', seed: seed}).activity.faults
+      .map(function(f) { return f.dev || f.devA; }).join(',');
+  }
+  assert(targets(0) !== targets(1), 'mêmes appareils : ' + targets(0));
+});
+
+test('chaque panne est suivie de sa réparation puis d\'un « Test : »', function() {
+  var a = AW.build({type: 'depannage', theme: 'entreprise', level: 'bts'}).activity;
+  a.evalOrder.forEach(function(k, i) {
+    if(k[0] !== 'f') return;
+    var rep = a.objectives.filter(function(o) { return 'o:' + o.id === a.evalOrder[i + 1]; })[0];
+    var tst = a.objectives.filter(function(o) { return 'o:' + o.id === a.evalOrder[i + 2]; })[0];
+    ok(rep && sandbox.STATIC_OBJ_TYPES.indexOf(rep.check) >= 0, 'réparation après ' + k);
+    ok(tst && /^Test : /.test(tst.label), 'test après la réparation de ' + k);
+  });
+});
+
+test('salle de classe : ENT hébergé sur Internet, serveur de données dans l\'établissement', function() {
+  ['college', 'lycee', 'bts'].forEach(function(level) {
+    var net = AW.build({type: 'decouverte', theme: 'classe', level: level}).network;
+    var devs = Object.values(net.devs), by = function(n) { return devs.find(function(d) { return d.name === n; }); };
+    var ent = by('Serveur-ENT'), inet = by('Internet'), data = by('Serveur-Données');
+    ok(ent && data, 'deux serveurs');
+    ok(Object.values(net.links).some(function(l) {
+      return (l.from === ent.id && l.to === inet.id) || (l.from === inet.id && l.to === ent.id);
+    }), 'ENT relié à Internet');
+    notOk(sandbox.isPrivateIP(ent.ifaces[0].ip), 'adresse publique pour l\'ENT');
+    ok(sandbox.isPrivateIP(data.ifaces[0].ip), 'serveur de données dans le réseau privé');
+    eq(inet.dns.records['ent.etablissement.fr'], ent.ifaces[0].ip);
+    devs.filter(function(d) { return d.type === 'pc'; }).forEach(function(d) { eq(d.ifaces[0].dns, '8.8.8.8'); });
+  });
+  var a = AW.build({type: 'depannage', theme: 'classe', level: 'bts'}).activity;
+  ok(a.faults.every(function(f) { return f.dev !== 'Serveur-ENT'; }), 'aucune panne sur l\'ENT, hors de l\'établissement');
+  ok(/hébergé sur Internet/.test(a.instructions));
+});
+
+test('titre, niveau et consignes renseignés', function() {
+  var a = AW.build({type: 'decouverte', theme: 'maison', level: 'college'}).activity;
+  eq(a.title, 'Réseau de la maison — Découverte');
+  eq(a.level, 'Collège (4e / 3e)');
+  ok(/dhcp/i.test(a.instructions), 'la consigne parle du DHCP du Laptop');
+});
+
+test('répartition des points : total exact, au moins 1 point chacun', function() {
+  var p = AW.distribute([3, 2, 2, 3, 2, 3, 2], 100);
+  eq(p.reduce(function(s, x) { return s + x; }, 0), 100);
+  ok(p.every(function(x) { return x >= 1; }));
+  eq(AW.distribute([1, 1, 1], 100).join(','), '34,33,33');
+  eq(AW.distribute([3, 2, 2, 3], 100, 5).join(','), '30,20,20,30');
+  ok(AW.build({type: 'construction', theme: 'classe', level: 'bts'}).activity.objectives
+    .every(function(o) { return o.points % 5 === 0; }), 'barème des modèles par pas de 5');
+});
+
+test('le contrôle signale une activité trop facile', function() {
+  var sc = AW.build({type: 'depannage', theme: 'maison', level: 'college'});
+  sc.activity.faults = [];
+  var au = AW.audit(sc);
+  notOk(au.ok);
+  ok(au.start > 0, 'les réparations sont acquises dès l\'ouverture sans pannes');
+});
+
+suite('Variantes d\'une activité');
+
+const VARIANTS = [
+  {label: 'plus guidée',            opts: {exigence: 'guided'}},
+  {label: 'plus exigeante',         opts: {exigence: 'demanding'}},
+  {label: 'pannes sur d\'autres appareils', opts: {faults: 'move'}},
+  {label: 'une panne de moins',     opts: {faults: 'remove'}},
+  {label: 'une panne de plus',      opts: {faults: 'add'}},
+];
+
+allScenarios.forEach(function(file) {
+  VARIANTS.forEach(function(v) {
+    test(file + ' — ' + v.label, function() {
+      var src = readScenario(file), before = JSON.stringify(src);
+      var r = AW.makeVariant(src, v.opts);
+      eq(JSON.stringify(src), before, 'le scénario d\'origine n\'est pas modifié');
+      var a = r.scenario.activity, n = src.activity.faults.length;
+      scenarioBattery(r.scenario, 'variante');
+      if(v.opts.exigence === 'guided') {
+        eq(a.masteryscore, Math.max(30, src.activity.masteryscore - 10));
+        a.objectives.forEach(function(o) {
+          if(sandbox.CONSTRAINT_TYPES.indexOf(o.check) >= 0) eq(o.showConstraint, true);
+        });
+      }
+      if(v.opts.exigence === 'demanding') {
+        eq(a.masteryscore, Math.min(90, src.activity.masteryscore + 10));
+        ok(a.objectives.every(function(o) { return !o.hint; }), 'indices retirés');
+      }
+      if(v.opts.faults === 'remove') eq(a.faults.length, n >= 2 ? n - 1 : n);
+      if(v.opts.faults === 'add') eq(a.faults.length, r.changed ? n + 1 : n);
+      if(v.opts.faults === 'move' && r.changed) {
+        assert(JSON.stringify(a.faults) !== JSON.stringify(src.activity.faults), 'pannes identiques');
+      }
+      eq(r.changed, r.report.length > 0 && /—/.test(a.title));
+    });
+  });
+});
+
+test('les pannes bougent bien dans au moins deux scénarios fournis', function() {
+  var moved = allScenarios.filter(function(file) {
+    return AW.makeVariant(readScenario(file), {faults: 'move'}).changed;
+  });
+  ok(moved.length >= 2, 'déplacées seulement dans : ' + moved.join(', '));
+});
+
+test('une panne de plus s\'ajoute dans au moins deux scénarios fournis', function() {
+  var added = allScenarios.filter(function(file) {
+    return AW.makeVariant(readScenario(file), {faults: 'add'}).changed;
+  });
+  ok(added.length >= 2, 'ajoutée seulement dans : ' + added.join(', '));
+});
+
+test('variantes combinées d\'une activité de l\'assistant (exigeante + une panne de plus)', function() {
+  for(var seed = 0; seed < 3; seed++) {
+    var base = AW.build({type: 'depannage', theme: 'classe', level: 'lycee', seed: seed});
+    var r = AW.makeVariant(base, {exigence: 'demanding', faults: 'add', seed: seed});
+    ok(r.changed);
+    scenarioBattery(r.scenario, 'tirage ' + seed);
+    r = AW.makeVariant(base, {exigence: 'guided', faults: 'move', seed: seed});
+    scenarioBattery(r.scenario, 'guidée, tirage ' + seed);
+  }
+});
+
+test('variante d\'une activité au format du builder (ids obj_N, pannes avec params)', function() {
+  var sc = readScenario('reseau-entreprise.json'), a = sc.activity, map = {};
+  a.objectives.forEach(function(o) { map['o:' + o.id] = 'o:obj_' + o.id; o.id = 'obj_' + o.id; });
+  a.faults = a.faults.map(function(f) {
+    map['f:' + f.id] = 'f:flt_' + f.id;
+    var p = Object.assign({}, f); delete p.id; delete p.type;
+    return {id: 'flt_' + f.id, type: f.type, label: '', params: p};
+  });
+  a.evalOrder = a.evalOrder.map(function(k) { return map[k]; });
+  var r = AW.makeVariant(sc, {faults: 'add'});
+  ok(r.changed, r.warnings.join(' ; '));
+  ok(r.scenario.activity.faults.some(function(f) { return /^flt_\d+$/.test(f.id) && f.id !== 'flt_1' && f.id !== 'flt_2'; }));
+  ok(r.scenario.activity.objectives.every(function(o) { return /^obj_\d+$/.test(String(o.id)); }));
+  eq(r.scenario.activity.objectives.reduce(function(s, o) { return s + o.points; }, 0), 100);
 });
 
 /* ─────────────────────────────────────────────────────
