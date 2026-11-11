@@ -931,21 +931,46 @@ function inLocalNetwork(ip){
     return (d.ifaces||[]).some(function(f){return f.ip&&vMask(f.mask)&&sameNet(f.ip,f.mask,ip);});
   });
 }
-/* Livraison sur un même réseau : câbles (via les switchs) ou pont WiFi d'une même box. */
+/* Câble d'une box côté WAN : il mène à Internet, ou à un réseau qui contient une adresse du
+   réseau WAN de la box. Les autres câbles (vers le switch de la maison…) sont côté LAN. */
+function boxLinkIsWan(box,link){
+  if(link.type==='wifi')return false;
+  var other=link.from===box.id?link.to:link.from,od=S.devs[other];
+  if(!od||od.type==='internet')return true;
+  var w=box.ifaces&&box.ifaces[0];
+  var seg=od.type==='switch'?lanSeg(other):[other];
+  return seg.some(function(id){
+    var d=S.devs[id];if(!d||d.id===box.id)return false;
+    if(d.type==='internet')return true;
+    return !!(w&&w.ip&&vMask(w.mask))&&(d.ifaces||[]).some(function(f){return f.ip&&sameNet(w.ip,w.mask,f.ip);});
+  });
+}
+/* Livraison sur un même réseau : câbles (via les switchs), et pont d'une box entre ses clients
+   WiFi et son côté LAN câblé, comme une vraie box. Le port WAN n'est jamais ponté. */
 function l2Reach(fromId,toId){
   if(lanSeg(fromId).indexOf(toId)!==-1)return{ok:true,path:[fromId,toId]};
-  var sharedWifi=null;
-  Object.values(S.links).forEach(function(la){
-    if(la.type!=='wifi'||sharedWifi)return;
-    var rId=(la.from===fromId)?la.to:(la.to===fromId?la.from:null);
-    if(!rId)return;
-    var rd=S.devs[rId];if(!rd||rd.type!=='wifi_router')return;
-    Object.values(S.links).forEach(function(lb){
-      if(lb.type!=='wifi')return;
-      if((lb.from===rId&&lb.to===toId)||(lb.to===rId&&lb.from===toId))sharedWifi=rId;
-    });
-  });
-  if(sharedWifi)return{ok:true,path:[fromId,sharedWifi,toId],wifi:true};
+  var vis={},q=[{id:fromId,via:null,box:null}];
+  while(q.length){
+    var cur=q.shift();
+    if(vis[cur.id])continue;
+    vis[cur.id]=true;
+    var d=S.devs[cur.id],start=cur.id===fromId;
+    if(!start){
+      if(!d)continue;
+      if(d.type==='wifi_router'){if(boxLinkIsWan(d,cur.via))continue;}
+      else if(d.type!=='switch')continue;
+    }
+    var box=cur.box||(!start&&d.type==='wifi_router'?d.id:null);
+    var links=Object.values(S.links);
+    for(var i=0;i<links.length;i++){
+      var l=links[i];
+      if(l.from!==cur.id&&l.to!==cur.id)continue;
+      if(!start&&d.type==='wifi_router'&&boxLinkIsWan(d,l))continue;
+      var n=l.from===cur.id?l.to:l.from;
+      if(n===toId&&box)return{ok:true,path:[fromId,box,toId],wifi:true};
+      if(!vis[n])q.push({id:n,via:l,box:box});
+    }
+  }
   return{ok:false};
 }
 /* Route la plus précise de la table du routeur pour cette destination. */

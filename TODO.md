@@ -48,7 +48,7 @@
   5. `ssid_wrong` coupe vraiment les terminaux ; nouvelle panne « Mot de passe WiFi incorrect » sur un terminal ; l'objectif `wifi_link` vérifie aussi l'association.
   6. Pré-remplir les terminaux WiFi de `reseau-maison.json` et `reseau-lycee.json`, revérifier le barème du lycée (sous le seuil avant réparation, 100 après), mettre à jour `sim-tests.js` et `SCENARIOS` dans `builder.spec.js`.
 
-- [ ] **Pont WiFi ↔ câble sur la Box** — un appareil en WiFi ne joint pas un poste câblé au switch de la même Box (« Même sous-réseau mais appareils non reliés physiquement »), alors qu'une vraie box relie les deux. Internet et la Box elle-même restent joignables. L'assistant évite ce cas (ping WiFi → WiFi seulement).
+- ✅ **Pont WiFi ↔ câble sur la Box** — un client WiFi joint un poste câblé au switch de la box, comme sur une vraie box ; le port WAN n'est jamais ponté. *(fait le 11/11/2026)*
 
 - [ ] **Capture de trames (Wireshark simplifié)** — panneau `📡 Trames` dans le panneau bas, listant les échanges ARP / ICMP / DNS / HTTP en clair au fil des commandes. Très parlant pédagogiquement.
 

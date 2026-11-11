@@ -74,11 +74,11 @@ actuelle pour garder les deux versions.
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **370 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **373 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
-- Simulation applicative : `simPing` (LAN, WiFi, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
+- Simulation applicative : `simPing` (LAN, WiFi, pont WiFi ↔ câble de la box, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
 - Routage : `getRoutingTable`, `autoRoute` (RIP propagé, route par défaut), acheminement par les tables, route la plus précise, retour des réponses, boucles, adresses inconnues privées ou publiques
 - Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker, références `{Appareil}`, passerelle cohérente), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
 - Mode panne : `applyFaults` (7 types de pannes, formats plat et imbriqué)
@@ -90,7 +90,7 @@ Suite de **370 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 370/370 tests passés — SUCCÈS
+# ✅ 373/373 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
@@ -319,7 +319,7 @@ du builder, vérifiées avec les règles d'évaluation ; une case sans solution 
 **Acheminement d'un ping.** Le ping (et donc DNS et HTTP) suit les tables de routage, à l'aller puis au
 retour :
 
-- même réseau : livraison directe par les câbles et les switchs, ou par le pont WiFi d'une même box ;
+- même réseau : livraison directe par les câbles et les switchs, ou par la box, qui relie ses clients WiFi et son côté LAN câblé (jamais son port WAN) ;
 - sinon, passerelle de l'appareil, puis à chaque routeur la route **la plus précise** de sa table, et
   à défaut la route par défaut (`0.0.0.0/0`) ;
 - la réponse doit revenir par le même mécanisme, sauf depuis Internet : le routeur d'accès traduit

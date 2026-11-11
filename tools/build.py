@@ -165,8 +165,8 @@ CHECKS = [
 
     # ── simPing : pont WiFi ──────────────────────────────────────────────────
     (
-        "simPing : pont WiFi entre deux clients du même wifi_router",
-        "var sharedWifi=null;",
+        "simPing : pont d'une box entre ses clients WiFi et son côté LAN câblé (WAN exclu)",
+        "if(!start&&d.type==='wifi_router'&&boxLinkIsWan(d,l))continue;",
         None, None
     ),
 

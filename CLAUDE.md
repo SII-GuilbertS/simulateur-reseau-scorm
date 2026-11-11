@@ -66,16 +66,16 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 370/370
+## Tests : `node tests/sim-tests.js` → doit afficher 373/373
 
-Suite de 370 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 373 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
 Couverture : fonctions réseau de base (`ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`,
 `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`...), simulation applicative (`simPing`
 LAN/WiFi/routé/internet, `simDNS`, `simHTTP`, `simDHCP`), routage (`getRoutingTable`, `autoRoute`
-— RIP propagé avec route par défaut ; `simPing` suit les tables à l'aller et au retour, NAT vers
+— RIP propagé avec route par défaut ; pont de la box entre WiFi et LAN câblé, WAN exclu ; `simPing` suit les tables à l'aller et au retour, NAT vers
 Internet, adresses inconnues privées ou publiques), évaluation (`checkObjectiveStatic` : 10 types statiques, adresses en plage ou
 joker, références `{Appareil}`, passerelle cohérente, plan d'adressage (`addressPlan`), `checkDynamicObjective` : 4 types dynamiques, objectifs perdus quand la configuration casse,
 contrainte affichée à l'élève), mode panne (`applyFaults` : 7 types, formats plat
@@ -157,7 +157,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 370/370
+node tests/sim-tests.js    # → 373/373
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -204,6 +204,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 370 tests Node.js |
+| `tests/sim-tests.js` | Suite de 373 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

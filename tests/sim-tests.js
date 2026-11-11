@@ -2765,6 +2765,47 @@ test('cocher DHCP sans serveur joignable : pas d\'adresse, pas d\'objectif, pas 
   notOk(done(1));
 });
 
+/* ── Pont de la box entre WiFi et câble ── */
+suite('Box WiFi — pont entre clients WiFi et côté LAN câblé');
+
+test('un client WiFi joint un poste câblé au switch de la box, et inversement', function() {
+  openScenario(readScenario('reseau-maison.json'), false);
+  var lap = devByName('Laptop'), pc = devByName('PC-Bureau'), ph = devByName('Smartphone');
+  term(lap.id, 'dhcp'); term(ph.id, 'dhcp');
+  var go = simPing(lap.id, mainIface(pc).ip);
+  ok(go.ok, go.reason);
+  eq(go.path.map(function(id) { return S.devs[id].name; }).join(' > '), 'Laptop > Box-WiFi > PC-Bureau');
+  ok(go.wifi && !go.router, 'livraison locale par la box, sans routage');
+  ok(simPing(pc.id, mainIface(lap).ip).ok, 'retour du poste câblé vers le WiFi');
+  ok(simPing(ph.id, mainIface(lap).ip).ok, 'WiFi vers WiFi, comme avant');
+});
+
+test('le port WAN de la box n\'est jamais ponté', function() {
+  openScenario(readScenario('reseau-lycee.json'), false);
+  var tab = devByName('Tablette-Eleve'), fi = mainIface(tab);
+  // Tablette mise à la main dans le réseau du WAN de la box (192.168.1.0/24)
+  fi.ip = '192.168.1.60'; fi.mask = '255.255.255.0'; fi.gateway = '';
+  var r = simPing(tab.id, '192.168.1.10');
+  notOk(r.ok, 'PC-Salle1 est derrière le WAN de la box');
+  eq(r.reason, 'Même sous-réseau mais appareils non reliés physiquement');
+  // Maison : un client WiFi dans le réseau du WAN n'atteint pas Internet sans routage
+  openScenario(readScenario('reseau-maison.json'), false);
+  var lap = mainIface(devByName('Laptop'));
+  lap.ip = '10.0.0.50'; lap.mask = '255.255.255.0'; lap.gateway = '';
+  notOk(simPing(devByName('Laptop').id, '10.0.0.1').ok, 'Internet est côté WAN');
+});
+
+test('box sans WAN configuré : ses câbles vers un switch restent côté LAN', function() {
+  var box = mkDev('wifi_router', 0, 0), sw = mkDev('switch', 0, 0);
+  S.devs[box].ifaces[1].ip = '192.168.5.1';
+  var pc = mkPC('192.168.5.10', '255.255.255.0', '', '', 'PC-Câble');
+  var lap = mkPC('192.168.5.20', '255.255.255.0', '', '', 'PC-WiFi');
+  addLink(box, sw); addLink(sw, pc);
+  var lid = 'l' + (S.nid++);
+  S.links[lid] = {id: lid, from: lap, to: box, type: 'wifi'};
+  ok(simPing(lap, '192.168.5.10').ok);
+});
+
 const allScenarios = fs.readdirSync(SCENARIOS_DIR).filter(function(f) { return f.endsWith('.json'); });
 
 allScenarios.forEach(function(file) {
