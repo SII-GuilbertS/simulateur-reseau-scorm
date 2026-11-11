@@ -273,7 +273,7 @@
           "from": "Tablette-Eleve"
         },
         "points": 5,
-        "hint": "Terminal de la Tablette-Eleve : dhcp"
+        "hint": "Fiche de la Tablette-Eleve : bouton « Demander une adresse (DHCP) », ou terminal de la tablette : dhcp"
       },
       {
         "id": 12,

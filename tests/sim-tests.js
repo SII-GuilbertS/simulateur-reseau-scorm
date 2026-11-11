@@ -2724,6 +2724,30 @@ function applySolution(data) {
   sandbox.autoRoute();
 }
 
+/* ── DHCP activé depuis la fiche du poste ── */
+suite('DHCP — case de la fiche et objectif');
+
+test('cocher DHCP demande une adresse et valide l\'objectif (scénario Maison)', function() {
+  var data = readScenario('reseau-maison.json');
+  openScenario(data, true);
+  var lap = devByName('Laptop');
+  notOk(done(1), 'pas validé à l\'ouverture');
+  sandbox.toggleDHCPMode(lap.id, false);
+  sandbox.toggleDHCPMode(lap.id, true);
+  ok(mainIface(lap).ip, 'adresse reçue');
+  ok(done(1), 'objectif « Le Laptop obtient une adresse IP par DHCP »');
+  sandbox.checkAllObjectives();
+  ok(done(1), 'toujours valide après revérification');
+});
+
+test('cocher DHCP sans serveur joignable : pas d\'adresse, pas d\'objectif, pas d\'erreur', function() {
+  setupActivity([objective(1,'dhcp_success',{from:'PC1'},100)]);
+  var pc = mkPC('192.168.1.10','255.255.255.0','','','PC1');
+  sandbox.toggleDHCPMode(pc, true);
+  eq(mainIface(S.devs[pc]).ip, '');
+  notOk(done(1));
+});
+
 const allScenarios = fs.readdirSync(SCENARIOS_DIR).filter(function(f) { return f.endsWith('.json'); });
 
 allScenarios.forEach(function(file) {

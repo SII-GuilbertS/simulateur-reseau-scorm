@@ -352,11 +352,13 @@ function showProps(id){
       h+=prow(id,0,'Serveur DNS','dns',fi.dns||'','192.168.1.254');
     } else {
       h+='<div class="pr"><label>Adresse IP</label><div class="mono" style="color:#a0aec0;font-size:.82em">'+
-        (fi.ip?esc(fi.ip):'(taper <b>dhcp</b> dans le terminal)')+'</div></div>';
+        (fi.ip?esc(fi.ip):'(aucune adresse reçue)')+'</div></div>';
       if(fi.ip){
         h+='<div class="pr"><label>Masque</label><div class="mono" style="color:#718096;font-size:.82em">'+esc(fi.mask||'—')+'</div></div>';
         h+='<div class="pr"><label>Passerelle</label><div class="mono" style="color:#718096;font-size:.82em">'+esc(fi.gateway||'—')+'</div></div>';
       }
+      // Même effet que la commande dhcp du terminal
+      h+='<button class="pb pb-blue" onclick="doDHCP(\''+id+'\')">📡 '+(fi.ip?'Renouveler l\'adresse (DHCP)':'Demander une adresse (DHCP)')+'</button>';
     }
   }
 

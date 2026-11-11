@@ -1397,6 +1397,9 @@ function toggleDHCPMode(devId, enabled){
   var d=S.devs[devId];if(!d||!d.ifaces[0])return;
   d.ifaces[0].dhcpMode=enabled;
   if(enabled){d.ifaces[0].ip='';d.ifaces[0].mask='';d.ifaces[0].gateway='';d.ifaces[0].dns='';}
+  // Comme un vrai poste : activer le DHCP envoie aussitôt une demande d'adresse
+  // (même effet que la commande dhcp, y compris pour les objectifs).
+  if(enabled)doDHCP(devId);
   render();showProps(devId);
   setTimeout(function(){checkAllObjectives();},50);
 }

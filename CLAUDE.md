@@ -60,9 +60,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 310/310
+## Tests : `node tests/sim-tests.js` → doit afficher 312/312
 
-Suite de 310 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 312 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -90,7 +90,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 23 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 24 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -99,7 +99,7 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+le pointeur câble et les touches Échap et Suppr, le DHCP depuis la fiche d'un poste, contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
 
 Non couverts : vrai Moodle, drag & drop et câblage, le reste de l'énoncé imprimable (seul son plan
@@ -146,7 +146,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 310/310
+node tests/sim-tests.js    # → 312/312
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -193,6 +193,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 310 tests Node.js |
+| `tests/sim-tests.js` | Suite de 312 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

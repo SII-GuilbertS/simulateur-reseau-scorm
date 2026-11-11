@@ -635,6 +635,29 @@ test.describe('Builder', () => {
     expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(false);
   });
 
+  test('DHCP depuis la fiche : recocher la case ou cliquer sur le bouton valide l\'objectif', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const file = await exportFile(page, 'html', info.outputPath('maison-dhcp.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+
+    // Case DHCP déjà cochée à l'ouverture : on la décoche puis la recoche
+    const laptop = await deviceId(page, 'Laptop');
+    await page.locator(`#gd${laptop}`).click();
+    const box = page.locator('#dhcpmode');
+    await expect(box).toBeChecked();
+    await box.uncheck();
+    await box.check();
+    await studentScore(page, 10);
+    await expect(page.locator('#props-body')).toContainText('Renouveler l\'adresse (DHCP)');
+
+    // Bouton de la fiche, sur un autre poste en DHCP : même effet que la commande dhcp
+    const phone = await deviceId(page, 'Smartphone');
+    await page.locator(`#gd${phone}`).click();
+    await page.locator('#props-body button', { hasText: 'Demander une adresse (DHCP)' }).click();
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].ip, phone)).toMatch(/^192\.168\.1\./);
+  });
+
   test('un scénario exporté puis réimporté reste identique', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-lycee');
     const file = await exportFile(page, 'scenario', info.outputPath('lycee-export.json'));

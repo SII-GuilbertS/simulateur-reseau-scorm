@@ -541,8 +541,9 @@ def build_eleve(out_path):
              Paragraph(r[2], CELL_B if i==0 else CELL)] for i, r in enumerate(ip_rows)]
     story.append(table_obj(ip_p, [40*mm, 36*mm, CONTENT_W-76*mm]))
     story += [
-        callout('Utilisez la commande <b>dhcp</b> dans le terminal pour obtenir une IP automatiquement '
-                '(si un serveur DHCP est présent sur le réseau).', INFO, '■'),
+        callout('Pour obtenir une IP automatiquement (si un serveur DHCP est présent sur le réseau) : cochez '
+                '« Obtenir l\'adresse IP automatiquement (DHCP) » dans la fiche du poste, cliquez sur '
+                '<b>Demander une adresse (DHCP)</b>, ou tapez la commande <b>dhcp</b> dans le terminal.', INFO, '■'),
         Spacer(1, 8),
     ]
 

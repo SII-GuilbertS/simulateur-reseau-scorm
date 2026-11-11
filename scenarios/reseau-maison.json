@@ -95,7 +95,7 @@
   "activity": {
     "title": "Réseau Maison — Panne WiFi",
     "level": "4ème / 3ème",
-    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Passez en mode Simulation. Sur le Laptop, obtenez une adresse (dhcp), puis vérifiez qu'il accède à Internet (ping 8.8.8.8) et au site www.exemple.fr (onglet Navigateur).\n2. Sur le PC-Bureau, faites les mêmes tests : il joint la Box, mais pas Internet. Utilisez ipconfig pour comprendre pourquoi.\n3. Repassez en mode Configuration pour corriger le réglage fautif du PC-Bureau.\n4. Refaites les tests : le PC-Bureau doit accéder à Internet et au site.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux que la Box donne au Laptop.",
+    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Sur le Laptop, obtenez une adresse par DHCP (bouton de sa fiche, ou commande dhcp). Passez en mode Simulation, puis vérifiez qu'il accède à Internet (ping 8.8.8.8) et au site www.exemple.fr (onglet Navigateur).\n2. Sur le PC-Bureau, faites les mêmes tests : il joint la Box, mais pas Internet. Utilisez ipconfig pour comprendre pourquoi.\n3. Repassez en mode Configuration pour corriger le réglage fautif du PC-Bureau.\n4. Refaites les tests : le PC-Bureau doit accéder à Internet et au site.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux que la Box donne au Laptop.",
     "masteryscore": 60,
     "displayMode": "full",
     "objectives": [
@@ -107,7 +107,7 @@
           "from": "Laptop"
         },
         "points": 10,
-        "hint": "En mode Simulation, ouvrez le terminal du Laptop et tapez : dhcp"
+        "hint": "Cliquez sur le Laptop : dans sa fiche, bouton « Demander une adresse (DHCP) ». Ou, en mode Simulation, terminal du Laptop : dhcp"
       },
       {
         "id": 2,
