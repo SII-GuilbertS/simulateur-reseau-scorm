@@ -47,6 +47,7 @@ H2     = mkstyle('H2',    fontName='Helvetica-Bold', fontSize=11, leading=14, te
 MONO   = mkstyle('Mono',  fontName='Courier', fontSize=8.5, leading=12, textColor=DGRAY)
 CELL   = mkstyle('Cell',  fontName='Helvetica', fontSize=8.8, leading=12)
 CELL_B = mkstyle('CellB', fontName='Helvetica-Bold', fontSize=8.8, leading=12)
+CELL_HW = mkstyle('CellHW', fontName='Helvetica-Bold', fontSize=8.8, leading=12, textColor=WHITE)
 INFO   = mkstyle('Info',  fontName='Helvetica', fontSize=8.8, leading=13,
                  textColor=colors.HexColor('#2b4c7e'), backColor=colors.HexColor('#ebf4ff'))
 WARN   = mkstyle('Warn',  fontName='Helvetica', fontSize=8.8, leading=13,
@@ -71,7 +72,12 @@ def callout(text, style=INFO, icon='ℹ'):
     ]))
     return tbl
 
+def on_navy(cell):
+    # Une cellule sur fond bleu marine : TEXTCOLOR du tableau ne s'applique pas aux Paragraph.
+    return Paragraph(cell.text, CELL_HW) if isinstance(cell, Paragraph) else cell
+
 def table_obj(rows, col_widths):
+    rows = [[on_navy(c) for c in rows[0]]] + list(rows[1:])
     ts = TableStyle([
         ('FONTNAME',      (0,0),(-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE',      (0,0),(-1,-1), 8.5),
@@ -91,6 +97,7 @@ def table_obj(rows, col_widths):
     return t
 
 def workflow_table(rows):
+    rows = [[on_navy(r[0])] + list(r[1:]) for r in rows]
     ts = TableStyle([
         ('FONTNAME',      (0,0),(0,-1), 'Helvetica-Bold'),
         ('FONTNAME',      (1,0),(1,-1), 'Helvetica-Bold'),
