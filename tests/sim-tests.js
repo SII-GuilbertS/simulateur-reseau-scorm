@@ -3333,6 +3333,38 @@ test('variante d\'une activité au format du builder (ids obj_N, pannes avec par
   eq(r.scenario.activity.objectives.reduce(function(s, o) { return s + o.points; }, 0), 100);
 });
 
+/* ── Isolation du moteur dans le builder ──
+   Le JS du builder suit le bloc SIM-ENGINE dans le même <script> : une fonction qu'il redéfinit
+   remplace celle du moteur. Une copie oubliée y vieillit sans que rien ne le signale (anciens
+   simDHCP et autoRoute). Une surcharge voulue porte le marqueur « override builder: nom » sur
+   la ligne précédente. */
+suite('Builder : le moteur n\'est pas redéfini');
+
+test('aucune fonction du moteur redéfinie sans marqueur, aucune fonction définie deux fois', function() {
+  var L = html.split(/\r?\n/);
+  var s = L.findIndex(function(l) { return l.indexOf('SIM-ENGINE-START') !== -1; });
+  var e = L.findIndex(function(l) { return l.indexOf('/* SIM-ENGINE-END') === 0; });
+  ok(s > 0 && e > s);
+  function topFns(a, b) {
+    var out = [];
+    for (var i = a; i < b; i++) {
+      var m = L[i].match(/^function\s+([\w$]+)\s*\(/);
+      if (m) out.push({name: m[1], line: i + 1, marked: L[i - 1].indexOf('override builder: ' + m[1] + ' ') !== -1});
+    }
+    return out;
+  }
+  var engine = {}, seen = {}, unmarked = [], twice = [];
+  topFns(s, e).forEach(function(f) { engine[f.name] = true; });
+  ok(engine.simPing && engine.simDHCP && engine.autoRoute);
+  topFns(e, L.length).forEach(function(f) {
+    if (engine[f.name] && !f.marked) unmarked.push(f.name + ' (l.' + f.line + ')');
+    if (seen[f.name]) twice.push(f.name + ' (l.' + seen[f.name] + ' et l.' + f.line + ')');
+    seen[f.name] = f.line;
+  });
+  assert(!unmarked.length, 'fonctions du moteur redéfinies dans le builder sans marqueur : ' + unmarked.join(', '));
+  assert(!twice.length, 'fonctions définies deux fois dans le builder : ' + twice.join(', '));
+});
+
 /* ─────────────────────────────────────────────────────
    6. BILAN
 ───────────────────────────────────────────────────── */

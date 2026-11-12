@@ -85,4 +85,4 @@
 | Pont WiFi ↔ câble de la Box (WAN exclu) | v1.9.2 |
 | TTL selon les routeurs traversés, toutes les interfaces d'un routeur sur sa carte | à venir |
 | Connexion WiFi réelle (SSID et mot de passe), panne « mot de passe WiFi incorrect » | à venir |
-| 386 tests unitaires (`sim-tests.js`), 31 tests navigateur (`tests/e2e/`) | — |
+| 387 tests unitaires (`sim-tests.js`), 31 tests navigateur (`tests/e2e/`) | — |
