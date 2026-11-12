@@ -897,7 +897,12 @@ test('accès HTTP par hostname (DNS) → ok', function() {
   S.devs[srv].http.on = true; S.devs[srv].http.title = 'Accueil';
   link(pc,dns); link(pc,srv);
   var r = simHTTP(pc,'http://web.local');
-  ok(r.ok); eq(r.title,'Accueil'); eq(r.domain,'web.local');
+  ok(r.ok); eq(r.title,'Accueil'); eq(r.domain,'web.local'); eq(r.ip,'192.168.1.20');
+  // Sans affichage : la résolution reste dans le résultat, même en cas d'échec, pour l'appelant
+  eq(simHTTP.toString().indexOf('addLog'), -1);
+  S.devs[srv].http.on = false;
+  r = simHTTP(pc,'http://web.local');
+  notOk(r.ok); eq(r.domain,'web.local'); eq(r.ip,'192.168.1.20');
 });
 
 test('serveur HTTP introuvable → échec', function() {

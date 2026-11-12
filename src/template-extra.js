@@ -529,6 +529,7 @@ function browGo(){
   if(!devId){bc.innerHTML='<div class="berr">⚠️ Choisissez un appareil source.</div>';return;}
   if(!url){bc.innerHTML='<div class="berr">⚠️ Entrez une URL.</div>';return;}
   var res=simHTTP(devId,url);
+  if(res.domain&&res.ip)addLog('DNS '+res.domain+' → '+res.ip,'info');
   var srcIP2=(mainIface(S.devs[devId])||{}).ip||S.devs[devId].name;
   if(res.ok){
     bc.innerHTML='<div class="bpage">'+

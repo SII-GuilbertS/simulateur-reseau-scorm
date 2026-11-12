@@ -434,7 +434,7 @@ function dynamicStillHolds(obj,proof){
       var to=!p.to||pingTargetMatches(p.to,proof.to)?proof.to:pingTargetIP(p.to);
       return !!to&&simPing(src.id,to).ok;}
     case 'dns_success':return simDNS(src.id,p.domain||proof.domain||'').ok;
-    case 'http_success':return simHTTP(src.id,p.url||proof.url||'',true).ok;
+    case 'http_success':return simHTTP(src.id,p.url||proof.url||'').ok;
     case 'dhcp_success':{
       // L'appareil garde l'adresse reçue et un serveur DHCP actif reste joignable.
       var f=mainIface(src);
@@ -1168,7 +1168,9 @@ function simDNS(srcId,domain){
   return{ok:true,ip:ip,server:ddev.name};
 }
 
-function simHTTP(srcId,rawURL,quiet){
+/* Sans affichage : l'appelant journalise la résolution DNS (domain et ip du résultat, présents
+   aussi quand la requête échoue après une résolution réussie). */
+function simHTTP(srcId,rawURL){
   var url=rawURL.trim().replace(/^https?:\/\//i,'');
   var he=url.search(/[/?#]/);var host=he>0?url.substring(0,he):url;
   var destIP,domain=null;
@@ -1176,12 +1178,12 @@ function simHTTP(srcId,rawURL,quiet){
   else{
     domain=host;var dr=simDNS(srcId,domain);
     if(!dr.ok)return{ok:false,reason:'DNS : '+dr.reason};
-    destIP=dr.ip;if(!quiet)addLog('DNS '+domain+' → '+destIP,'info');
+    destIP=dr.ip;
   }
   var srv=devByIP(destIP);
-  if(!srv)return{ok:false,reason:'Serveur '+destIP+' introuvable'};
-  if(!srv.http||!srv.http.on)return{ok:false,reason:srv.name+' n\'a pas de service HTTP activé'};
-  var pr=simPing(srcId,destIP);if(!pr.ok)return{ok:false,reason:'Serveur inaccessible : '+pr.reason};
+  if(!srv)return{ok:false,reason:'Serveur '+destIP+' introuvable',ip:destIP,domain:domain};
+  if(!srv.http||!srv.http.on)return{ok:false,reason:srv.name+' n\'a pas de service HTTP activé',ip:destIP,domain:domain};
+  var pr=simPing(srcId,destIP);if(!pr.ok)return{ok:false,reason:'Serveur inaccessible : '+pr.reason,ip:destIP,domain:domain};
   return{ok:true,title:srv.http.title||'Sans titre',content:srv.http.content||'',
     htmlMode:!!(srv.http.htmlMode),serverFiles:srv.serverFiles||{},
     ip:destIP,domain:domain,server:srv.name,path:pr.path};
