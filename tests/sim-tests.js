@@ -3338,6 +3338,127 @@ test('variante d\'une activité au format du builder (ids obj_N, pannes avec par
   eq(r.scenario.activity.objectives.reduce(function(s, o) { return s + o.points; }, 0), 100);
 });
 
+/* ── Fichiers et sessions abîmés, LMS qui refuse ── */
+suite('Robustesse : fichier vérifié avant chargement, sauvegarde refusée');
+
+function goodNet() {
+  return { nid: 4, links: { l3: {id:'l3', from:'d1', to:'d2'} }, devs: {
+    d1: {id:'d1', type:'pc', name:'PC-Fichier', x:0, y:0, ifaces:[{name:'eth0',ip:'192.168.1.10',mask:'255.255.255.0',gateway:'',dns:''}]},
+    d2: {id:'d2', type:'switch', name:'SW', x:50, y:0, ifaces:[]} } };
+}
+/* Fait lire un contenu à loadTopology, comme si l'élève choisissait un fichier. */
+function loadFile(content) {
+  var original = sandbox.FileReader;
+  sandbox.FileReader = function() { this.readAsText = function(f) { this.onload({target:{result:f.content}}); }; };
+  try { sandbox.loadTopology({target:{files:[{content:content}], value:''}}); }
+  finally { sandbox.FileReader = original; }
+}
+
+test('réseau des 4 scénarios et des modèles de l\'assistant : accepté', function() {
+  var problem = sandbox.networkDataProblem;
+  fs.readdirSync(SCENARIOS_DIR).forEach(function(f) { eq(problem(readScenario(f).network), ''); });
+  AW.TYPES.forEach(function(t) { AW.THEMES.forEach(function(th) { AW.LEVELS.forEach(function(lv) {
+    eq(problem(AW.build({type: t.id, theme: th.id, level: lv.id, seed: 1}).network), '');
+  }); }); });
+  eq(problem(goodNet()), '');
+});
+
+test('réseau abîmé : refusé, avec la raison', function() {
+  var problem = sandbox.networkDataProblem;
+  function broken(change) { var n = goodNet(); change(n); return problem(n); }
+  [null, 'texte', [], {}, {devs:{}}, {devs:[], links:{}}].forEach(function(v) { ok(problem(v)); });
+  ok(/type inconnu/.test(broken(function(n) { n.devs.d1.type = 'grille-pain'; })));
+  ok(/type inconnu/.test(broken(function(n) { n.devs.d1.type = 'constructor'; })));
+  ok(/identifiant/.test(broken(function(n) { n.devs.d1.id = 'd9'; })));
+  ok(/interfaces/.test(broken(function(n) { n.devs.d1.ifaces = 'eth0'; })));
+  ok(/interfaces/.test(broken(function(n) { delete n.devs.d1.ifaces; })));
+  ok(/interfaces/.test(broken(function(n) { n.devs.d1.ifaces = [null]; })));
+  ok(/DNS/.test(broken(function(n) { n.devs.d1.dns = {on:true}; })));
+  ok(/services/.test(broken(function(n) { n.devs.d1.dhcp = 'oui'; })));
+  ok(/routes/.test(broken(function(n) { n.devs.d1.staticRoutes = {}; })));
+  ok(/illisible/.test(broken(function(n) { n.devs.d2 = null; })));
+  ok(/appareil absent/.test(broken(function(n) { n.links.l3.to = 'd7'; })));
+  ok(/cadres/.test(broken(function(n) { n.frames = []; })));
+  // Un routeur sans interfaces (ancien fichier) reste accepté : elles sont recréées au chargement
+  eq(broken(function(n) { n.devs.d2 = {id:'d2', type:'router', name:'R'}; }), '');
+});
+
+test('fichier choisi par l\'élève : abîmé → réseau en cours conservé ; valide → remplacé', function() {
+  resetNet();
+  mkPC('192.168.1.10','255.255.255.0','','','PC-EnCours');
+  var devs = S.devs, nid = S.nid;
+  var bad = goodNet(); bad.links.l3.to = 'd7';
+  ['{pas du json', 'null', '{"devs":{}}', JSON.stringify(bad)].forEach(function(content) {
+    loadFile(content);
+    ok(S.devs === devs && devByName('PC-EnCours'), 'réseau remplacé par : ' + content.slice(0, 30));
+    eq(S.nid, nid);
+  });
+  loadFile(JSON.stringify(goodNet()));
+  ok(devByName('PC-Fichier')); notOk(devByName('PC-EnCours'));
+  // Scénario exporté par le builder (version 2) : son réseau est chargé
+  resetNet();
+  loadFile(JSON.stringify({version: 2, network: goodNet(), activity: {}}));
+  ok(devByName('PC-Fichier'));
+});
+
+test('numéro suivant absent ou trop bas dans le fichier : un nouvel appareil ne remplace rien', function() {
+  [undefined, 1, 'x'].forEach(function(nid) {
+    resetNet();
+    var n = goodNet(); n.nid = nid;
+    sandbox.applyNetworkData(n);
+    eq(S.nid, 4);
+    var id = mkDev('pc', 0, 0);
+    eq(id, 'd4'); eq(Object.keys(S.devs).length, 3);
+  });
+  resetNet();
+  var big = goodNet(); big.nid = 40;
+  sandbox.applyNetworkData(big);
+  eq(S.nid, 40);
+});
+
+test('LMS qui refuse suspend_data (trop long) : signalé, réseau gardé sur le poste', function() {
+  setupActivity([]);
+  var api = makeLMS({});
+  api.LMSSetValue = function(k, v) {
+    if(k === 'cmi.suspend_data' && String(v).length > 300) return 'false';
+    api.data[k] = v; return 'true';
+  };
+  withStorage(function(store) {
+    withLMS(api, function() {
+      eq(sandbox.sSet('cmi.core.score.raw', '10'), true);
+      ok(sandbox.saveToSession()); eq(sandbox._lmsSaveRefused, false);
+      for(var i = 0; i < 6; i++) mkPC('192.168.1.' + (10 + i), '255.255.255.0', '', '', 'PC-Long-' + i);
+      ok(sandbox.saveToSession(), 'gardé dans localStorage');
+      eq(sandbox._lmsSaveRefused, true);
+      ok(store[sandbox.SESSION_KEY].indexOf('PC-Long-5') >= 0);
+      notOk(String(api.data['cmi.suspend_data']).indexOf('PC-Long-5') >= 0);
+    });
+  });
+  // Sans localStorage non plus : la sauvegarde est annoncée comme échouée
+  var original = sandbox.localStorage;
+  sandbox.localStorage = { getItem: function() { return null; }, setItem: function() { throw new Error('plein'); } };
+  try { withLMS(api, function() { notOk(sandbox.saveToSession()); }); }
+  finally { sandbox.localStorage = original; }
+});
+
+test('session abîmée : l\'élève repart du réseau de départ, pannes comprises', function() {
+  setupActivity([]);
+  sandbox.STARTER_NETWORK = goodNet();
+  sandbox.ACTIVITY_CONFIG.faults = [{type:'bad_ip', dev:'PC-Fichier', badValue:'10.9.9.9'}];
+  var bad = goodNet(); bad.devs.d1.type = 'inconnu';
+  try {
+    ['{pas du json', '[]', JSON.stringify(bad)].forEach(function(json) {
+      withStorage(function(store) {
+        resetNet();
+        sandbox.ACTIVITY_CONFIG.faults = [{type:'bad_ip', dev:'PC-Fichier', badValue:'10.9.9.9'}];
+        store[sandbox.SESSION_KEY] = json;
+        eq(sandbox.loadFromSession(), 'starter');
+        eq(mainIface(devByName('PC-Fichier')).ip, '10.9.9.9');
+      });
+    });
+  } finally { sandbox.STARTER_NETWORK = null; }
+});
+
 /* ── Isolation du moteur dans le builder ──
    Le JS du builder suit le bloc SIM-ENGINE dans le même <script> : une fonction qu'il redéfinit
    remplace celle du moteur. Une copie oubliée y vieillit sans que rien ne le signale (anciens

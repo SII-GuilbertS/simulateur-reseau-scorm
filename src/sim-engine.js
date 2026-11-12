@@ -530,9 +530,10 @@ function scormInit(){
     }
   }
 }
-function sSet(k,v){if(_api&&_apiOk)_api.LMSSetValue(k,String(v));}
+/* sSet et sCom renvoient false quand le LMS refuse (valeur trop longue, session fermée…). */
+function sSet(k,v){if(!_api||!_apiOk)return false;var r=_api.LMSSetValue(k,String(v));return r==='true'||r===true;}
 function sGet(k){if(_api&&_apiOk)return _api.LMSGetValue(k);return '';}
-function sCom(){if(_api&&_apiOk)_api.LMSCommit('');}
+function sCom(){if(!_api||!_apiOk)return false;var r=_api.LMSCommit('');return r==='true'||r===true;}
 function sEnd(sc,ok){
   if(!_api||!_apiOk)return;
   sSet('cmi.core.score.min','0');sSet('cmi.core.score.max','100');sSet('cmi.core.score.raw',String(sc));
@@ -545,8 +546,43 @@ function sEnd(sc,ok){
 /* ─── Restauration session ─── */
 
 
+/* Ce qui empêche d'utiliser ces données comme réseau (fichier, session, scénario) : message, ou ''
+   si tout va bien. Sans affichage ; à appeler avant de remplacer le réseau en cours. */
+function networkDataProblem(data){
+  function isObj(o){return !!o&&typeof o==='object'&&!Array.isArray(o);}
+  function optObj(o){return o===undefined||o===null||isObj(o);}
+  if(!isObj(data)||!isObj(data.devs)||!isObj(data.links))return 'ce fichier ne contient pas de réseau';
+  if(!optObj(data.frames)||!optObj(data.texts))return 'cadres ou textes illisibles';
+  var ids=Object.keys(data.devs),i,d,l,who;
+  for(i=0;i<ids.length;i++){
+    d=data.devs[ids[i]];who='appareil « '+ids[i]+' »';
+    if(!isObj(d))return who+' illisible';
+    if(d.id!==ids[i])return who+' : identifiant incohérent';
+    if(!Object.prototype.hasOwnProperty.call(DT,d.type))return who+' : type inconnu';
+    if(d.name!==undefined&&typeof d.name!=='string')return who+' : nom illisible';
+    if(d.ifaces===undefined?!isRouter(d):!Array.isArray(d.ifaces)||!d.ifaces.every(isObj))return who+' : interfaces illisibles';
+    if(!optObj(d.dhcp)||!optObj(d.http)||!optObj(d.serverFiles))return who+' : services illisibles';
+    if(!optObj(d.dns)||(d.dns&&!isObj(d.dns.records)))return who+' : service DNS illisible';
+    if(d.staticRoutes!==undefined&&d.staticRoutes!==null&&!(Array.isArray(d.staticRoutes)&&d.staticRoutes.every(isObj)))return who+' : routes illisibles';
+  }
+  ids=Object.keys(data.links);
+  for(i=0;i<ids.length;i++){
+    l=data.links[ids[i]];
+    if(!isObj(l)||!isObj(data.devs[l.from])||!isObj(data.devs[l.to]))return 'liaison « '+ids[i]+' » vers un appareil absent';
+  }
+  return '';
+}
+/* Prochain numéro libre : jamais sous un identifiant déjà pris (d12, l13, f14, ta15), sinon un
+   appareil ajouté ensuite remplacerait un appareil existant. */
+function nextFreeId(data){
+  var max=0;
+  [data.devs,data.links,data.frames,data.texts].forEach(function(o){
+    Object.keys(o||{}).forEach(function(k){var m=/(\d+)$/.exec(k);if(m&&+m[1]>max)max=+m[1];});
+  });
+  return Math.max(parseInt(data.nid,10)||1,max+1);
+}
 function applyNetworkData(data){
-  S.devs=data.devs||{};S.links=data.links||{};S.nid=data.nid||1;
+  S.devs=data.devs||{};S.links=data.links||{};S.nid=nextFreeId(data);
   S.frames=data.frames||{};S.texts=data.texts||{};
   S.activeLinks=new Set();S.animPhase=null;
   Object.values(S.devs).forEach(function(d){

@@ -98,22 +98,38 @@ function saveToSession(){
   var data={version:2,devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid,score:S.score,activityResults:ACTIVITY_RESULTS,activityProofs:ACTIVITY_PROOFS};
   var json=JSON.stringify(data);
   var saved=false;
-  // SCORM suspend_data (limite 4096 chars SCORM 1.2 — la plupart des LMS acceptent plus)
+  // SCORM suspend_data (limite 4096 chars SCORM 1.2 — la plupart des LMS acceptent plus).
+  // Un LMS strict refuse une valeur trop longue : la reprise sur un autre poste est alors perdue.
+  _lmsSaveRefused=false;
   if(_api&&_apiOk){
-    try{sSet('cmi.suspend_data',json);sCom();saved=true;}catch(e){}
+    try{if(sSet('cmi.suspend_data',json)&&sCom())saved=true;else _lmsSaveRefused=true;}
+    catch(e){_lmsSaveRefused=true;}
   }
   // localStorage en fallback ou complément
   try{localStorage.setItem(SESSION_KEY,json);saved=true;}catch(e){}
+  if(_lmsSaveRefused&&!_lmsSaveWarned){
+    _lmsSaveWarned=true;
+    var code='';try{code=_api.LMSGetLastError?String(_api.LMSGetLastError()):'';}catch(e){}
+    addLog('Sauvegarde refusée par la plateforme ('+json.length+' caractères'+(code?', erreur '+code:'')+')','err');
+    notif(saved?'⚠️ La plateforme a refusé la sauvegarde : votre réseau n\'est gardé que sur ce poste'
+               :'⚠️ La plateforme a refusé la sauvegarde de votre réseau','err');
+  }
   return saved;
 }
+var _lmsSaveRefused=false;   // dernière sauvegarde refusée par le LMS
+var _lmsSaveWarned=false;    // l'élève n'est averti qu'une fois
 
 function loadFromSession(){
   var json='';
   if(_api&&_apiOk){try{json=sGet('cmi.suspend_data');}catch(e){}}
   if(!json||json===''){try{json=localStorage.getItem(SESSION_KEY)||'';}catch(e){}}
+  // Session illisible ou abîmée : on repart comme s'il n'y en avait pas.
+  var data=null;
+  if(json){try{data=JSON.parse(json);}catch(e){data=null;}}
+  if(data&&networkDataProblem(data))data=null;
 
-  // Aucune session sauvegardée → utiliser le réseau de départ du prof si défini
-  if(!json||json===''){
+  // Aucune session utilisable → utiliser le réseau de départ du prof si défini
+  if(!data){
     if(STARTER_NETWORK&&STARTER_NETWORK.devs){
       applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
       // Configuration fixe mise de côté par le professeur avant de cocher le DHCP : l'élève
@@ -127,17 +143,12 @@ function loadFromSession(){
     }
     return false;
   }
-  try{
-    var data=JSON.parse(json);
-    if(!data.devs||!data.links)return false;
-    applyNetworkData(data);
-    if(data.frames)S.frames=data.frames;
-    if(data.texts)S.texts=data.texts;
-    if(data.score)S.score=data.score;
-    if(data.activityResults)ACTIVITY_RESULTS=data.activityResults;
-    ACTIVITY_PROOFS=data.activityProofs||{};
-    return true;
-  }catch(e){return false;}
+  function isObj(o){return !!o&&typeof o==='object'&&!Array.isArray(o);}
+  applyNetworkData(data);
+  if(typeof data.score==='number')S.score=data.score;
+  if(isObj(data.activityResults))ACTIVITY_RESULTS=data.activityResults;
+  ACTIVITY_PROOFS=isObj(data.activityProofs)?data.activityProofs:{};
+  return true;
 }
 
 function toggleProps(){
@@ -570,23 +581,25 @@ function loadTopology(ev){
     try{
       var data=JSON.parse(e.target.result);
       // Migration format v2 (builder) → v1 (template)
-      if(data.version===2&&data.network){data=data.network;}
-      if(!data.devs||!data.links)throw new Error('Format invalide — fichier JSON incompatible');
-      S.devs=data.devs;S.links=data.links;S.nid=data.nid||1;
-      S.frames=data.frames||{};S.texts=data.texts||{};
-      S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();S.animPhase=null;
-      // Assurer rétrocompatibilité
-      Object.values(S.devs).forEach(function(d){
-        if(!d.dhcp)d.dhcp={on:false,start:'192.168.1.100',end:'192.168.1.200',mask:'255.255.255.0',gateway:'',dns:''};
-    else if(!d.dhcp.end)d.dhcp.end='192.168.1.200';
-        if(!d.staticRoutes)d.staticRoutes=[];
-        if(!d.http)d.http={on:false,title:'Ma page web',content:''};
-        if(!d.dns)d.dns={on:false,records:{}};
-      });
-      render();noSel();
+      if(data&&data.version===2&&data.network){data=data.network;}
+      // Le fichier est vérifié avant de toucher au réseau en cours ; si l'affichage échoue
+      // quand même, le réseau précédent est remis en place.
+      var pb=networkDataProblem(data);
+      if(pb)throw new Error(pb);
+      var prev={devs:S.devs,links:S.links,nid:S.nid,frames:S.frames,texts:S.texts};
+      try{
+        applyNetworkData(data);
+        S.sel=null;S.cableFrom=null;S.drag=null;
+        render();noSel();
+      }catch(ex){
+        S.devs=prev.devs;S.links=prev.links;S.nid=prev.nid;S.frames=prev.frames;S.texts=prev.texts;
+        S.sel=null;S.cableFrom=null;S.drag=null;
+        try{render();noSel();}catch(e2){}
+        throw ex;
+      }
       notif('📂 Réseau chargé : '+Object.keys(S.devs).length+' appareils, '+Object.keys(S.links).length+' câbles','ok');
       addLog('Topologie chargée depuis fichier','info');
-    }catch(ex){notif('❌ Chargement impossible : '+ex.message,'err');}
+    }catch(ex){notif('❌ Chargement impossible : '+ex.message+' — le réseau en cours est conservé','err');}
   };
   reader.readAsText(file);
   ev.target.value='';
