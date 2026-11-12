@@ -85,4 +85,5 @@
 | Pont WiFi ↔ câble de la Box (WAN exclu) | v1.9.2 |
 | TTL selon les routeurs traversés, toutes les interfaces d'un routeur sur sa carte | à venir |
 | Connexion WiFi réelle (SSID et mot de passe), panne « mot de passe WiFi incorrect » | à venir |
+| Fichier ou session abîmés refusés avant chargement, refus de sauvegarde du LMS signalé, moteur scindé en cœur réseau et interface | v1.9.4 |
 | 396 tests unitaires (`sim-tests.js`), 31 tests navigateur (`tests/e2e/`) | — |

@@ -157,7 +157,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v1.9.3
+#  DOC PROF  v1.9.4
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -166,7 +166,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v1.9.3'
+    doc._subtitle    = 'Documentation v1.9.4'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -232,6 +232,9 @@ def build_prof(out_path):
                   'réseau. Les routes RIP sont recalculées automatiquement (y compris une route par défaut vers '
                   'Internet) ; un routeur dont le routage automatique est décoché n\'apprend aucune route et ne '
                   'communique qu\'avec ses réseaux directs. Une adresse privée que personne ne porte est inconnue.', BODY_L),
+        Paragraph('• <b>Fichiers vérifiés</b> : un scénario abîmé ou incomplet est refusé à l\'import, avec la '
+                  'raison ; le réseau en cours est conservé. Côté élève, si la plateforme refuse d\'enregistrer '
+                  'le réseau, un message l\'en avertit et le travail reste gardé sur le poste.', BODY_L),
         callout('L\'export reprend le réseau affiché : après avoir testé vos corrections, '
                 'cliquez sur <b>Réinitialiser</b> avant d\'exporter.', WARN, '⚠'),
         Spacer(1, 6),
@@ -499,7 +502,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v1.9.3
+#  DOC ELEVE  v1.9.4
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -508,7 +511,7 @@ def build_eleve(out_path):
     doc._badge       = 'Mode Simulation'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v1.9.3'
+    doc._subtitle    = 'Guide élève v1.9.4'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
@@ -677,6 +680,13 @@ def build_eleve(out_path):
          'Le message « Non connecté au WiFi » dit pourquoi : <b>mot de passe incorrect</b> (comparez-le avec celui '
          'de la fiche de la box), <b>SSID inconnu</b> (le nom du réseau choisi dans la fiche de l\'appareil doit être '
          'celui de la box) ou aucun réseau choisi. Vérifiez aussi qu\'une liaison WiFi relie l\'appareil à la box.'),
+        ('« La plateforme a refusé la sauvegarde »',
+         'Votre réseau n\'a pas pu être enregistré sur Moodle : il n\'est gardé que sur ce poste. '
+         'Continuez à travailler et terminez l\'activité sur le même poste, avec le même navigateur, '
+         'puis prévenez votre professeur.'),
+        ('« Chargement impossible »',
+         'Le fichier choisi est abîmé ou n\'est pas un réseau du simulateur. Rien n\'est perdu : '
+         'le réseau en cours est conservé.'),
         ('L\'objectif ne se valide pas',
          'Relisez l\'intitulé et vérifiez chaque paramètre (IP, masque, passerelle, DNS). '
          'Pour les objectifs de simulation, lancez la commande dans le terminal (ping, nslookup, dhcp) '
