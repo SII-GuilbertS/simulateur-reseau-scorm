@@ -89,7 +89,7 @@ actuelle pour garder les deux versions.
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **393 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **396 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -106,7 +106,7 @@ Suite de **393 tests** couvrant le moteur de simulation réseau, l'évaluation e
 
 ```bash
 node tests/sim-tests.js
-# ✅ 393/393 tests passés — SUCCÈS
+# ✅ 396/396 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
@@ -189,7 +189,8 @@ Guide de prise en main pour les **élèves** : interface, modes Configuration/Si
 
 | Fichier | Rôle |
 |---------|------|
-| `src/sim-engine.js` | Source du moteur réseau IPv4 (compilé dans scorm-builder.html) |
+| `src/net-core.js` | Cœur du moteur réseau IPv4 : modèle, simulation, évaluation, sans accès au navigateur (compilé dans scorm-builder.html) |
+| `src/sim-ui.js` | Interface du simulateur : affichage, souris, terminal, SCORM (compilé dans scorm-builder.html) |
 | `src/template-skeleton.html` | Squelette HTML du template élève |
 | `src/template-extra.js` | JS spécifique au template élève (SCORM, renderActivityTab…) |
 | `tools/build.py` | Script de compilation : `python3 tools/build.py --rebuild` |
@@ -199,7 +200,7 @@ Guide de prise en main pour les **élèves** : interface, modes Configuration/Si
 
 **Modifier le moteur et régénérer :**
 ```bash
-# 1. Éditer src/sim-engine.js, src/template-extra.js ou src/template-skeleton.html
+# 1. Éditer src/net-core.js, src/sim-ui.js, src/template-extra.js ou src/template-skeleton.html
 # 2. Recompiler
 python3 tools/build.py --rebuild
 # 3. Vérifier les tests

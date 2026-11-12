@@ -3491,6 +3491,120 @@ test('aucune fonction du moteur redéfinie sans marqueur, aucune fonction défin
   assert(!twice.length, 'fonctions définies deux fois dans le builder : ' + twice.join(', '));
 });
 
+/* ── Cœur réseau isolé ──
+   Le moteur est assemblé à partir de src/net-core.js (modèle, simulation, évaluation) puis de
+   src/sim-ui.js (affichage, souris, terminal, SCORM), séparés par le marqueur NET-CORE-END.
+   Le cœur doit fonctionner sans navigateur : il est exécuté ici seul, dans un contexte vide. */
+suite('Cœur réseau isolé : sans navigateur ni interface');
+
+var coreJs = (function() {
+  var a = html.indexOf('SIM-ENGINE-START'), b = html.indexOf('/* NET-CORE-END');
+  assert(a > 0 && b > a, 'marqueur NET-CORE-END introuvable dans le bloc SIM-ENGINE');
+  return html.slice(html.indexOf('*/', a) + 2, b);
+})();
+var uiJs = html.slice(html.indexOf('/* NET-CORE-END'), html.indexOf('/* SIM-ENGINE-END'));
+
+function bareCore() {
+  var ctx = vm.createContext({});
+  vm.runInContext(coreJs, ctx, {filename: 'net-core.js'});
+  return ctx;
+}
+
+test('le cœur ne nomme ni le navigateur ni une fonction de l\'interface', function() {
+  var code = coreJs.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  var found = [];
+  ['document', 'window', 'localStorage', 'sessionStorage', 'navigator', 'console', 'location'].forEach(function(n) {
+    if (new RegExp('(^|[^.\\w$\'"])' + n + '\\s*[.\\[(]', 'm').test(code)) found.push(n);
+  });
+  var calls = ['setTimeout', 'clearTimeout', 'setInterval', 'requestAnimationFrame', 'alert', 'confirm', 'prompt'];
+  function fnNames(src) {
+    var out = [], re = /^function\s+([\w$]+)\s*\(/gm, m;
+    while ((m = re.exec(src))) out.push(m[1]);
+    return out;
+  }
+  var uiFns = fnNames(uiJs.replace(/\r/g, ''));
+  ok(uiFns.indexOf('render') !== -1 && uiFns.indexOf('addLog') !== -1 && uiFns.indexOf('notif') !== -1);
+  var coreFns = fnNames(coreJs.replace(/\r/g, ''));
+  ok(coreFns.indexOf('simPing') !== -1 && coreFns.indexOf('evaluateObjectives') !== -1 && coreFns.indexOf('applyFaults') !== -1);
+  calls.concat(uiFns, fnNames(extraJsForCore()), ['checkAllObjectives', 'checkDynamicObjective', 'showProps']).forEach(function(n) {
+    if (coreFns.indexOf(n) !== -1) return;
+    if (new RegExp('(^|[^.\\w$\'"])' + n.replace(/\$/g, '\\$') + '\\s*\\(', 'm').test(code)) found.push(n + '()');
+  });
+  assert(!found.length, 'le cœur réseau utilise : ' + found.join(', '));
+});
+function extraJsForCore() {
+  // partie du template élève qui suit le moteur (src/template-extra.js)
+  var i = simJs.indexOf('/* NET-CORE-END');
+  var j = simJs.indexOf('function renderActivityTab');
+  return i !== -1 && j > i ? simJs.slice(j).replace(/\r/g, '') : '';
+}
+
+test('le cœur se charge seul et simule un réseau construit à la main', function() {
+  var c = bareCore();
+  eq(typeof c.document, 'undefined');
+  eq(typeof c.render, 'undefined');
+  var p1 = c.mkDev('pc', 0, 0), p2 = c.mkDev('pc', 100, 0), sw = c.mkDev('switch', 50, 50);
+  c.S.devs[p1].ifaces[0].ip = '192.168.1.10'; c.S.devs[p1].ifaces[0].mask = '255.255.255.0';
+  c.S.devs[p2].ifaces[0].ip = '192.168.1.20'; c.S.devs[p2].ifaces[0].mask = '255.255.255.0';
+  [[p1, sw], [p2, sw]].forEach(function(l) {
+    var chk = c.linkCheck(l[0], l[1]);
+    ok(chk.ok); notOk(chk.wifi);
+    var id = 'l' + (c.S.nid++); c.S.links[id] = {id: id, from: l[0], to: l[1]};
+  });
+  ok(c.simPing(p1, '192.168.1.20').ok);
+  notOk(c.simPing(p1, '192.168.1.99').ok);
+  // règles de câblage : doublon et second câble refusés, sans affichage
+  notOk(c.linkCheck(p1, sw).ok); eq(c.linkCheck(p1, sw).msg, '');
+  ok(/déjà un câble/.test(c.linkCheck(p1, p2).msg));
+  eq(c.checkObjectiveStatic({check: 'ip_configured', params: {dev: c.S.devs[p1].name, ip: '192.168.1.10'}}), true);
+});
+
+test('chaque scénario est chargé, évalué, mis en panne et parcouru par le cœur seul', function() {
+  var IP = /^\d+\.\d+\.\d+\.\d+$/;
+  var files = fs.readdirSync(SCENARIOS_DIR).filter(function(f) { return /\.json$/.test(f); });
+  ok(files.length >= 4);
+  files.forEach(function(file) {
+    var data = readScenario(file), c = bareCore(), objs = data.activity.objectives;
+    function exercise() {
+      var devs = Object.keys(c.S.devs).map(function(k) { return c.S.devs[k]; }), okPings = 0;
+      devs.forEach(function(d) {
+        if (c.isRouter(d)) c.getRoutingTable(d.id);
+        if (d.type !== 'pc' && d.type !== 'server') return;
+        c.wifiProblem(d.id);
+        devs.forEach(function(o) {
+          var fi = c.mainIface(o);
+          if (o !== d && fi && IP.test(fi.ip || '') && c.simPing(d.id, fi.ip).ok) okPings++;
+        });
+        c.simPing(d.id, '8.8.8.8');
+      });
+      objs.forEach(function(o) {
+        var from = c.devByName(o.params && o.params.from);
+        if (!from) return;
+        if (o.check === 'http_success') c.simHTTP(from.id, o.params.url || '');
+        if (o.check === 'dns_success') c.simDNS(from.id, o.params.domain || o.params.name || '');
+      });
+      c.evaluateObjectives(objs);
+      c.addressPlan(objs);
+      return okPings;
+    }
+    eq(c.networkDataProblem(data.network), '');
+    c.applyNetworkData(JSON.parse(JSON.stringify(data.network)));
+    c.START_DEV_IDS = Object.keys(c.S.devs);
+    assert(exercise() > 0, file + ' : aucun ping ne passe dans le corrigé');
+    var statics = objs.filter(function(o) { return c.STATIC_OBJ_TYPES.indexOf(o.check) !== -1 && o.check !== 'device_added'; });
+    assert(statics.some(function(o) { return c.checkObjectiveStatic(o) === true; }), file + ' : aucun objectif statique vrai dans le réseau fourni');
+    // pannes, DHCP et routes recalculées : toujours sans navigateur
+    c.applyFaults(JSON.parse(JSON.stringify(data.activity.faults || [])));
+    exercise();
+    objs.forEach(function(o) {
+      var from = c.devByName(o.params && o.params.from);
+      if (o.check === 'dhcp_success' && from) c.simDHCP(from.id);
+    });
+    c.computeRoutes(true);
+    exercise();
+  });
+});
+
 /* ─────────────────────────────────────────────────────
    6. BILAN
 ───────────────────────────────────────────────────── */

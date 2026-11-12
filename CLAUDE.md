@@ -18,10 +18,11 @@ Fichier HTML standalone (~435k) qui contient à la fois l'outil auteur (enseigna
 de simulation embarqué pour l'élève. Il combine quatre parties :
 
 1. **Bloc SIM-ENGINE** (`SIM-ENGINE-START` … `SIM-ENGINE-END`, marqué `NE PAS MODIFIER`) —
-   copie générée automatiquement du contenu de `src/sim-engine.js`, utilisée par le JS du builder.
+   copie générée automatiquement de `src/net-core.js` (cœur réseau) puis de `src/sim-ui.js`
+   (interface), séparés par le marqueur `NET-CORE-END`, utilisée par le JS du builder.
 2. **`var STUDENT_TEMPLATE`** — le template élève complet, encodé en base64 inline. Décodé, il
    contient les trois fichiers de `src/` combinés (le placeholder `/* __JS__ */` de
-   `template-skeleton.html` reçoit `sim-engine.js` + `template-extra.js`).
+   `template-skeleton.html` reçoit `net-core.js` + `sim-ui.js` + `template-extra.js`).
 3. **JS du builder lui-même** — `EvalModule` (objectifs pédagogiques, score, pannes) et
    `GenModule` (export SCORM .zip / HTML standalone, génération d'énoncé imprimable et de son corrigé,
    import/export de scénarios JSON), plus les surcharges builder (undo/redo, copier/coller,
@@ -50,12 +51,24 @@ tous les deux **générés automatiquement**. Ne jamais les éditer directement 
 Workflow correct pour modifier le moteur de simulation :
 
 ```bash
-# 1. Éditer src/sim-engine.js (et/ou src/template-extra.js, src/template-skeleton.html si besoin)
+# 1. Éditer src/net-core.js ou src/sim-ui.js (et/ou src/template-extra.js, src/template-skeleton.html si besoin)
 # 2. Régénérer scorm-builder.html
 python3 tools/build.py --rebuild
 # 3. Vérifier les tests
 node tests/sim-tests.js
 ```
+
+### Cœur réseau et interface
+
+Le moteur est en deux fichiers, assemblés dans cet ordre. `src/net-core.js` contient le modèle
+(`S`, `mkDev`, `linkCheck`, `applyNetworkData`), la simulation (`simPing`, `simDNS`, `simHTTP`,
+`simDHCP`, routage), l'évaluation et les pannes ; il ne touche jamais la page : ni `document`, ni
+`window`, ni minuterie, ni `notif`/`addLog`/`render`. `src/sim-ui.js` contient tout le reste. Une
+fonction du cœur renvoie un résultat (`{ok, msg}`, message, tableau) et c'est l'interface qui
+l'affiche : `addLink` (interface) appelle `linkCheck` (cœur) puis `notif`. La suite « Cœur réseau
+isolé » exécute le cœur seul dans un contexte vide, sur les 4 scénarios, et échoue s'il nomme le
+navigateur ou une fonction de l'interface. Une nouvelle règle de réseau ou d'évaluation va dans
+`net-core.js`.
 
 `tools/build.py` sait aussi tourner en mode audit seul (`python3 tools/build.py`, dry-run) ou
 réparation ciblée (`--fix`) via une liste de checks codés en dur — mais pour toute modification
@@ -71,11 +84,11 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 393/393
+## Tests : `node tests/sim-tests.js` → doit afficher 396/396
 
-Suite de 393 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 396 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
-`src/sim-engine.js` directement — donc **toujours rebuild avant de tester** un changement du moteur).
+`src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
 Couverture : fonctions réseau de base (`ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`,
 `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`...), simulation applicative (`simPing`
@@ -87,12 +100,12 @@ contrainte affichée à l'élève), connexion WiFi (SSID et mot de passe du
 terminal, `wifiLinkUp`, `wifiProblem`), mode panne (`applyFaults` : 8 types, formats plat
 et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
 sauvegarde et reprise, fichier ou session abîmés refusés avant de remplacer le réseau (`networkDataProblem`),
-sauvegarde refusée par le LMS signalée, et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
+sauvegarde refusée par le LMS signalée, cœur réseau exécuté seul sans navigateur (`linkCheck`, scénarios chargés, évalués et mis en panne), et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
 de 100 une fois le réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Les mêmes règles sont vérifiées sur chaque
 modèle de l'assistant « Nouvelle activité » (27 combinaisons, 3 tirages) et sur chaque variante des
 4 scénarios. Non couverts : rendu de l'interface et `EvalModule`/`GenModule` du builder (exports).
 
-Les règles d'évaluation sont dans `src/sim-engine.js`, partagées par le builder et l'élève
+Les règles d'évaluation sont dans `src/net-core.js`, partagées par le builder et l'élève
 (`checkObjectiveStatic`, `evaluateObjectives`, `recordDynamicEvent`). Un objectif n'est acquis que
 tant que sa condition reste vraie : les objectifs dynamiques gardent la commande qui les a validés
 (`ACTIVITY_PROOFS`) et la rejouent à chaque modification du réseau. `checkAllObjectives` et
@@ -167,7 +180,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 393/393
+node tests/sim-tests.js    # → 396/396
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -207,13 +220,14 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | Fichier | Rôle |
 |---|---|
 | `scorm-builder.html` | Application complète, générée en partie — voir règle critique ci-dessus |
-| `src/sim-engine.js` | Source du moteur réseau IPv4 partagé builder + template élève |
+| `src/net-core.js` | Cœur réseau partagé builder + template élève : modèle, simulation IPv4, évaluation, pannes. Aucun accès au navigateur |
+| `src/sim-ui.js` | Interface partagée builder + template élève : affichage, souris et clavier, terminal, SCORM |
 | `src/template-extra.js` | JS spécifique au template élève (SCORM, rendu de l'onglet activité) |
 | `src/template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
 | `tools/build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 393 tests Node.js |
+| `tests/sim-tests.js` | Suite de 396 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

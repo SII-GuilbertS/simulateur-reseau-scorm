@@ -4,23 +4,25 @@ build.py — Pipeline de build et vérification
 =============================================
 
 ARCHITECTURE (depuis la restructuration point 1) :
-  src/sim-engine.js       moteur partagé builder+template (114 fonctions)
+  src/net-core.js         cœur réseau partagé builder+template : modèle, simulation, évaluation
+                          (aucun accès au navigateur)
+  src/sim-ui.js           interface partagée builder+template : affichage, souris, terminal, SCORM
   src/template-extra.js   surcharges spécifiques au template élève (17 fonctions + init)
   src/template-skeleton.html  squelette HTML du template (sans JS)
 
   scorm-builder.html (généré) contient :
     ① le JS builder :
        - stubs SCORM + saveToSession/loadFromSession (spécifiques builder)
-       - bloc SIM-ENGINE-START/END → contenu de sim-engine.js
+       - bloc SIM-ENGINE-START/END → net-core.js, marqueur NET-CORE-END, puis sim-ui.js
        - surcharges builder (checkAllObjectives/EvalModule, showProps builder, etc.)
        - undo/redo/snapHistory réels, copier/coller, etc.
-    ② var STUDENT_TEMPLATE = base64(skeleton.html + sim-engine.js + template-extra.js)
+    ② var STUDENT_TEMPLATE = base64(skeleton.html + net-core.js + sim-ui.js + template-extra.js)
     ③ SimModule + EvalModule + GenModule (builder)
 
 Usage :
     python3 tools/build.py              — vérifie uniquement (dry-run)
     python3 tools/build.py --fix        — répare les checks KO
-    python3 tools/build.py --rebuild    — régénère depuis src/sim-engine.js + src/template-extra.js
+    python3 tools/build.py --rebuild    — régénère depuis src/net-core.js, src/sim-ui.js et src/template-extra.js
     python3 tools/build.py --rebuild --fix  — régénère + répare si nécessaire
     python3 tools/build.py --docs       — régénère docs/doc-prof.pdf + docs/doc-eleve.pdf via gen_docs.py
 """
@@ -34,7 +36,10 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC       = os.path.join(ROOT, "scorm-builder.html")
-ENGINE_JS = os.path.join(ROOT, "src", "sim-engine.js")
+CORE_JS   = os.path.join(ROOT, "src", "net-core.js")
+UI_JS     = os.path.join(ROOT, "src", "sim-ui.js")
+# Sépare le cœur réseau de l'interface dans le moteur assemblé : un test exécute ce qui précède seul.
+CORE_END  = "/* NET-CORE-END — fin du cœur réseau (src/net-core.js), début de l'interface (src/sim-ui.js) */"
 EXTRA_JS  = os.path.join(ROOT, "src", "template-extra.js")
 SKEL_HTML = os.path.join(ROOT, "src", "template-skeleton.html")
 
@@ -77,11 +82,13 @@ tpl = base64.b64decode(b64_match.group(1)).decode('utf-8')
 # ─────────────────────────────────────────────────────────────────────────────
 if REBUILD_MODE:
     print("── Mode REBUILD ──────────────────────────────────────────────────────")
-    for path in [ENGINE_JS, EXTRA_JS, SKEL_HTML]:
+    for path in [CORE_JS, UI_JS, EXTRA_JS, SKEL_HTML]:
         if not os.path.exists(path):
             print(f"FATAL: fichier source manquant: {path}"); sys.exit(1)
 
-    engine = open(ENGINE_JS, encoding='utf-8').read()
+    core   = open(CORE_JS,   encoding='utf-8').read()
+    ui     = open(UI_JS,     encoding='utf-8').read()
+    engine = core.rstrip('\n') + '\n\n' + CORE_END + '\n' + ui
     extra  = open(EXTRA_JS,  encoding='utf-8').read()
     skel   = open(SKEL_HTML, encoding='utf-8').read()
 

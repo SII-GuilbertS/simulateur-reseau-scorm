@@ -89,9 +89,9 @@ for kw in ['var BADGES=', 'S.badges', 'renderBadges(', 'checkBadges(', "unlock('
 # ── 6. Fonctions critiques présentes ─────────────────────────────
 required = {
     'builder': ['function cvMM(', 'function cwDrop(', 'function palDS(',
-                'function checkAllObjectives(', 'var ACTIVITY_RESULTS'],
+                'function checkAllObjectives(', 'var ACTIVITY_RESULTS', '/* NET-CORE-END'],
     'template': ['function ipMatchesPattern(', 'function checkObjectiveStatic(',
-                 'ACTIVITY_CONFIG.objectives', '_ptoDev'],
+                 'ACTIVITY_CONFIG.objectives', '_ptoDev', '/* NET-CORE-END'],
 }
 for where, fns in required.items():
     src = builder_js if where == 'builder' else tmpl
