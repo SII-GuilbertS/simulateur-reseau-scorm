@@ -88,7 +88,7 @@ async function download(page, action, file) {
 async function exportFile(page, kind, file) {
   await page.locator('.bld-tab[data-tab="3"]').click();
   const fn = { html: 'generateHtml', scorm: 'generate', scenario: 'exportScenario' }[kind];
-  return download(page, () => page.locator(`button[onclick="GenModule.${fn}()"]`).click(), file);
+  return download(page, () => page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click(), file);
 }
 
 async function runInTerminal(page, deviceName, command) {
@@ -351,8 +351,8 @@ test.describe('Vue élève (export HTML)', () => {
 
 test.describe('Builder', () => {
   test('services réglés en simulation : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
+    // Vue Corrigé : le bureau s'ouvre sans simulation, et ce qui y est réglé fait partie du corrigé exporté
     await openBuilderWith(page, 'reseau-maison');
-    await page.locator('#btn-sim').click();
     const box = await openDeskApp(page, 'Box-WiFi', 'Administration');
     const dhcp = box.locator('.dpill');
     await expect(dhcp).toHaveText('démarré');
@@ -392,17 +392,23 @@ test.describe('Builder', () => {
   });
 
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
-    // Réseau du builder sans pannes, mais score de l'élève : les réparations ne comptent pas.
+    // Vue Essai : le professeur joue l'élève. Le DNS est en panne au départ : il le démarre, puis teste.
     await openBuilderWith(page, 'reseau-entreprise');
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
     await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await expect(dns.locator('.dpill')).toHaveText('arrêté');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // « DNS actif »
 
     await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
     await expect(page.locator('#tout')).toContainText('192.168.1.100');
-    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // pas depuis le bon poste
 
     await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
-    await expect(builderScore(page)).toHaveText('📊 Score : 10 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
   });
 
   /* Variantes de reseau-lycee où l'élève réussirait sans rien faire (seuil abaissé à 20).
@@ -463,7 +469,7 @@ test.describe('Builder', () => {
     let downloaded = false;
     page.on('download', () => { downloaded = true; });
     for (const fn of ['generateHtml', 'generate']) {
-      await page.locator(`button[onclick="GenModule.${fn}()"]`).click();
+      await page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click();
     }
     await expect.poll(() => page.dialogs.length).toBe(2);
     await page.waitForTimeout(500);
@@ -888,6 +894,52 @@ test.describe('Builder', () => {
     await page.reload();
     await expect(page.locator('#ctl-act')).toContainText('restaurée de votre dernière session');
     expect(await page.evaluate(() => !!START_SNAP)).toBe(true);
+  });
+
+  test('vues Corrigé / Départ élève / Essai : copie jetable, lecture seule, corrigé intact et exports inchangés', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const dnsOn = () => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on);
+    expect(await dnsOn()).toBe(true);                                      // corrigé : DNS démarré
+
+    // Corrigé : le bureau s'ouvre sans simulation, sans terminal ni navigateur
+    const srv = await deviceId(page, 'Serveur');
+    await page.locator(`#gd${srv}`).dblclick();
+    const win = page.locator(`#dwin-${srv}`);
+    await expect(win).toBeVisible();
+    await expect(win.locator('.dico', { hasText: 'Serveur DNS' })).toBeVisible();
+    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+    await win.locator('.dw-x').click();
+
+    // Départ élève : la panne est appliquée, lecture seule
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#view-bar')).toContainText('Départ élève');
+    expect(await dnsOn()).toBe(false);
+    await expect(page.locator('#layer-badges g')).toHaveCount(2);
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    expect(await dnsOn()).toBe(false);                                     // refusé : lecture seule
+    await expect(page.locator('.dwin .dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+
+    // Essai : on répare, le score monte ; sans pastilles de panne
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#view-bar')).toContainText('Essai');
+    await expect(page.locator('#layer-badges g')).toHaveCount(0);
+    const dns2 = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns2.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+
+    // Un export pendant l'essai donne le corrigé, pas la copie : DNS démarré, pannes seulement dans l'activité
+    const file = await exportFile(page, 'scenario', info.outputPath('essai.json'));
+    await expect(page.locator('#btn-cfg')).toHaveClass(/active/);          // l'onglet 3 ramène au corrigé
+    const exported = JSON.parse(fs.readFileSync(file, 'utf8'));
+    expect(Object.values(exported.network.devs).find((d) => d.name === 'Serveur').dns.on).toBe(true);
+    expect(exported.activity.faults.length).toBe(2);
+
+    // Retour au corrigé : rien n'a bougé, score de départ de nouveau 0
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    expect(await dnsOn()).toBe(true);
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await expect(page.locator('#view-bar')).toBeHidden();
   });
 
   test('le builder affiche le score de départ de l\'élève : 0 pour chaque scénario et chaque dépannage de l\'assistant', async ({ page }) => {

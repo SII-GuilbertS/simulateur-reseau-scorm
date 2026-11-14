@@ -34,6 +34,16 @@ de simulation embarqué pour l'élève. Il combine quatre parties :
    `tests/sim-tests.js` l'extrait par ses marqueurs. Juste après, `WizardUI` gère les deux fenêtres.
    Un modèle ajouté doit respecter les règles des scénarios (voir plus bas) : les tests le vérifient.
 
+**Trois vues du schéma (barre d'en-tête du builder)** — `BUILDER_VIEW` : **Corrigé** (réseau qui
+fonctionne, seul modifiable ; le bureau d'un appareil s'y ouvre par double-clic, sans terminal ni
+navigateur), **Départ élève** (copie du corrigé + pannes, lecture seule, pastilles de panne P1, P2…) et
+**Essai** (même copie, le professeur joue l'élève : terminal, réparations, score réel, règles de l'élève).
+`setBuilderView` met le corrigé de côté dans `VIEW_SNAP` et le rétablit au retour ; `SimModule.getState()`
+renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les onglets 2 et 3, l'import,
+l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a que deux points
+d'accroche (`deskOn`, `deskView` dans `src/sim-ui.js`), inertes chez l'élève. Le score « corrigé »
+(`BUILDER_TOUCHED`) ne s'applique qu'à la vue Corrigé.
+
 **3 onglets dans l'UI du builder :**
 
 | Onglet | Rôle |
@@ -122,7 +132,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 36 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 37 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,

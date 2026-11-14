@@ -463,6 +463,7 @@ function devMD(e,id){
   var pt=svgPt(e);
   S.sel=id;S.drag={id:id,ox:pt.x-S.devs[id].x,oy:pt.y-S.devs[id].y};render();showProps(id);
   if(!_propsVisible)toggleProps();
+  deskDblCheck(id);
 }
 
 function devRC(e,id){
@@ -796,7 +797,17 @@ var DESK_APPS={
 };
 // Applications de chaque appareil. Les services (web, DNS, DHCP, WiFi de la box) ne se
 // règlent qu'ici, en mode simulation ; ce qui est réglé dans le builder part à l'export.
+/* Le bureau s'ouvre en simulation ; le builder l'ouvre aussi dans sa vue « Corrigé » (BUILDER_VIEW,
+   défini par le builder seulement : chez l'élève ce prédicat se réduit au mode simulation). */
+function deskOn(){return S.mode==='simulation'||(typeof BUILDER_VIEW!=='undefined'&&BUILDER_VIEW==='corrige');}
+/* Vue du builder : « corrige » (réglages seulement), « depart » (lecture seule), « essai » (tout). */
+function deskView(){return typeof BUILDER_VIEW!=='undefined'?BUILDER_VIEW:'essai';}
 function deskApps(d){
+  var a=deskAppsAll(d);
+  if(deskView()!=='essai')a=a.filter(function(x){return x!=='term'&&x!=='brow';});
+  return a;
+}
+function deskAppsAll(d){
   if(!d||d.type==='switch'||d.type==='internet')return [];
   if(d.type==='wifi_router')return ['admin','routes','term'];
   if(d.type==='router')return ['routes','term'];
@@ -896,7 +907,7 @@ function deskDblCheck(id){
 }
 function deskOpen(id,app){
   var d=S.devs[id];
-  if(!d||S.mode!=='simulation'||!deskApps(d).length)return;
+  if(!d||!deskOn()||!deskApps(d).length)return;
   deskInit();
   var w=DESK.wins[id];
   if(!w){
@@ -1035,7 +1046,7 @@ function deskBrowse(id){
 // Ajoute les applications de l'appareil en tête de sa fiche (mode simulation).
 function deskPropsApps(id){
   var d=S.devs[id],apps=deskApps(d),pb=document.getElementById('props-body');
-  if(!apps.length||!pb||S.mode!=='simulation')return;
+  if(!apps.length||!pb||!deskOn())return;
   var div=document.createElement('div');div.className='desk-papps';
   div.innerHTML='<span class="dpl">Applications · double-clic sur l\'appareil</span>'+apps.map(function(a){
     return '<button type="button" onclick="deskOpen(\''+id+'\',\''+a+'\')">'+DESK_APPS[a].icon+' '+DESK_APPS[a].label+'</button>';
@@ -1048,7 +1059,7 @@ function deskSync(){
   var ids=Object.keys(DESK.wins);if(!ids.length)return;
   ids.forEach(function(id){
     var d=S.devs[id];
-    if(!d||!deskApps(d).length||S.mode!=='simulation'){deskClose(id);return;}
+    if(!d||!deskApps(d).length||!deskOn()){deskClose(id);return;}
     var w=DESK.wins[id],fi=mainIface(d);
     w.el.querySelector('.dwin-ip').textContent=fi&&fi.ip?fi.ip:'';
     // Bureau : toujours à jour. Application à formulaire : redessinée seulement si l'appareil a été
@@ -1070,6 +1081,10 @@ function deskFilesChanged(id){
   deskRefresh(id);
 }
 function deskApply(id,fn){
+  if(deskView()==='depart'){
+    if(typeof notif==='function')notif('👁️ Vue « Départ élève » en lecture seule : passez en « Essai » pour agir','info');
+    deskRefresh(id);return;
+  }
   snapHistory();
   fn();
   render();
@@ -1283,13 +1298,15 @@ function deskConfigNote(id){
     h+='<div class="dcr"><span>📶 WiFi</span><span class="m">'+esc(d.ssid||'(sans nom)')+(d.wifiPass?' · '+esc(d.wifiPass):' · ouvert')+'</span></div>'+
       '<div class="dcr"><span>🏷️ Serveur DHCP</span>'+pill(d.dhcp&&d.dhcp.on)+'</div>';
   }
-  h+='<div class="dcn">Ils se règlent dans le bureau de l\'appareil, en mode Simulation.</div>'+
-    '<button type="button" class="pb pb-blue" onclick="deskOpenSim(\''+id+'\')">▶ Ouvrir le bureau en simulation</button></div>';
+  var inCfg=S.mode!=='simulation'&&deskOn();   // builder, vue Corrigé : pas besoin de la simulation
+  h+='<div class="dcn">'+(inCfg?'Ils se règlent dans le bureau de l\'appareil (double-clic sur l\'appareil).'
+      :'Ils se règlent dans le bureau de l\'appareil, en mode Simulation.')+'</div>'+
+    '<button type="button" class="pb pb-blue" onclick="deskOpenSim(\''+id+'\')">'+(inCfg?'▶ Ouvrir le bureau':'▶ Ouvrir le bureau en simulation')+'</button></div>';
   deskInit();
   return h;
 }
 function deskOpenSim(id){
-  if(S.mode!=='simulation')setMode('simulation');
+  if(!deskOn())setMode('simulation');
   var d=S.devs[id];if(!d)return;
   S.sel=id;render();if(typeof showPropsSimu==='function')showPropsSimu(id);
   deskOpen(id,d.type==='wifi_router'?'admin':null);
