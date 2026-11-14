@@ -333,6 +333,7 @@ function showPropsSimu(id){
     }
   }
   document.getElementById('props-body').innerHTML=h;
+  deskPropsApps(id);
 }
 
 function showProps(id){
@@ -403,11 +404,6 @@ function showProps(id){
 
   // Box WiFi : SSID + interfaces WAN/WiFi + DHCP
   if(d.type==='wifi_router'){
-    h+='<div class="psection">Configuration WiFi</div>';
-    h+='<div class="pr"><label>SSID (nom du réseau)</label><input value="'+esc(d.ssid||'')+'" placeholder="MonWiFi"'+
-      ' onchange="setBoxWifi(\''+id+'\',\'ssid\',this.value)"/></div>';
-    h+='<div class="pr"><label>Mot de passe WiFi</label><input value="'+esc(d.wifiPass||'')+'" placeholder="(laisser vide = réseau ouvert)"'+
-      ' onchange="setBoxWifi(\''+id+'\',\'pass\',this.value)"/></div>';
     h+='<div class="psection">Interfaces réseau</div>';
     d.ifaces.forEach(function(fi,i){
       h+='<div class="iface-box">'+
@@ -418,87 +414,11 @@ function showProps(id){
           ' oninput="chkMask(this)" onchange="setIface(\''+id+'\','+i+',\'mask\',this.value)"/></div>'+
         '</div>';
     });
-    var dhw=d.dhcp||{};
-    h+='<div class="psection">Service DHCP</div>';
-    h+='<div class="pr ck"><input type="checkbox" id="dhon" '+(dhw.on?'checked':'')+
-      ' onchange="S.devs[\''+id+'\'].dhcp.on=this.checked;render();showProps(\''+id+'\')"/><label for="dhon">Activer le serveur DHCP</label></div>';
-    if(dhw.on){
-      h+='<div class="pr"><label>IP de départ</label><input value="'+esc(dhw.start||'192.168.1.100')+'" placeholder="192.168.1.100"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'start\',this.value)"/></div>';
-      h+='<div class="pr"><label>IP de fin</label><input value="'+esc(dhw.end||'192.168.1.200')+'" placeholder="192.168.1.200"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'end\',this.value)"/></div>';
-      h+='<div class="pr"><label>Masque distribué</label><input value="'+esc(dhw.mask||'255.255.255.0')+'" placeholder="255.255.255.0"'+
-        ' oninput="chkMask(this)" onchange="setDHCP(\''+id+'\',\'mask\',this.value)"/></div>';
-      h+='<div class="pr"><label>Passerelle distribuée</label><input value="'+esc(dhw.gateway||'')+'" placeholder="192.168.1.1"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'gateway\',this.value)"/></div>';
-      h+='<div class="pr"><label>DNS distribué</label><input value="'+esc(dhw.dns||'')+'" placeholder="192.168.1.254"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'dns\',this.value)"/></div>';
-    }
+    h+=deskConfigNote(id);
   }
 
-  // Services serveur
-  if(d.type==='server'){
-    h+='<div class="psection">Service HTTP</div>';
-    h+='<div class="pr ck"><input type="checkbox" id="hon" '+(d.http.on?'checked':'')+
-      ' onchange="S.devs[\''+id+'\'].http.on=this.checked;render();showProps(\''+id+'\')"/><label for="hon">Activer le serveur web (HTTP)</label></div>';
-        if(d.http.on){
-      h+='<div class="pr"><label>Titre de la page</label><input value="'+esc(d.http.title)+'" onchange="S.devs[\''+id+'\'].http.title=this.value"/></div>';
-      h+='<div class="pr ck"><input type="checkbox" id="hmode" '+(d.http.htmlMode?'checked':'')+
-        ' onchange="S.devs[\''+id+'\'].http.htmlMode=this.checked;showProps(\''+id+'\')"/>'+
-        '<label for="hmode" style="font-size:.76em">Mode HTML <span style=\"font-weight:400;color:#a0aec0\">(balises + fichiers)</span></label></div>';
-      h+='<div class="pr"><label>Contenu '+(d.http.htmlMode?'<span style=\"font-weight:400;color:#4299e1\">HTML</span>':'texte')+'</label>'+
-        '<textarea id="hcontent-'+id+'" rows="7" style="font-family:\'Courier New\',monospace;font-size:.78em"'+
-        ' onchange="S.devs[\''+id+'\'].http.content=this.value">'+esc(d.http.content)+'</textarea></div>';
-      h+='<div class="psection">Fichiers du serveur</div>';
-      var sf=d.serverFiles||{};var sfkeys=Object.keys(sf);
-      h+='<div class="pr">';
-      h+='<input type="file" id="fup-'+id+'" style="display:none" multiple accept="image/*,.html,.htm,.svg,.txt,.css,.js"'+
-        ' onchange="uploadServerFiles(\''+id+'\'\',this)"/>';
-      h+='<button class="pb pb-blue" style="margin-bottom:6px" onclick="document.getElementById(\'fup-'+id+'\').click()">📎 Ajouter des fichiers…</button>';
-      h+='<div class="flist" id="flist-'+id+'">';
-      if(!sfkeys.length){
-        h+='<div style="color:#a0aec0;font-size:.75em;padding:2px 0">Aucun fichier — uploadez une image ou du HTML</div>';
-      } else {
-        sfkeys.forEach(function(fn){
-          var fi=sf[fn];var kb=Math.round((fi.size||0)/102.4)/10;
-          h+='<div class="fitem">'+
-            '<span class="fitem-name" title="'+esc(fn)+'">'+esc(fn)+'</span>'+
-            '<span class="fitem-size">'+kb+'Ko</span>'+
-            '<button class="fitem-ins" data-devid="'+esc(id)+'" data-fn="'+esc(fn)+'" onclick="insertFileRef(this.dataset.devid,this.dataset.fn)">⤵ Insérer</button>'+
-            '<button class="fitem-del" data-devid="'+esc(id)+'" data-fn="'+esc(fn)+'" onclick="deleteServerFile(this.dataset.devid,this.dataset.fn)">✕</button>'+
-            '</div>';
-        });
-      }
-      h+='</div>';
-      h+='<div style="font-size:.7em;color:#a0aec0;margin-top:3px">Réf. dans le HTML : <code>&lt;img src=\"files/nom.png\"&gt;</code></div>';
-      h+='</div>';
-    }
-    h+='<div class="psection">Service DNS</div>';
-    h+='<div class="pr ck"><input type="checkbox" id="don" '+(d.dns.on?'checked':'')+
-      ' onchange="S.devs[\''+id+'\'].dns.on=this.checked;render();showProps(\''+id+'\')"/><label for="don">Activer le serveur DNS</label></div>';
-    if(d.dns.on){
-      var rtext=Object.entries(d.dns.records).map(function(e){return e[0]+' = '+e[1];}).join('\n');
-      h+='<div class="pr"><label>Enregistrements DNS <small style="font-weight:400;color:#a0aec0">(domaine = IP)</small></label>'+
-        '<textarea rows="4" placeholder="www.lycee.fr = 192.168.1.100" onchange="parseDNS(\''+id+'\',this.value)">'+esc(rtext)+'</textarea></div>';
-    }
-    // DHCP
-    var dh=d.dhcp||{};
-    h+='<div class="psection">Service DHCP</div>';
-    h+='<div class="pr ck"><input type="checkbox" id="dhon" '+(dh.on?'checked':'')+
-      ' onchange="S.devs[\''+id+'\'].dhcp.on=this.checked;render();showProps(\''+id+'\')"/><label for="dhon">Activer le serveur DHCP</label></div>';
-    if(dh.on){
-      h+='<div class="pr"><label>IP de départ</label><input value="'+esc(dh.start||'192.168.1.100')+'" placeholder="192.168.1.100"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'start\',this.value)"/></div>';
-      h+='<div class="pr"><label>IP de fin</label><input value="'+esc(dh.end||'192.168.1.200')+'" placeholder="192.168.1.200"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'end\',this.value)"/></div>';
-      h+='<div class="pr"><label>Masque distribué</label><input value="'+esc(dh.mask||'255.255.255.0')+'" placeholder="255.255.255.0"'+
-        ' oninput="chkMask(this)" onchange="setDHCP(\''+id+'\',\'mask\',this.value)"/></div>';
-      h+='<div class="pr"><label>Passerelle distribuée</label><input value="'+esc(dh.gateway||'')+'" placeholder="192.168.1.1"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'gateway\',this.value)"/></div>';
-      h+='<div class="pr"><label>DNS distribué</label><input value="'+esc(dh.dns||'')+'" placeholder="192.168.1.254"'+
-        ' oninput="chkIP(this)" onchange="setDHCP(\''+id+'\',\'dns\',this.value)"/></div>';
-    }
-  }
+  // Services serveur : réglés dans le bureau (mode simulation)
+  if(d.type==='server')h+=deskConfigNote(id);
 
   // Table de routage pour les routeurs / internet / wifi_router
   if(d.type==='router'||d.type==='internet'||d.type==='wifi_router'){
@@ -533,10 +453,13 @@ function showProps(id){
   document.getElementById('props-body').innerHTML=h;
 }
 
-function browGo(){
-  var devId=document.getElementById('bd-sel').value;
-  var url=document.getElementById('burl').value.trim();
-  var bc=document.getElementById('bcont');
+// Sans argument : navigateur du bandeau du bas. Avec arguments : navigateur du bureau d'un appareil.
+function browGo(devId,url,bc){
+  if(bc===undefined){
+    devId=document.getElementById('bd-sel').value;
+    url=document.getElementById('burl').value.trim();
+    bc=document.getElementById('bcont');
+  }
   if(!devId){bc.innerHTML='<div class="berr">⚠️ Choisissez un appareil source.</div>';return;}
   if(!url){bc.innerHTML='<div class="berr">⚠️ Entrez une URL.</div>';return;}
   var res=simHTTP(devId,url);
