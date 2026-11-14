@@ -171,6 +171,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .tbar{background:linear-gradient(135deg,#744210,#c05621);color:#fff;padding:5px 14px;display:none;align-items:center;gap:10px;flex-shrink:0;font-size:.79em;flex-wrap:wrap}
 .tbar-title{font-weight:700;white-space:nowrap}
 .tbar-hint{color:rgba(255,255,255,.7);font-style:italic;margin-left:auto;font-size:.92em}
+.ctl-act{font-weight:600;white-space:nowrap;max-width:34ch;overflow:hidden;text-overflow:ellipsis}
+.ctl-banner{display:flex;gap:6px;flex-wrap:wrap;align-items:center;cursor:pointer}
+.ctl-pill{padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.18);white-space:nowrap;font-weight:600}
+.ctl-pill.ok{background:rgba(72,187,120,.45)}
+.ctl-pill.warn{background:rgba(229,62,62,.6)}
+.sd-note{font-size:.78em;color:#718096;padding:4px 0 8px;border-bottom:1px solid #edf2f7;margin-bottom:4px}
 .tbar .wbtn{background:rgba(255,255,255,.2);font-size:.85em;padding:3px 10px}
 .tbar .wbtn:hover{background:rgba(255,255,255,.35)}
 .tbar-sep{width:1px;height:18px;background:rgba(255,255,255,.3)}
@@ -475,7 +481,7 @@ body{padding-top:0}/* nav is flex child */
   <div class="hdr-r">
     <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs" style="cursor:pointer">📊 Score : 0 / 100</div>
     <button class="wbtn icon-only" onclick="resetScore()" title="Remettre le score à zéro et recalculer">🔄</button>
-    <button class="wbtn" onclick="freezeStart()" title="Mémoriser le réseau actuel comme état de départ (fait automatiquement à l'import d'un scénario)">📌 Figer le départ</button>
+    <button class="wbtn" onclick="freezeStart()" title="Mémoriser le réseau corrigé actuel comme point de retour pour ↺ Réinitialiser (fait automatiquement à l'import d'un scénario)">📌 Figer le départ</button>
     <button class="wbtn" id="btn-reset-start" onclick="resetToStart()" title="Aucun état de départ figé">↺ Réinitialiser</button>
     <div id="score-details"></div>
     <button class="wbtn icon-only" id="btn-fs"  onclick="toggleFullscreen()" title="Plein écran">⤢</button>
@@ -546,6 +552,7 @@ body{padding-top:0}/* nav is flex child */
       <g id="layer-links"></g>
       <g id="layer-devs"></g>
       <g id="layer-texts"></g>
+      <g id="layer-badges"></g>
       <rect id="sel-rect" display="none" fill="rgba(66,153,225,.1)" stroke="#4299e1" stroke-width="1.5" stroke-dasharray="5,3" pointer-events="none"/>
       <line id="prev-line" stroke="#4299e1" stroke-width="2" stroke-dasharray="7,4" display="none" pointer-events="none"/>
       <text id="cv-hint" x="50%" y="44%" text-anchor="middle" fill="#c8d0da" font-size="14" font-family="Segoe UI,Arial" pointer-events="none">← Glissez un appareil depuis la palette pour démarrer</text>
@@ -713,7 +720,7 @@ body{padding-top:0}/* nav is flex child */
           <div id="gen-summary-content">
             <div class="gen-summary-stat">
               <span class="gen-summary-icon">🖥️</span>
-              <div><span class="gen-summary-val" id="gen-s-devs">0 appareil(s)</span><br><span class="gen-summary-sub">dans le réseau de départ</span></div>
+              <div><span class="gen-summary-val" id="gen-s-devs">0 appareil(s)</span><br><span class="gen-summary-sub">dans le réseau corrigé</span></div>
             </div>
             <div class="gen-summary-stat">
               <span class="gen-summary-icon">🔗</span>
@@ -772,8 +779,8 @@ body{padding-top:0}/* nav is flex child */
         <div class="bld-card" style="background:#fffbeb;border-color:#fbd38d;">
           <div class="bld-card-title" style="color:#c05621;">📌 Guide rapide</div>
           <ol style="padding-left:18px;font-size:.82em;color:#744210;line-height:1.8;margin:0">
-            <li><strong>Onglet 1 Réseau</strong> — Construire le réseau de départ</li>
-            <li><strong>Onglet 2 Évaluation</strong> — Définir les objectifs et points</li>
+            <li><strong>Onglet 1 Réseau</strong> — Dessiner le réseau corrigé (celui qui fonctionne)</li>
+            <li><strong>Onglet 2 Évaluation</strong> — Définir objectifs, points et pannes (pastilles P1, P2… sur le schéma)</li>
             <li><strong>Onglet 3 Générer</strong> — Télécharger et importer dans Moodle</li>
           </ol>
           <div style="margin-top:10px;font-size:.75em;color:#a0aec0">
@@ -3721,14 +3728,19 @@ function renderScoreDetails(){
   var objs=cfg&&cfg.objectives&&cfg.objectives.length?cfg.objectives:null;
   var h='<div class="sd-title">📊 Détail des objectifs</div>';
   if(objs){
+    try{ctlCompute();}catch(e){}
     var total=objs.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
     var earned=objs.reduce(function(s,o){return s+(ACTIVITY_RESULTS[o.id]?(parseInt(o.points)||0):0);},0);
+    h+='<div class="sd-note">Score de <strong>votre essai</strong> dans le builder. L\'élève, lui, part de '+
+      (TEACHER_CTL.startScore==null?'…':TEACHER_CTL.startScore+' / 100')+' (voir la barre orange).</div>';
     objs.forEach(function(o){
       var done=!!ACTIVITY_RESULTS[o.id];
       var isDynamic=STATIC_TYPES.indexOf(o.check)<0;
       var statusTitle=isDynamic&&!done?'(à tester en simulation)':'';
+      var note=done?'':ctlScoreNote(o);
       h+='<div class="sd-obj"><span title="'+statusTitle+'">'+(done?'✅':'⭕')+'</span>'+
-        '<span class="sd-label">'+esc(o.label||o.check)+(isDynamic&&!done?'<br><em style="color:#a0aec0;font-size:.85em">à tester en simulation</em>':'')+'</span>'+
+        '<span class="sd-label">'+esc(o.label||o.check)+(isDynamic&&!done?'<br><em style="color:#a0aec0;font-size:.85em">à tester en simulation</em>':'')+
+        (note?'<br><em style="color:#c05621;font-size:.85em">'+esc(note)+'</em>':'')+'</span>'+
         '<span class="sd-pts">'+(parseInt(o.points)||0)+' pt</span></div>';
     });
     h+='<div class="sd-total">'+earned+' / '+total+' pts</div>';
@@ -3792,6 +3804,141 @@ function finishActivity(){
   saveToSession(); // sauvegarder l'état final avant de fermer
   sEnd(S.score,passed);
 }
+
+/* ── Contrôle du départ élève (builder) ─────────────────────
+   Le schéma montre le réseau CORRIGÉ (celui qui fonctionne) ; l'élève reçoit ce réseau avec les
+   pannes de l'onglet 2. Ce bloc rend l'écart visible : pastilles de panne sur le schéma, bandeau
+   « Départ élève », et état de chaque objectif (corrigé / départ élève / essai). Réservé au prof. */
+var TEACHER_CTL={states:null,start:null,startScore:null,restored:false,timer:null};
+
+function ctlCfg(){return (typeof EvalModule!=='undefined')?EvalModule.getConfig():null;}
+
+/* Numéro de chaque panne, dans l'ordre de la liste (P1, P2…) comme dans l'onglet 2. */
+function ctlFaultNums(cfg){
+  var out={},n=0;
+  (cfg.evalOrder||[]).forEach(function(k){if(k[0]==='f'&&!out[k.slice(2)])out[k.slice(2)]=++n;});
+  (cfg.faults||[]).forEach(function(f){if(!out[f.id])out[f.id]=++n;});
+  return out;
+}
+
+/* Trois lectures de chaque objectif : réseau corrigé, départ de l'élève, et pannes qui le masquent. */
+function ctlCompute(){
+  var cfg=ctlCfg(),st={objs:{}};
+  TEACHER_CTL.states=st;TEACHER_CTL.start={};TEACHER_CTL.startScore=null;
+  if(!cfg||!cfg.objectives||!cfg.objectives.length)return st;
+  var net=SimModule.getState(),objs=cfg.objectives,faults=cfg.faults||[],nums=ctlFaultNums(cfg);
+  var base=studentStartResults(net,{faults:[],objectives:objs},true);    // corrigé, avec les ajouts du prof
+  var none=studentStartResults(net,{faults:[],objectives:objs},false);   // départ élève sans panne
+  var start=faults.length?studentStartResults(net,{faults:faults,objectives:objs},false):none;
+  var per={};
+  faults.forEach(function(f){per[f.id]=studentStartResults(net,{faults:[f],objectives:objs},false);});
+  var total=0,earned=0;
+  objs.forEach(function(o){
+    var s={corrige:!!base[o.id],start:!!start[o.id],blockers:[]};
+    faults.forEach(function(f){if(none[o.id]&&!per[f.id][o.id])s.blockers.push('P'+nums[f.id]);});
+    st.objs[o.id]=s;
+    var pts=parseInt(o.points)||0;total+=pts;if(s.start)earned+=pts;
+  });
+  TEACHER_CTL.start=start;
+  TEACHER_CTL.startScore=total>0?Math.round(earned/total*100):0;
+  return st;
+}
+
+/* Texte et style de l'aperçu d'un objectif dans l'onglet 2. */
+function ctlObjState(o){
+  var st=TEACHER_CTL.states&&TEACHER_CTL.states.objs[o.id],now=!!ACTIVITY_RESULTS[o.id];
+  var isStatic=STATIC_TYPES.indexOf(o.check)>=0;
+  if(!isStatic){
+    return now?{cls:'pv-ok',text:'🧪 Validé pendant votre essai'}
+              :{cls:'pv-no',text:'⭕ Pas encore validé dans votre essai'};
+  }
+  if(!st)return {cls:now?'pv-ok':'pv-no',text:now?'✅ Atteint':'⭕ Pas atteint'};
+  var t,cls='pv-ok';
+  if(!st.corrige){t='⭕ Faux dans le réseau corrigé actuel';cls='pv-no';}
+  else if(st.start)t='✅ Vrai dans le corrigé · ✅ déjà vrai au départ élève';
+  else t='✅ Vrai dans le corrigé · ⚠️ faux au départ élève'+(st.blockers.length?' (panne '+st.blockers.join(', ')+')':' (à construire par l\'élève)');
+  if(now&&!st.start)t+=' · 🧪 compté dans votre essai';
+  return {cls:cls,text:t};
+}
+
+/* Dans le détail du score : pourquoi un objectif vrai dans le corrigé est encore à zéro. */
+function ctlScoreNote(o){
+  var st=TEACHER_CTL.states&&TEACHER_CTL.states.objs[o.id];
+  if(!st||STATIC_TYPES.indexOf(o.check)<0||!st.corrige||st.start)return '';
+  return st.blockers.length?'vrai dans le corrigé, masqué au départ élève par la panne '+st.blockers.join(', ')
+                           :'vrai dans le corrigé, à construire par l\'élève';
+}
+
+/* Pastilles « P1 », « P2 »… sur les appareils touchés, visibles du professeur seulement. */
+function ctlRenderBadges(){
+  var g=document.getElementById('layer-badges');if(!g)return;
+  var cfg=ctlCfg(),faults=(cfg&&cfg.faults)||[];
+  if(!faults.length){if(g.innerHTML)g.innerHTML='';return;}
+  var nums=ctlFaultNums(cfg),slots={},h='';
+  faults.forEach(function(f){
+    var p=f.params||{},a=devByName(p.dev||p.devA);
+    if(!a)return;
+    var x=null,y=null,b=p.devB?devByName(p.devB):null;
+    if(f.type==='missing_cable'&&b){x=(a.x+b.x)/2+DW/2;y=(a.y+b.y)/2+DH/2-16;}
+    if(x===null){var n=slots[a.id]||0;slots[a.id]=n+1;x=a.x+8+n*25;y=a.y+2;}
+    var lab=f.label||(EvalModule.faultAutoLabel?EvalModule.faultAutoLabel(f):f.type);
+    h+='<g onmousedown="event.stopPropagation()" onclick="ctlGoFault(\''+f.id+'\')" style="cursor:pointer">'+
+      '<title>Panne P'+nums[f.id]+' : '+esc(lab)+'&#10;Visible de vous seul — l\'élève doit la découvrir.&#10;Cliquer pour la modifier.</title>'+
+      '<circle cx="'+x+'" cy="'+y+'" r="12" fill="#e53e3e" stroke="#fff" stroke-width="2"/>'+
+      '<text x="'+x+'" y="'+(y+4)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff"'+
+      ' font-family="Segoe UI,Arial" pointer-events="none">P'+nums[f.id]+'</text></g>';
+  });
+  g.innerHTML=h;
+}
+function ctlGoFault(id){
+  showBuilderTab(2);
+  setTimeout(function(){
+    var card=document.querySelector('[data-fltid="'+id+'"]');if(!card)return;
+    var body=card.querySelector('.obj-card-body');
+    if(body&&!body.classList.contains('open'))EvalModule.toggleFaultCard(id);
+    card.scrollIntoView({block:'center'});
+  },30);
+}
+
+/* Bandeau de la barre orange : ce que l'élève trouvera à l'ouverture. */
+function ctlRenderBanner(){
+  var bn=document.getElementById('ctl-banner'),ac=document.getElementById('ctl-act');
+  if(!bn)return;
+  var cfg=ctlCfg();
+  if(ac)ac.textContent='📂 « '+((cfg&&cfg.title)||'Sans titre')+' »'+(TEACHER_CTL.restored?' · restaurée de votre dernière session':'');
+  var objs=(cfg&&cfg.objectives)||[];
+  if(!objs.length){bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans l\'onglet 2</span>';bn.title='';return;}
+  var au=ActivityWizard.audit({network:SimModule.getState(),activity:cfg});
+  var pill=function(c,t){return '<span class="ctl-pill '+c+'">'+t+'</span>';};
+  var h=au.start>0?pill('warn','⚠️ Départ élève : '+au.start+' / '+au.total+' pts'):pill('ok','✓ Départ élève : 0 / '+au.total+' pts');
+  h+=au.failing.length?pill('warn','⚠️ '+au.failing.length+' objectif'+(au.failing.length>1?'s':'')+' impossible'+(au.failing.length>1?'s':'')):pill('ok','✓ Tout est atteignable');
+  if((au.faults||au.toBuild)&&au.unfixed>=au.mastery)h+=pill('warn','⚠️ Seuil atteint sans rien réparer');
+  h+=pill('',(au.faults?au.faults+' panne'+(au.faults>1?'s':''):'aucune panne')+' · seuil '+au.mastery+' %');
+  bn.innerHTML=h;
+  bn.title=(au.ok?'Aucun problème détecté. ':'')+'Départ élève = ce que l\'élève a en ouvrant l\'activité (réseau corrigé + pannes), sans rien faire.'+
+    (au.problems.length?'\n• '+au.problems.join('\n• '):'')+'\nCliquer pour ouvrir l\'onglet Évaluation.';
+}
+
+/* Recalcul différé : appelé après chaque dessin du réseau. */
+function ctlRefresh(){
+  if(TEACHER_CTL.timer)return;
+  TEACHER_CTL.timer=setTimeout(function(){
+    TEACHER_CTL.timer=null;
+    try{ctlRenderBadges();ctlRenderBanner();}catch(e){}
+  },150);
+}
+
+/* Les pastilles suivent les appareils : elles sont redessinées dès que le schéma l'est. */
+(function(){
+  function watch(){
+    if(typeof MutationObserver==='undefined')return;
+    var mo=new MutationObserver(function(){try{ctlRenderBadges();}catch(e){}});
+    ['layer-devs','layer-links'].forEach(function(id){
+      var el=document.getElementById(id);if(el)mo.observe(el,{childList:true});
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watch);else watch();
+})();
 
 /* ── Undo / Redo ─────────────────────────────────────────── */
 var _undoStack=[];
@@ -3902,6 +4049,7 @@ var STATIC_TYPES=STATIC_OBJ_TYPES;
 
 function checkAllObjectives(){
   var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
+  ctlRefresh();
   if(!cfg||!cfg.objectives||!cfg.objectives.length)return;
   evaluateObjectives(cfg.objectives);
   cfg.objectives.forEach(function(o){
@@ -4524,8 +4672,8 @@ var EvalModule = (function() {
   /* Aperçu sous chaque objectif : état sur le réseau actuel et dans le réseau remis à l'élève. */
   function _previewHTML(obj, startRes) {
     var isStatic = STATIC_TYPES.indexOf(obj.check) >= 0;
-    var now = !!ACTIVITY_RESULTS[obj.id];
-    var h = '<span class="'+(now?'pv-ok':'pv-no')+'">'+(now?'✅ Atteint':'⭕ Pas atteint')+' sur le réseau actuel</span>';
+    var st = ctlObjState(obj);
+    var h = '<span class="'+(st.cls)+'">'+st.text+'</span>';
     if(!isStatic) h += '<span class="pv-note">Validé par une commande en simulation, puis revérifié à chaque modification.</span>';
     var mw = missingDeviceWarning(obj);
     if(mw) h += '<span class="pv-warn">'+_esc(mw)+'</span>';
@@ -4538,7 +4686,7 @@ var EvalModule = (function() {
     syncHints();
     if(!_config.objectives.length || !document.getElementById('ev-list')) return;
     var startRes = {};
-    try { startRes = studentStartResults(SimModule.getState(), _config); } catch(e) {}
+    try { ctlCompute(); startRes = TEACHER_CTL.start || {}; } catch(e) {}
     _config.objectives.forEach(function(obj){
       var el = document.getElementById('objprev-'+obj.id);
       if(el) el.innerHTML = _previewHTML(obj, startRes);
@@ -5124,7 +5272,8 @@ var EvalModule = (function() {
     setObjectiveHint: setObjectiveHint,
     resetObjectiveHint: resetObjectiveHint,
     autoHint: autoHint,
-    refreshPreviews: refreshPreviews
+    refreshPreviews: refreshPreviews,
+    faultAutoLabel: faultAutoLabel
   };
 })();
 
@@ -5350,6 +5499,7 @@ var GenModule = (function() {
     computeRoutes(true);
     render();
     freezeStart(true);
+    TEACHER_CTL.restored = false;
     // Restaurer l'évaluation
     EvalModule.setConfig(sc.activity);
     // Restaurer le pwd
@@ -6792,6 +6942,7 @@ window.addEventListener('load', function() {
 
   render();
   
+  if(loaded){ freezeStart(true); TEACHER_CTL.restored = true; }   // comme à l'import : point de retour et score de départ cohérents
   document.querySelector('.bot').style.display = 'none'; // masqué en config
 
   // Teacher bar always visible in builder (no password)
@@ -6800,11 +6951,18 @@ window.addEventListener('load', function() {
   if(tb) {
     tb.style.display = 'flex';
     // Replace teacher bar buttons with builder shortcut
-    tb.innerHTML = '<span class="tbar-title">🔧 Mode Constructeur actif</span>'+
+    tb.innerHTML = '<span class="tbar-title" title="Le schéma ci-dessous est le réseau qui FONCTIONNE ; les pannes sont ajoutées par-dessus dans l\'onglet 2 (pastilles rouges P1, P2…)">🔧 Réseau corrigé</span>'+
+      '<span class="ctl-act" id="ctl-act"></span>'+
       '<span class="tbar-sep"></span>'+
-      '<button class="wbtn" onclick="showBuilderTab(2)">🎯 Configurer l\'évaluation →</button>'+
-      '<button class="wbtn" onclick="showBuilderTab(3)">📦 Générer le SCORM →</button>'+
-      '<span class="tbar-hint">Construisez le réseau de départ ici, puis passez aux onglets suivants</span>';
+      '<span class="ctl-banner" id="ctl-banner" onclick="showBuilderTab(2)"></span>'+
+      '<button class="wbtn" onclick="showBuilderTab(2)">🎯 Évaluation et pannes →</button>'+
+      '<button class="wbtn" onclick="showBuilderTab(3)">📦 Générer →</button>'+
+      '<span class="tbar-hint">Dessinez le réseau qui fonctionne ; les pannes se règlent dans l\'onglet 2</span>';
+    // Le score de l'en-tête est celui de l'essai du professeur ; « Terminer » et « Mode Professeur » ne servent qu'à l'élève
+    var hs = document.getElementById('hdr-score');
+    if(hs) hs.title = 'Score de VOTRE essai dans le builder (commandes tapées en simulation). Ce que l\'élève a à l\'ouverture est dans la barre orange. Cliquer pour le détail.';
+    var fb = document.querySelector('.hdr-r .fbtn'); if(fb) fb.style.display = 'none';
+    var tm = document.querySelector('.hdr-r [onclick="toggleTeacherMode()"]'); if(tm) tm.style.display = 'none';
   }
 
   // Set initial tab
@@ -6862,8 +7020,13 @@ window.addEventListener('load', function() {
   });
 
   tpr('🔧 SCORM Builder — Mode Constructeur','info');
-  tpr('Construisez le réseau ici, configurez l\'évaluation (Ctrl+2), puis générez (Ctrl+3).','info');
-  if(loaded) tpr('↩️ Réseau restauré depuis votre dernière session builder.','ok');
+  tpr('Dessinez le réseau corrigé ici, ajoutez objectifs et pannes (Ctrl+2), puis générez (Ctrl+3).','info');
+  if(loaded){
+    tpr('↩️ Activité restaurée depuis votre dernière session builder.','ok');
+    var rt = (EvalModule.getConfig().title || '').trim();
+    notif('↩️ Activité '+(rt ? '« '+rt+' » ' : '')+'restaurée de votre dernière session','info');
+  }
+  ctlRefresh();
 });
 
 </script>

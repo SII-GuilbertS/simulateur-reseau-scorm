@@ -719,6 +719,45 @@ test.describe('Builder', () => {
     await studentScore(page, 100);
   });
 
+  test('contrôle du départ élève : bandeau, pastilles de panne sur le schéma, état des objectifs, réouverture', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const banner = page.locator('#ctl-banner');
+    await expect(banner).toContainText('Départ élève : 0 / 100');
+    await expect(banner).toContainText('Tout est atteignable');
+    await expect(banner).toContainText('2 pannes');
+
+    // Une pastille par panne, sur l'appareil touché, dans l'ordre de la liste
+    const badges = page.locator('#layer-badges g');
+    await expect(badges).toHaveCount(2);
+    await expect(badges.nth(0)).toContainText('P1');
+    await expect(badges.nth(0)).toContainText('Service désactivé · Serveur');
+    await expect(badges.nth(1)).toContainText('P2');
+
+    // Le détail du score explique pourquoi un objectif vrai dans le corrigé reste à zéro
+    await page.locator('#hdr-score').click();
+    await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P1');
+    await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P2');
+
+    // Onglet Évaluation : état par rapport au corrigé et au départ élève
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const dnsCard = page.locator('#ev-list .obj-card', { hasText: 'Le service DNS du Serveur est actif' });
+    await expect(dnsCard.locator('.obj-preview')).toContainText('Vrai dans le corrigé');
+    await expect(dnsCard.locator('.obj-preview')).toContainText('faux au départ élève (panne P1)');
+
+    // Sans panne, l'élève aurait des points d'office : le bandeau prévient
+    await page.evaluate(() => { EvalModule.getConfig().faults.length = 0; });
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await expect(banner).toContainText('⚠️ Départ élève : 40 / 100');
+    await expect(page.locator('#layer-badges g')).toHaveCount(0);
+
+    // Réouverture : l'activité est signalée comme restaurée et l'état de départ est figé
+    await page.evaluate(() => { localStorage.setItem('sim_reseau_v2_builder', JSON.stringify({
+      devs: S.devs, links: S.links, nid: S.nid, frames: S.frames, texts: S.texts, activity: EvalModule.getConfig() })); });
+    await page.reload();
+    await expect(page.locator('#ctl-act')).toContainText('restaurée de votre dernière session');
+    expect(await page.evaluate(() => !!START_SNAP)).toBe(true);
+  });
+
   test('le builder affiche le score de départ de l\'élève : 0 pour chaque scénario et chaque dépannage de l\'assistant', async ({ page }) => {
     for (const { name } of SCENARIOS) {
       await openBuilderWith(page, name);
