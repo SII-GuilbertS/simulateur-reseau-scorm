@@ -942,6 +942,51 @@ test.describe('Builder', () => {
     await expect(page.locator('#view-bar')).toBeHidden();
   });
 
+  test('l\'essai est conservé quand on change de vue ; remis à zéro si l\'activité change ou sur demande', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const dnsOn = () => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on);
+
+    // Essai : on répare le DNS et on teste
+    await page.locator('#btn-sim').click();
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
+
+    // Corrigé puis Départ élève, puis retour : l'essai est repris tel quel
+    await page.locator('#btn-cfg').click();
+    await page.locator('#btn-depart').click();
+    expect(await dnsOn()).toBe(false);
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
+    expect(await dnsOn()).toBe(true);
+    await expect(page.locator('#tout')).toContainText('192.168.1.100');   // la sortie du terminal aussi
+
+    // Le corrigé change (adresse d'un poste) : l'essai ne correspond plus, il repart de zéro, avec un message
+    await page.locator('#btn-cfg').click();
+    await page.evaluate(() => { const d = Object.values(S.devs).find((x) => x.name === 'PC-Charlie');
+      d.ifaces[0].ip = '192.168.1.77'; render(); });
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    expect(await dnsOn()).toBe(false);
+
+    // Un simple déplacement d'appareil dans le corrigé ne remet rien à zéro
+    const dns2 = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns2.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+    await page.locator('#btn-cfg').click();
+    await page.evaluate(() => { const d = Object.values(S.devs).find((x) => x.name === 'PC-Alice'); d.x += 40; render(); });
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+
+    // « Recommencer l'essai » : confirmation (des points seraient perdus), puis départ neuf
+    page.dialogs.length = 0;
+    await page.locator('#view-bar button', { hasText: 'Recommencer' }).click();
+    expect(page.dialogs.at(-1)).toContain('20 % obtenus');
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    expect(await dnsOn()).toBe(false);
+  });
+
   test('le builder affiche le score de départ de l\'élève : 0 pour chaque scénario et chaque dépannage de l\'assistant', async ({ page }) => {
     for (const { name } of SCENARIOS) {
       await openBuilderWith(page, name);

@@ -4420,11 +4420,19 @@ function ctlRefresh(){
    - Essai : même copie, mais le professeur joue l'élève (terminal, réparations, score réel).
    Le corrigé est mis de côté dans VIEW_SNAP pendant les deux dernières vues et rétabli au retour :
    rien de ce qui s'y passe n'atteint le corrigé, ni les exports (SimModule.getState lit VIEW_SNAP). */
-var BUILDER_VIEW='corrige',VIEW_SNAP=null;
+var BUILDER_VIEW='corrige',VIEW_SNAP=null,ESSAI_SNAP=null;
 
 function setBuilderView(v,force){
   if(v===BUILDER_VIEW&&!force)return;
-  var cfg=EvalModule.getConfig(),from=BUILDER_VIEW;
+  var cfg=EvalModule.getConfig(),from=BUILDER_VIEW,notice='';
+  // L'essai est mis de côté en le quittant : changer de vue ne fait pas perdre le travail.
+  // Seul « Recommencer l'essai », ou une activité modifiée entre-temps, le remet à zéro.
+  if(from==='essai'&&v!=='essai'&&VIEW_SNAP){
+    var to0=document.getElementById('tout');
+    ESSAI_SNAP={net:JSON.stringify({devs:S.devs,links:S.links,nid:S.nid,frames:S.frames,texts:S.texts}),
+      ids:START_DEV_IDS,results:ACTIVITY_RESULTS,proofs:ACTIVITY_PROOFS,undo:_undoStack,redo:_redoStack,
+      sess:DESK.sess,packets:S.packets,tout:to0?to0.innerHTML:'',key:essaiKey()};
+  }
   deskCloseAll();DESK.sess={};
   if(from==='corrige'&&v!=='corrige'){
     VIEW_SNAP={net:JSON.stringify({devs:S.devs,links:S.links,nid:S.nid,frames:S.frames,texts:S.texts}),
@@ -4440,26 +4448,66 @@ function setBuilderView(v,force){
     }
     VIEW_SNAP=null;
   } else {
-    // Ouverture de l'activité par l'élève : réseau de départ, puis pannes et routes
-    applyNetworkData(JSON.parse(VIEW_SNAP.net));
-    applyFaults(cfg.faults||[]);
-    START_DEV_IDS=Object.keys(S.devs);
-    ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};BUILDER_TOUCHED={};
-    _undoStack=[];_redoStack=[];
-    S.packets=[];if(typeof renderPackets==='function')renderPackets();
-    var to=document.getElementById('tout');if(to)to.innerHTML='';
+    var keep=null;
+    if(v==='essai'){
+      if(force)ESSAI_SNAP=null;
+      else if(ESSAI_SNAP){
+        if(ESSAI_SNAP.key===essaiKey())keep=ESSAI_SNAP;
+        else{ESSAI_SNAP=null;notice='⚠️ Activité modifiée depuis votre dernier essai : essai remis à zéro';}
+      }
+    }
+    if(keep){
+      applyNetworkData(JSON.parse(keep.net));
+      var cur=JSON.parse(VIEW_SNAP.net).devs;   // les appareils déplacés dans le corrigé le sont aussi ici
+      Object.keys(S.devs).forEach(function(id){if(cur[id]){S.devs[id].x=cur[id].x;S.devs[id].y=cur[id].y;}});
+      START_DEV_IDS=keep.ids;ACTIVITY_RESULTS=keep.results;ACTIVITY_PROOFS=keep.proofs;BUILDER_TOUCHED={};
+      _undoStack=keep.undo;_redoStack=keep.redo;DESK.sess=keep.sess;S.packets=keep.packets;
+      if(typeof renderPackets==='function')renderPackets();
+      var to1=document.getElementById('tout');if(to1)to1.innerHTML=keep.tout;
+      notice='🧪 Essai repris là où vous l\'aviez laissé (« Recommencer l\'essai » pour repartir de zéro)';
+    } else {
+      // Ouverture de l'activité par l'élève : réseau de départ, puis pannes et routes
+      applyNetworkData(JSON.parse(VIEW_SNAP.net));
+      applyFaults(cfg.faults||[]);
+      START_DEV_IDS=Object.keys(S.devs);
+      ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};BUILDER_TOUCHED={};
+      _undoStack=[];_redoStack=[];
+      S.packets=[];if(typeof renderPackets==='function')renderPackets();
+      var to=document.getElementById('tout');if(to)to.innerHTML='';
+    }
   }
   BUILDER_VIEW=v;
   S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();S.animPhase=null;
   setMode(v==='corrige'?'config':'simulation');
   _viewUI();
   render();noSel();checkAllObjectives();updScore();_updUndoUI();
+  if(notice&&typeof notif==='function')notif(notice,'info');
+}
+
+/* Réseau tel que le charge applyNetworkData (valeurs par défaut comprises) : un réseau relu après un
+   aller-retour entre les vues donne la même empreinte que l'original. S est remis tel quel ensuite. */
+function _normNet(json){
+  var keys=['devs','links','nid','frames','texts','activeLinks','animPhase'],saved={};
+  keys.forEach(function(k){saved[k]=S[k];});
+  try{applyNetworkData(JSON.parse(json));return {devs:JSON.parse(JSON.stringify(S.devs)),links:JSON.parse(JSON.stringify(S.links))};}
+  finally{keys.forEach(function(k){S[k]=saved[k];});}
+}
+/* Empreinte de ce que l'essai éprouve : réseau corrigé (sans les positions), pannes et objectifs.
+   Un essai mis de côté ne se reprend que si elle n'a pas changé. */
+function essaiKey(){
+  var cfg=EvalModule.getConfig(),net=_normNet(VIEW_SNAP.net);
+  return JSON.stringify([net.devs,net.links,cfg.objectives,cfg.faults],function(k,v){
+    return (k==='x'||k==='y')&&typeof v==='number'?undefined:v;
+  });
 }
 
 /* Revenir au corrigé avant tout ce qui lit ou remplace le réseau (exports, import, assistant). */
 function ensureCorrige(){if(BUILDER_VIEW!=='corrige')setBuilderView('corrige');}
 
-function restartEssai(){setBuilderView('essai',true);}
+function restartEssai(){
+  if(S.score>0&&typeof confirm==='function'&&!confirm('Recommencer l\'essai ? Les '+S.score+' % obtenus seront perdus.'))return;
+  setBuilderView('essai',true);
+}
 
 function _viewUI(){
   var v=BUILDER_VIEW;
@@ -4475,7 +4523,7 @@ function _viewUI(){
       ?'<strong>👁️ Départ élève</strong><span>Ce que l\'élève trouve à l\'ouverture : le réseau corrigé avec les pannes (pastilles rouges). Lecture seule — le corrigé n\'est pas modifié.</span>'+
         '<button type="button" onclick="setBuilderView(\'essai\')">🧪 Passer à l\'essai</button>'+back
       :v==='essai'
-      ?'<strong>🧪 Essai</strong><span>Vous jouez l\'élève sur une copie : diagnostiquez, réparez, testez. Le score est celui que l\'élève obtiendrait ; le corrigé reste intact.</span>'+
+      ?'<strong>🧪 Essai</strong><span>Vous jouez l\'élève sur une copie : diagnostiquez, réparez, testez. Le score est celui que l\'élève obtiendrait ; le corrigé reste intact. L\'essai est conservé quand vous changez de vue.</span>'+
         '<button type="button" onclick="restartEssai()">↺ Recommencer l\'essai</button>'+back
       :'';
   }
@@ -6036,6 +6084,7 @@ var GenModule = (function() {
       if(obj.type && !obj.check){ obj.check = obj.type; delete obj.type; }
     });
     ensureCorrige();   // l'import remplace le corrigé, pas une copie d'essai
+    ESSAI_SNAP = null;
     // Restaurer le réseau
     S.devs = sc.network.devs||{};
     S.links = sc.network.links||{};

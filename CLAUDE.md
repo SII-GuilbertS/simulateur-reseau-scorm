@@ -42,7 +42,9 @@ navigateur), **Départ élève** (copie du corrigé + pannes, lecture seule, pas
 renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les onglets 2 et 3, l'import,
 l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a que deux points
 d'accroche (`deskOn`, `deskView` dans `src/sim-ui.js`), inertes chez l'élève. Le score « corrigé »
-(`BUILDER_TOUCHED`) ne s'applique qu'à la vue Corrigé.
+(`BUILDER_TOUCHED`) ne s'applique qu'à la vue Corrigé. L'essai est mis de côté dans `ESSAI_SNAP` quand on
+le quitte et repris au retour tant que `essaiKey()` (réseau corrigé normalisé sans positions, objectifs et
+pannes) n'a pas changé ; sinon il repart de zéro avec un message, comme avec « Recommencer l'essai ».
 
 **3 onglets dans l'UI du builder :**
 
@@ -132,7 +134,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 37 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 38 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
