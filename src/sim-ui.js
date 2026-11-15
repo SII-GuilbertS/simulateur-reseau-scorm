@@ -659,6 +659,12 @@ function showProps(id){
   h+='<div class="pr"><label>Nom</label><input value="'+esc(d.name)+'" onchange="snapHistory();S.devs[\''+id+'\'].name=this.value;render();showProps(\''+id+'\')"/></div>';
   h+=pcKindRowHTML(id);
   if(d.mac)h+='<div class="pr"><label>Adresse MAC</label><div class="mono">'+esc(d.mac)+'</div></div>';
+  // Builder, vue Corrigé : l'appareil fait partie du corrigé mais c'est à l'élève de l'ajouter
+  if(typeof setToAdd==='function'&&deskView()==='corrige')
+    h+='<div class="pr ck"><input type="checkbox" id="toadd" '+(d.toAdd?'checked':'')+
+      ' onchange="setToAdd(\''+id+'\',this.checked)"/>'+
+      '<label for="toadd" title="L\'appareil reste dans le corrigé, avec ses câbles et ses réglages, mais il est retiré du réseau que reçoit l\'élève.">'+
+      '➕ À ajouter par l\'élève <span style="color:#718096">(retiré du réseau de départ)</span></label></div>';
 
   // Interfaces réseau
   if(d.type==='pc'||d.type==='server'){

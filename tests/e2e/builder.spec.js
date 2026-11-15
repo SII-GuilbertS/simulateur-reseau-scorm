@@ -1062,7 +1062,73 @@ test.describe('Builder', () => {
 
     // Le titre de l'activité ouverte est affiché dans la barre orange
     await expect(page.locator('#ctl-act')).toContainText('Entreprise');
-    expect(await page.evaluate(() => !!START_SNAP)).toBe(true);
+  });
+
+  test('appareil « à ajouter par l\'élève » : case de la fiche, pastille, retiré du départ, de l\'essai et de l\'export ; plus de bouton Figer', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    // « Figer le départ » et « Réinitialiser » n'existent plus : le départ de l'élève se lit dans le corrigé
+    await expect(page.locator('button[onclick="freezeStart()"], #btn-reset-start')).toHaveCount(0);
+    const charlie = await deviceId(page, 'PC-Charlie');
+    const banner = page.locator('#ctl-banner');
+    const panel = page.locator('#score-details');
+    const row = panel.locator('tr', { hasText: 'PC-Charlie est ajouté' });
+
+    // Objectif « ajouter PC-Charlie » alors que le poste est dans le corrigé : acquis d'avance, le contrôle dit quoi cocher
+    await page.evaluate(() => {
+      const c = EvalModule.getConfig();
+      c.objectives.push({ id: 'obj_add', label: 'PC-Charlie est ajouté', check: 'device_added', points: 5, params: { newdev: 'PC-Charlie' } });
+      if (c.evalOrder) c.evalOrder.push('o:obj_add');
+      render(); checkAllObjectives();
+    });
+    await expect(banner).toContainText('Départ élève : 5 / 105');
+    await builderScore(page).click();
+    await expect(row.locator('td').nth(2)).toContainText('cochez « À ajouter par l\'élève »');
+    await builderScore(page).click();
+
+    // La case de la fiche : pastille « + » sur le schéma, objectif à faire au départ
+    await clickDev(page, charlie);
+    await page.locator('#toadd').check();
+    await expect(page.locator('#layer-badges g[data-toadd]')).toHaveCount(1);
+    await expect(banner).toContainText('Départ élève : 0 / 105');
+    await expect(builderScore(page)).toHaveText('✅ Corrigé complet');
+    await builderScore(page).click();
+    await expect(row.locator('td').nth(1)).toContainText('réalisé');
+    await expect(row.locator('td').nth(2)).toContainText('à faire (PC-Charlie à ajouter)');
+    await builderScore(page).click();
+
+    // Ctrl+Z et Ctrl+Y sur la case
+    await page.locator('body').press('Control+z');
+    await expect(page.locator('#layer-badges g[data-toadd]')).toHaveCount(0);
+    await page.locator('body').press('Control+y');
+    await expect(page.locator('#layer-badges g[data-toadd]')).toHaveCount(1);
+
+    // Départ élève et Essai : le poste et son câble n'y sont pas ; le corrigé les garde
+    const links = (await linkList(page)).length;
+    await page.locator('#btn-depart').click();
+    await expect(page.locator(`#gd${charlie}`)).toHaveCount(0);
+    expect((await linkList(page)).length).toBe(links - 1);
+    await page.locator('#btn-sim').click();
+    await expect(page.locator(`#gd${charlie}`)).toHaveCount(0);
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 105 pts');
+    await page.locator('#btn-cfg').click();
+    await expect(page.locator(`#gd${charlie}`)).toHaveCount(1);
+    expect((await linkList(page)).length).toBe(links);
+    await clickDev(page, charlie);
+    await expect(page.locator('#toadd')).toBeChecked();
+
+    // Export élève : le poste est absent, l'élève l'ajoute et gagne l'objectif
+    const file = await exportFile(page, 'html', info.outputPath('a-ajouter.html'));
+    await page.goto(pathToFileURL(file).href);
+    await expect(page.locator(`#gd${charlie}`)).toHaveCount(0);
+    expect(await page.evaluate(() => devByName('PC-Charlie'))).toBeNull();
+    await page.evaluate(() => {
+      const before = Object.keys(S.devs);
+      mkDev('pc', 500, 420);
+      const id = Object.keys(S.devs).find((k) => !before.includes(k));
+      S.devs[id].name = 'PC-Charlie';
+      render(); checkAllObjectives();
+    });
+    await expect.poll(() => page.evaluate(() => !!ACTIVITY_RESULTS.obj_add)).toBe(true);
   });
 
   test('le builder s\'ouvre vierge ; fermer sans enregistrer prévient, enregistrer ou ouvrir un fichier lève l\'alerte', async ({ page }, info) => {

@@ -3372,6 +3372,72 @@ test('poste au choix de l\'élève : tous les postes essayés ; poste à ajouter
   ok(AW.audit(data).failing.every(function(l) { return l !== 'Un poste est ajouté'; }));
 });
 
+suite('Appareil « à ajouter par l\'élève » : dans le corrigé, retiré du réseau de départ');
+
+/* reseau-entreprise où PC-Charlie est à ajouter par l'élève, avec son objectif et un test depuis ce poste. */
+function scenarioToAdd(flag) {
+  var data = readScenario('reseau-entreprise.json');
+  var charlie = Object.values(data.network.devs).filter(function(d) { return d.name === 'PC-Charlie'; })[0];
+  if(flag) charlie.toAdd = true;
+  data.activity.objectives.push(
+    {id: 20, label: 'PC-Charlie est ajouté', check: 'device_added', points: 5, params: {newdev: 'PC-Charlie', ip: '192.168.1.*', mask: '255.255.255.0'}},
+    {id: 21, label: 'Test : PC-Charlie joint le Serveur', check: 'ping_success', points: 5, params: {from: 'PC-Charlie', to: '{Serveur}'}});
+  return data;
+}
+
+test('à l\'ouverture chez l\'élève : l\'appareil et ses câbles sont retirés, les autres restent', function() {
+  var data = scenarioToAdd(true);
+  var nDevs = Object.keys(data.network.devs).length, nLinks = Object.keys(data.network.links).length;
+  openScenario(data, true);
+  eq(devByName('PC-Charlie'), null);
+  eq(Object.keys(S.devs).length, nDevs - 1);
+  eq(Object.keys(S.links).length, nLinks - 1);
+  ok(Object.values(S.links).every(function(l) { return S.devs[l.from] && S.devs[l.to]; }), 'aucun câble orphelin');
+  sandbox.checkAllObjectives();
+  eq(S.score, 0);
+  notOk(done(20));
+});
+
+test('l\'élève ajoute le poste, le câble et le règle : l\'objectif et son test sont validés', function() {
+  var data = scenarioToAdd(true);
+  openScenario(data, true);
+  sandbox.STARTER_NETWORK = JSON.parse(JSON.stringify(data.network));   // comme chez l'élève pendant l'activité
+  try {
+    eq(sandbox.startDevIds().indexOf('d6'), -1);                         // pas un appareil de départ
+    var sw = devByName('Switch-LAN');
+    var id = mkDev('pc', 500, 400);
+    S.devs[id].name = 'PC-Charlie';
+    sandbox.addLink(id, sw.id);
+    S.devs[id].ifaces[0].ip = '192.168.1.12'; S.devs[id].ifaces[0].mask = '255.255.255.0';
+    sandbox.checkAllObjectives();
+    ok(done(20), 'poste ajouté');
+    term(id, 'ping 192.168.1.100');
+    ok(done(21), 'test depuis le poste ajouté');
+  } finally { sandbox.STARTER_NETWORK = null; }
+});
+
+test('contrôle du corrigé : réalisé dans le corrigé, à faire au départ, commande rejouée depuis ce poste', function() {
+  var rv = AW.review(scenarioToAdd(true));
+  ok(rv.ok); eq(rv.later, 0);
+  var add = reviewRow(rv, 'device_added');
+  eq(add.corrige, 'ok'); eq(add.start, 'todo'); eq(add.startText, 'à faire (PC-Charlie à ajouter)');
+  var ping = rv.rows.filter(function(r) { return r.id === 21; })[0];
+  eq(ping.corrigeText, 'ping 192.168.1.100 depuis PC-Charlie : réussit');
+  eq(ping.startText, 'échoue tant que PC-Charlie n\'est pas ajouté');
+  var au = AW.audit(scenarioToAdd(true));
+  eq(au.start, 0); eq(au.failing.length, 0); eq(au.toBuild, 1);
+});
+
+test('poste laissé dans le réseau de départ : l\'objectif est acquis d\'avance, le contrôle dit quoi cocher', function() {
+  var data = scenarioToAdd(false);
+  var add = reviewRow(AW.review(data), 'device_added');
+  eq(add.corrige, 'ok'); eq(add.start, 'acquired');
+  ok(/cochez « À ajouter par l'élève »/.test(add.startText), add.startText);
+  eq(AW.audit(data).start, 5);
+  openScenario(data, true);
+  ok(devByName('PC-Charlie'), 'sans la case, le poste est donné à l\'élève');
+});
+
 suite('Variantes d\'une activité');
 
 const VARIANTS = [

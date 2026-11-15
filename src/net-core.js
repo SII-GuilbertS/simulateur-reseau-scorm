@@ -296,9 +296,22 @@ function addressPlan(objectives){
   return{cols:cols,groups:glist};
 }
 
+/* Appareils du réseau de départ de l'élève. Un appareil marqué « à ajouter par l'élève » (toAdd) est
+   dans le corrigé du professeur mais pas dans ce réseau : il en est retiré à l'ouverture (removeToAdd).
+   Sans réseau de départ (activité où l'élève construit tout) : aucun, tout appareil compte comme ajouté. */
 function startDevIds(){
   if(START_DEV_IDS)return START_DEV_IDS;
-  return STARTER_NETWORK&&STARTER_NETWORK.devs?Object.keys(STARTER_NETWORK.devs):[];
+  var net=STARTER_NETWORK&&STARTER_NETWORK.devs;
+  return net?Object.keys(net).filter(function(id){return !net[id].toAdd;}):[];
+}
+/* Ouverture de l'activité par l'élève : retire du réseau en place les appareils « à ajouter par
+   l'élève », avec leurs liaisons. À appeler avant applyFaults. Renvoie leurs noms. */
+function removeToAdd(){
+  var names=[];
+  Object.keys(S.devs).forEach(function(id){
+    if(S.devs[id].toAdd){names.push(S.devs[id].name);delDev(id);}
+  });
+  return names;
 }
 
 function checkObjectiveStatic(obj){

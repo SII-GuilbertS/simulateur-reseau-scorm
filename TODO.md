@@ -50,7 +50,8 @@
 ## 🛠️ Expérience enseignant (builder)
 
 - [x] **Vue Corrigé : contrôle du corrigé à la place du score** (15 novembre 2026) — le mot « score » prêtait à confusion (0 affiché sur un corrigé juste). L'en-tête dit si le corrigé réalise tous les objectifs ; un clic ouvre un tableau : état dans le corrigé (commandes rejouées sans terminal, raison de l'échec) et au départ de l'élève (pannes qui le masquent, objectif acquis d'avance). Calcul dans `ActivityWizard.review`.
-- [ ] **Appareil « à ajouter par l'élève » posé dans le corrigé** — aujourd'hui un objectif « ajouter un appareil » (et les tests qui en dépendent) ne peut pas être réalisé dans le corrigé : le contrôle indique « à vérifier en Essai ». Idée : le professeur pose le poste dans le corrigé et le marque « à ajouter par l'élève » ; il est retiré au départ, comme une panne. Le corrigé serait alors complet et vérifiable de bout en bout.
+- [x] **Appareil « à ajouter par l'élève » posé dans le corrigé** (15 novembre 2026) — case « ➕ À ajouter par l'élève » sur la fiche d'un appareil, vue Corrigé : il reste dans le corrigé (câbles, réglages, tests rejoués depuis lui) et il est retiré du réseau de départ de l'élève, de la vue Essai et de l'énoncé. « Figer le départ » et « Réinitialiser » sont supprimés (ils laissaient croire qu'ils définissaient le départ de l'élève).
+- [ ] **Scénarios fournis et assistant : passer à la case « à ajouter par l'élève »** — `reseau-college`, `reseau-lycee` et les modèles « Construction » décrivent encore le poste à ajouter par son seul objectif (poste absent du réseau) : 4 et 8 objectifs y restent « à vérifier en Essai ». Les y poser avec la case rendrait leur corrigé vérifiable en entier ; les tests de `sim-tests.js` (`applySolution`) sont à adapter.
 - [ ] **Onglet Évaluation : aperçu des objectifs à commande** — l'aperçu d'un ping ou d'un nslookup y dit encore « pas encore validé dans votre essai » ; il pourrait reprendre le résultat du contrôle du corrigé (`ActivityWizard.review`).
 
 - [ ] **Assistant « Nouvelle activité » : d'autres modèles** — un lycée à deux salles, une construction où l'élève configure le routeur, d'autres thèmes (médiathèque, hôpital…). Chaque modèle passe automatiquement les règles des scénarios dans `sim-tests.js`.
@@ -97,7 +98,7 @@
 | Builder à 3 onglets, export SCORM 1.2 et HTML, énoncé imprimable | avant v1.5 |
 | 14 types d'objectifs, 7 types de pannes, mode panne | avant v1.5 |
 | Notation des scénarios à pannes | v1.5 |
-| Cartes illustrées, score en direct, Figer / Réinitialiser | v1.6 |
+| Cartes illustrées, score en direct, Figer / Réinitialiser (retirés en novembre 2026) | v1.6 |
 | Adresses en plage ou au choix, références `{Appareil}`, passerelle « routeur du réseau », contrainte affichée à l'élève, score qui suit le réseau (objectifs perdus) | v1.7 |
 | Plan d'adressage dans l'énoncé et corrigé enseignant ; objectifs et pannes dans une liste ordonnable | v1.7 |
 | Scénarios à 0 au départ, chaque réparation suivie de son test | v1.8 |

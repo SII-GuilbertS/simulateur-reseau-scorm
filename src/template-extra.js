@@ -145,6 +145,7 @@ function loadFromSession(){
       Object.values(S.devs).forEach(function(d){
         (d.ifaces||[]).forEach(function(f){delete f.staticCfg;});
       });
+      removeToAdd();   // appareils que l'élève doit ajouter lui-même
       if(ACTIVITY_CONFIG)
         applyFaults(ACTIVITY_CONFIG.faults);
       return 'starter';
@@ -183,6 +184,7 @@ function clearAll(){
     if(!confirm('Recommencer depuis le r\u00e9seau de d\u00e9part ?'))return;
     S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
     applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
+    removeToAdd();
     if(ACTIVITY_CONFIG)
       applyFaults(ACTIVITY_CONFIG.faults);
     S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
