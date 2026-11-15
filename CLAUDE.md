@@ -152,7 +152,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 42 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 47 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -166,10 +166,13 @@ navigateur en fenêtre, une session par appareil, chez l'élève et dans le buil
 bureau : Ctrl+Z, état laissé par le professeur reçu par l'élève, panne « service arrêté » réparée et conservée
 après rechargement), la connexion WiFi (SSID suivi dans le builder, mot de passe
 faux puis corrigé chez l'élève), l'assistant
-« Nouvelle activité » et la fenêtre Variante jusqu'à l'élève (choix de pannes combinés), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+« Nouvelle activité » et la fenêtre Variante jusqu'à l'élève (choix de pannes combinés), la souris sur le schéma
+(suite « Souris sur le schéma » : appareil glissé depuis la palette, déplacement d'un appareil avec ses câbles,
+câblage au clic avec aperçu, annulations et refus, liaison WiFi, sélection et suppression d'un câble, double-clic
+qui ouvre le bureau sans déplacer l'appareil), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
 
-Non couverts : vrai Moodle, drag & drop et câblage, le reste de l'énoncé imprimable (seul son plan
+Non couverts : vrai Moodle, déplacement et redimensionnement des cadres et des textes, le reste de l'énoncé imprimable (seul son plan
 d'adressage est vérifié), Firefox. Elle n'est pas dans le
 hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à jour `SCENARIOS` dans
 `builder.spec.js`. À lancer avant chaque push qui touche au builder, aux exports ou aux scénarios.
@@ -212,7 +215,7 @@ plan détaillé en trois étapes dans `TODO.md` (« Mode unique »).
 - **Documentation non régénérée** : `docs/*.pdf`, `README.md` et `site/` datent de la v1.9.4 et ne décrivent
   ni les vues du builder, ni les pannes notées, ni le builder vierge. À refaire à la prochaine release
   (voir la règle plus bas).
-- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master`.
+- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master` (47 avec la suite souris de la branche du mode unique).
 
 ## Scénarios
 
