@@ -1,6 +1,6 @@
 # TODO — Simulateur Réseau IPv4 · Idées d'amélioration
 
-> Mis à jour le 15 novembre 2026, après la version 1.9.4 et les vues Corrigé / Départ élève / Essai du builder. Ce qui est déjà fait est listé en fin de fichier.
+> Mis à jour le 15 novembre 2026, à la version 2.0 (mode unique, bureau des appareils, vues Corrigé / Départ élève / Essai, contrôle du corrigé). Ce qui est déjà fait est listé en fin de fichier.
 
 ---
 

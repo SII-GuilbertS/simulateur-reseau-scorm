@@ -273,10 +273,13 @@ Le tag local `avant-mode-unique` marque l'état d'avant.
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic sur l'onglet Générer avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
-- **Documentation non régénérée** : `docs/*.pdf`, `README.md` et `site/` datent de la v1.9.4 et ne décrivent
-  ni les vues du builder, ni les pannes notées, ni le builder vierge. À refaire à la prochaine release
-  (voir la règle plus bas).
-- **Résultat de la dernière session** : 412 tests unitaires et 56 tests navigateur passent, mode unique fusionné, contrôle du corrigé à la place du score en vue Corrigé (non poussé par Claude : l'envoi est fait par l'utilisateur).
+- **Documentation à jour en v2.0** (15 novembre 2026) : `docs/*.pdf` (via `tools/gen_docs.py`), `README.md`,
+  `site/index.html` et les deux captures de `site/assets/` décrivent le mode unique, le bureau des appareils,
+  les trois vues, le contrôle du corrigé, l'appareil « à ajouter par l'élève » et les pannes notées. Les captures
+  se refont avec Playwright (1440×900 : builder avec `reseau-lycee`, élève avec la démo `reseau-maison`).
+  Le rendu des PDF n'a pas été relu page par page.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur.
+  Point connu : `reseau-lycee` affiche « P7 sans points » dans la barre orange (panne sans objectif de réparation).
 
 ## Scénarios
 

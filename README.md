@@ -48,10 +48,29 @@ postes en panne. Tout reste modifiable ensuite. Dans la salle de classe, l'ENT e
 à adresse publique relié au nœud Internet, nom résolu par le DNS public) ; le réseau de l'établissement a son
 Serveur-Données pour les profils des élèves.
 
-**Score affiché dans le builder** : c'est celui de l'élève. Le réseau du builder est le corrigé, mais les pannes
-de l'onglet 2 sont appliquées pour l'évaluation : une activité bien construite affiche 0 à l'import. Les commandes
-de test lancées dans le terminal du builder ajoutent des points, tout comme une configuration que le professeur casse
-puis rétablit (par exemple un câble débranché puis rebranché au switch indiqué).
+**Trois vues du schéma** (boutons en haut du schéma) : **Corrigé**, le réseau qui fonctionne, où tout se règle ;
+**Départ élève**, ce que l'élève trouve à l'ouverture (corrigé avec les pannes, pastilles P1, P2…), en lecture
+seule ; **Essai**, la même copie où le professeur joue l'élève et obtient le score qu'il aurait. Les exports partent
+toujours du corrigé.
+
+**Contrôle du corrigé** : en vue Corrigé, l'en-tête n'affiche pas de score mais l'état du corrigé (« Corrigé
+complet », « N objectifs non réalisés », « N pannes à revoir »). Un clic ouvre un tableau, une ligne par objectif :
+réalisé ou non dans le corrigé (les commandes ping, nslookup, page web et DHCP sont rejouées automatiquement, avec
+la raison d'un échec), puis ce qu'il vaut au départ de l'élève (à faire, déjà acquis, panne qui le casse). Une panne
+qui ne change rien est signalée.
+
+**Appareil à ajouter par l'élève** : une case sur la fiche d'un appareil, en vue Corrigé. L'appareil reste dans le
+corrigé, avec ses câbles et ses réglages, et il est retiré du réseau que reçoit l'élève et de son énoncé.
+
+**Pannes notées** : une panne porte ses points (« Points si l'élève la répare ») ; la réparation est mesurée sur la
+valeur du corrigé, sans objectif à créer.
+
+**Bureau des appareils** : un double-clic sur un appareil ouvre son bureau (Invite de commandes, Navigateur,
+Paramètres réseau, WiFi, services d'un serveur ou de la box). Il n'y a plus de mode Configuration ni Simulation :
+un clic ouvre la fiche, un double-clic le bureau, chez le professeur comme chez l'élève.
+
+**Ouvrir, enregistrer** : le builder s'ouvre vierge. « 📂 Ouvrir » reprend un scénario `.json`, « 💾 Enregistrer »
+le garde ; fermer l'onglet avec un travail non enregistré déclenche une alerte.
 
 **Indices et descriptions** (onglet 2) : chaque objectif a un champ *Indice*, affiché à l'élève sous l'objectif tant
 qu'il n'est pas atteint. Il est pré-rempli selon le type d'objectif, ses paramètres et la panne qu'il répare (« Outil
@@ -82,14 +101,14 @@ actuelle pour garder les deux versions.
 3. Onglet **Évaluation** : ajouter les objectifs et les pannes
 4. Onglet **Générer** : exporter le SCORM (Moodle) ou le HTML (test local)
 
-**Raccourcis clavier :** `Ctrl+1/2/3` (onglets), `Ctrl+S` (sauvegarde session), `Échap` (retour à l'outil Sélection, depuis n'importe quel outil, en annulant un câble en cours), `Suppr` (effacer l'appareil, le câble, le cadre ou le texte sélectionné ; `Ctrl+Z` l'annule dans le builder), `F11` (plein écran). En mode câble, le pointeur prend la forme du câble.
+**Raccourcis clavier :** `Ctrl+1/2/3` (onglets), `Ctrl+Z` / `Ctrl+Y` (annuler, rétablir, chez l'élève aussi), `Échap` (retour à l'outil Sélection, depuis n'importe quel outil, en annulant un câble en cours), `Suppr` (effacer l'appareil, le câble, le cadre ou le texte sélectionné ; `Ctrl+Z` l'annule dans le builder), `F11` (plein écran). En mode câble, le pointeur prend la forme du câble.
 
 ---
 
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **396 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **412 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
@@ -181,7 +200,7 @@ Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`, `ping_succ
 Guide complet pour les **enseignants** : présentation, 3 onglets du builder, assistant « Nouvelle activité » et variantes, 14 types d'objectifs, mode panne, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
 
 #### `docs/doc-eleve.pdf`
-Guide de prise en main pour les **élèves** : interface, modes Configuration/Simulation, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `traceroute`…), onglet Navigateur pour le web, objectifs et score, exemple guidé, résolution de problèmes.
+Guide de prise en main pour les **élèves** : interface, fiche et bureau des appareils, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `traceroute`…), navigateur du bureau pour le web, objectifs et score, exemple guidé, résolution de problèmes.
 
 ---
 
@@ -238,7 +257,7 @@ node tests/sim-tests.js
     "objectives": [
       { "id":1, "label":"PC-Alice peut joindre le Serveur",
         "check":"ping_success", "params":{"from":"PC-Alice","to":"Serveur"},
-        "points":10, "hint":"En mode Simulation : ping 192.168.1.100" }
+        "points":10, "hint":"Double-clic sur PC-Alice, Invite de commandes : ping 192.168.1.100" }
     ],
     "faults": [
       { "id":1, "type":"bad_gateway", "dev":"PC-Alice", "badValue":"192.168.99.1" }
@@ -252,10 +271,10 @@ node tests/sim-tests.js
 
 | Type | Catégorie | Paramètres |
 |------|-----------|------------|
-| `ping_success` | Simulation | `from`, `to` |
-| `dns_success` | Simulation | `from`, `domain` |
-| `http_success` | Simulation | `from`, `url` |
-| `dhcp_success` | Simulation | `from` |
+| `ping_success` | Commande | `from`, `to` |
+| `dns_success` | Commande | `from`, `domain` |
+| `http_success` | Commande | `from`, `url` |
+| `dhcp_success` | Commande | `from` |
 | `cable_exists` | Configuration | `devA`, `devB` |
 | `wifi_link` | Configuration | `devA`, `devB` |
 | `ip_configured` | Configuration | `dev`, `ip`, `mask` |
@@ -426,15 +445,15 @@ Seuls les textes officiels en anglais de ces licences font foi.
 ### Étape 1 — Tester le builder (côté enseignant)
 1. Ouvrir `scorm-builder.html`
 2. **Onglet Réseau** : ajouter des appareils, les câbler, configurer les IP
-3. Importer un scénario : **Onglet 3 Générer → 📂 Importer** → `scenarios/reseau-maison.json`
+3. Ouvrir un scénario : **📂 Ouvrir** (barre du haut) → `scenarios/reseau-maison.json`
 4. Vérifier que les objectifs apparaissent dans l'**Onglet 2 Évaluation**
 5. Exporter en HTML : **🧪 Exporter en HTML** et ouvrir le fichier téléchargé
 
 ### Étape 2 — Tester l'activité (côté élève)
 1. Ouvrir le fichier HTML exporté
 2. L'onglet **📋 Activité** en bas liste les objectifs à atteindre
-3. Passer en mode Simulation et utiliser le terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`)
-4. Corriger les pannes en repassant en mode Configuration
+3. Double-cliquer sur un poste pour ouvrir son bureau, puis utiliser l'invite de commandes (`ping`, `ipconfig`, `nslookup`, `dhcp`)
+4. Corriger les pannes dans la fiche des appareils (clic) ou dans leur bureau (services, WiFi)
 5. Vérifier que le score progresse et que les objectifs se valident
 6. Tester le mode enseignant : mot de passe `prof` (bouton discret en bas à droite)
 
