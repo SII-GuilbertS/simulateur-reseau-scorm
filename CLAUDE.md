@@ -34,6 +34,36 @@ de simulation embarqué pour l'élève. Il combine quatre parties :
    `tests/sim-tests.js` l'extrait par ses marqueurs. Juste après, `WizardUI` gère les deux fenêtres.
    Un modèle ajouté doit respecter les règles des scénarios (voir plus bas) : les tests le vérifient.
 
+**Trois vues du schéma (barre d'en-tête du builder)** — `BUILDER_VIEW` : **Corrigé** (réseau qui
+fonctionne, seul modifiable ; le bureau d'un appareil s'y ouvre par double-clic, sans terminal ni
+navigateur), **Départ élève** (copie du corrigé + pannes, lecture seule, pastilles de panne P1, P2…) et
+**Essai** (même copie, le professeur joue l'élève : terminal, réparations, score réel, règles de l'élève).
+`setBuilderView` met le corrigé de côté dans `VIEW_SNAP` et le rétablit au retour ; `SimModule.getState()`
+renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les onglets 2 et 3, l'import,
+l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a que deux points
+d'accroche (`deskOn`, `deskView` dans `src/sim-ui.js`), inertes chez l'élève. Le score « corrigé »
+(`BUILDER_TOUCHED`) ne s'applique qu'à la vue Corrigé. L'essai est mis de côté dans `ESSAI_SNAP` quand on
+le quitte et repris au retour tant que `essaiKey()` (réseau corrigé normalisé sans positions, objectifs et
+pannes) n'a pas changé ; sinon il repart de zéro avec un message, comme avec « Recommencer l'essai ».
+
+**Ouverture et fermeture** — le builder s'ouvre toujours vierge (plus de reprise automatique ; l'ancienne
+clé `sim_reseau_v2_builder` du navigateur est effacée) : le travail se reprend par « 📂 Ouvrir ». Un
+`beforeunload` prévient si le travail a changé depuis le dernier scénario ouvert ou enregistré
+(`hasUnsavedWork()` : empreinte `workFingerprint()` comparée à `SAVED_FP`, posée par `markSaved()` à l'ouverture
+d'un fichier et à l'export du scénario ; l'export SCORM, HTML ou énoncé ne compte pas comme enregistrement).
+
+**Pannes notées comme des objectifs** — une panne porte ses points (`points`), un libellé facultatif pour l'élève
+(`studentLabel`) et la condition de sa réparation (`goal` : check, params, label, hint), posée par
+`syncFaultGoals` (builder, appelé par `getConfig`, vue Corrigé seulement) d'après les valeurs du réseau corrigé
+(`repairSpec`). **Aucun objectif n'est ajouté à la liste** : le moteur (`scoredObjectives`, `faultGoal` dans
+`src/net-core.js`) tire de chaque panne notée un objectif « virtuel » (id `flt:<id>`) au moment d'évaluer et de noter,
+rangé à la place de la panne dans `evalOrder`. Builder et élève passent par `scoredObjectives(cfg)` pour la liste,
+le score, SCORM, l'énoncé et le contrôle de l'assistant ; `cfg.objectives` ne contient que les objectifs écrits par
+le professeur. Un objectif de réparation écrit à la main (`FAULT_REPAIR_CHECKS` : même type de contrôle, sur un
+appareil de la panne) fait foi et la panne n'est pas notée en plus (pas de double comptage) : c'est le cas des
+scénarios fournis et de l'assistant. Les tests de validation (ping…) restent manuels. Un scénario sans `points`
+sur ses pannes se comporte comme avant.
+
 **3 onglets dans l'UI du builder :**
 
 | Onglet | Rôle |
@@ -84,9 +114,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 396/396
+## Tests : `node tests/sim-tests.js` → doit afficher 399/399
 
-Suite de 396 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 399 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -122,7 +152,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 31 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 42 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -131,7 +161,10 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, un câble débranché puis rebranché par le professeur (compté seulement au switch indiqué), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, la connexion WiFi (SSID suivi dans le builder, mot de passe
+le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs), le builder vierge à l'ouverture et l'alerte avant fermeture sans enregistrement, un câble débranché puis rebranché par le professeur (compté seulement au switch indiqué), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic en mode simulation : terminal et
+navigateur en fenêtre, une session par appareil, chez l'élève et dans le builder ; services réglés dans le
+bureau : Ctrl+Z, état laissé par le professeur reçu par l'élève, panne « service arrêté » réparée et conservée
+après rechargement), la connexion WiFi (SSID suivi dans le builder, mot de passe
 faux puis corrigé chez l'élève), l'assistant
 « Nouvelle activité » et la fenêtre Variante jusqu'à l'élève (choix de pannes combinés), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
@@ -140,6 +173,26 @@ Non couverts : vrai Moodle, drag & drop et câblage, le reste de l'énoncé impr
 d'adressage est vérifié), Firefox. Elle n'est pas dans le
 hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à jour `SCENARIOS` dans
 `builder.spec.js`. À lancer avant chaque push qui touche au builder, aux exports ou aux scénarios.
+
+## Bureau des appareils (mode simulation)
+
+En mode simulation, un double-clic sur un appareil ouvre son bureau : une fenêtre flottante avec
+les icônes de ses applications (`deskApps`) : Invite de commandes, Navigateur et Paramètres réseau sur
+les postes et serveurs, WiFi sur un poste relié à une box, Serveur web, Serveur DNS et Serveur DHCP
+sur un serveur, Administration (WiFi et DHCP) et Routage sur la box, Routage sur un routeur.
+
+**Les services (web, DNS, DHCP, WiFi de la box) ne se règlent que dans le bureau**, en mode
+simulation : la fiche Configuration affiche seulement leur état (`deskConfigNote`) et un bouton
+vers le bureau. Le builder n'a qu'un réseau : ce que le professeur règle en simulation part à
+l'export, puis les pannes s'appliquent. Les applications à formulaire (`DESK_FORMS`) passent par
+`deskApply` : `snapHistory` (Ctrl+Z), mêmes setters que les fiches (`setIface`, `setDHCP`,
+`setBoxWifi`, `setTermWifi`…), `render`, objectifs, `saveToSession` (reprise élève). L'adresse IP
+d'un poste reste réglable dans les deux modes. Le code est dans
+`src/sim-engine.js` (bloc `BUREAU DES APPAREILS`, fonctions `desk*`), donc partagé par le builder et
+l'élève ; son CSS est injecté au premier affichage. Chaque appareil garde sa session (historique,
+sortie, page). Une commande lancée depuis une fenêtre passe par `termRun(raw, devId)`, avec
+`_termOut` pointant vers la sortie de la fenêtre ; le navigateur appelle `browGo(devId, url, conteneur)`.
+Le bandeau du bas (Terminal, Navigateur, Journal, Paquets, Activité) est conservé pour l'instant.
 
 ## Scénarios
 
@@ -180,7 +233,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 396/396
+node tests/sim-tests.js    # → 399/399
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -228,6 +281,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 396 tests Node.js |
+| `tests/sim-tests.js` | Suite de 399 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

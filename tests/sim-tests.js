@@ -1512,6 +1512,29 @@ test('ssid_wrong : modifie le SSID de la Box WiFi', function() {
   eq(S.devs[wr].ssid, 'MauvaisSSID', 'ssid_wrong doit remplacer le SSID');
 });
 
+/* ── Pannes notées : une panne qui porte ses points compte comme un objectif, sans objectif ajouté ── */
+test('scoredObjectives : sans panne notée, la liste des objectifs est renvoyée telle quelle', function() {
+  var cfg = { objectives: [{ id: 'a', points: 10 }], faults: [{ id: 1, type: 'bad_ip', params: { dev: 'X' } }], evalOrder: ['f:1', 'o:a'] };
+  ok(sandbox.scoredObjectives(cfg) === cfg.objectives);
+  eq(sandbox.scoredObjectives(null).length, 0);
+});
+
+test('scoredObjectives : une panne notée prend sa place dans evalOrder, sans toucher la liste', function() {
+  var goal = { check: 'gateway_configured', params: { dev: 'PC-Bob', gateway: '192.168.1.1' }, label: 'La passerelle est corrigée' };
+  var cfg = {
+    objectives: [{ id: 'o1', label: 'Test', check: 'ping_success', points: 20, params: {} }],
+    faults: [{ id: 1, type: 'bad_gateway', params: { dev: 'PC-Bob' }, points: 30, goal: goal },
+             { id: 2, type: 'bad_ip', params: { dev: 'PC-Bob' }, points: 0, goal: goal },
+             { id: 3, type: 'bad_dns', params: { dev: 'PC-Bob' }, points: 10 }],
+    evalOrder: ['f:1', 'o:o1', 'f:2', 'f:3']
+  };
+  var list = sandbox.scoredObjectives(cfg);
+  eq(list.map(function(o) { return o.id; }).join(','), 'flt:1,o1');   // 0 point ou sans condition : pas notée
+  eq(list[0].points, 30);
+  eq(list[0].label, 'La passerelle est corrigée');
+  eq(cfg.objectives.length, 1);                                       // la liste n'a pas bougé
+});
+
 test('applyFaults : appareil inconnu → ignoré sans erreur', function() {
   resetNet();
   sandbox.applyFaults([{type:'bad_ip', dev:'AppAreilInexistant', badValue:'1.2.3.4'}]);
@@ -2625,6 +2648,27 @@ const IPV4 = /^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+$/;
 function readScenario(file) {
   return JSON.parse(fs.readFileSync(path.join(SCENARIOS_DIR, file), 'utf-8'));
 }
+
+test('panne notée : la réparation rapporte les points, comme un objectif', function() {
+  var scenario = JSON.parse(JSON.stringify(readScenario('reseau-entreprise.json')));
+  var gw = scenario.activity.faults.filter(function(f) { return f.type === 'bad_gateway'; })[0];
+  // la panne porte ses points et sa condition ; plus aucun objectif écrit à la main
+  gw.points = 40;
+  gw.goal = { check: 'gateway_configured', params: { dev: gw.dev, gateway: '192.168.1.1' }, label: 'Passerelle corrigée' };
+  scenario.activity.objectives = [];
+  scenario.activity.evalOrder = ['f:' + gw.id];
+  setupActivity([], 60);
+  sandbox.ACTIVITY_CONFIG.faults = [gw];
+  sandbox.ACTIVITY_CONFIG.evalOrder = scenario.activity.evalOrder;
+  sandbox.STARTER_NETWORK = JSON.parse(JSON.stringify(scenario.network));
+  try { withStorage(function() { eq(sandbox.loadFromSession(), 'starter'); }); } finally { sandbox.STARTER_NETWORK = null; }
+  sandbox.checkAllObjectives();
+  eq(sandbox.S.score, 0);                                              // panne présente : rien d'acquis
+  var d = devByName(gw.dev);
+  sandbox.setIface(d.id, 0, 'gateway', '192.168.1.1');
+  sandbox.checkAllObjectives();
+  eq(sandbox.S.score, 100);                                            // seule chose notée : la panne réparée
+});
 
 /* Ouvre le scénario comme le ferait un élève : réseau de départ, puis pannes éventuelles. */
 function openScenario(data, withFaults) {

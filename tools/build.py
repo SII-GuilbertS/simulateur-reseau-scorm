@@ -295,10 +295,10 @@ CHECKS = [
         "['pc','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){"
     ),
 
-    # ── Bug1 : pas de double-quote dans showProps HTTP ────────────────────────
+    # ── Services du serveur : réglés dans le bureau (mode simulation) ─────────
     (
-        "showProps HTTP : pas de double-quote dans les handlers onchange",
-        "+'\\'].http.title",
+        "showProps serveur : services renvoyés au bureau de l'appareil",
+        "if(d.type==='server')h+=deskConfigNote(id);",
         None, None
     ),
 ]

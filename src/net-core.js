@@ -465,6 +465,30 @@ function evaluateObjectives(objectives){
   });
   return{gained:gained,lost:lost};
 }
+/* Une panne notée compte comme un objectif, sans qu'aucun objectif soit ajouté à la liste : le builder pose sur la
+   panne ses points (`points`) et la condition de sa réparation (`goal` : check, params, label). Le moteur en tire un
+   objectif de plus au moment d'évaluer et de noter, rangé à la place de la panne dans `evalOrder`. Sans panne
+   notée (cas des scénarios fournis), la liste des objectifs est renvoyée telle quelle. */
+function faultGoal(f){
+  if(!f||!(parseInt(f.points)>0)||!f.goal||!f.goal.check)return null;
+  return {id:'flt:'+f.id,fault:true,label:f.goal.label||'',check:f.goal.check,params:f.goal.params||{},
+    points:parseInt(f.points),hint:f.goal.hint||''};
+}
+function scoredObjectives(cfg){
+  if(!cfg)return [];
+  var objs=cfg.objectives||[],goals={},n=0;
+  (cfg.faults||[]).forEach(function(f){var g=faultGoal(f);if(g){goals[String(f.id)]=g;n++;}});
+  if(!n)return objs;
+  var out=[],used={};
+  (cfg.evalOrder||[]).forEach(function(k){
+    k=String(k);var id=k.slice(2);
+    if(k[0]==='o'){objs.forEach(function(o){if(String(o.id)===id&&!used['o'+id]){used['o'+id]=1;out.push(o);}});}
+    else if(k[0]==='f'&&goals[id]&&!used['f'+id]){used['f'+id]=1;out.push(goals[id]);}
+  });
+  objs.forEach(function(o){if(!used['o'+o.id]){used['o'+o.id]=1;out.push(o);}});
+  Object.keys(goals).forEach(function(id){if(!used['f'+id])out.push(goals[id]);});
+  return out;
+}
 /* Enregistre une commande réussie ; renvoie les objectifs qu'elle valide. */
 function recordDynamicEvent(objectives,type,context){
   var gained=[];

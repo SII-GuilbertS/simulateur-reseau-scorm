@@ -69,9 +69,17 @@ const test = base.extend({
 
 /* ── Builder ─────────────────────────────────────────────────────────── */
 
+/* Importe un scénario et attend la fin réelle de l'import (lecture du fichier, puis retour à l'onglet 1) :
+   cliquer sur un autre onglet avant cette fin serait annulé par l'import. */
+async function importScenarioFile(page, file) {
+  await page.evaluate(() => document.querySelectorAll('.bld-notif').forEach((n) => n.remove()));
+  await page.locator('#gen-import-file').setInputFiles(file);
+  await expect(page.locator('.bld-notif', { hasText: 'importé' })).toBeVisible();
+}
+
 async function openBuilderWith(page, scenario) {
   await page.goto(BUILDER_URL);
-  await page.locator('#gen-import-file').setInputFiles(scenarioPath(scenario));
+  await importScenarioFile(page, scenarioPath(scenario));
   await expect(page.locator('.bld-tab[data-tab="1"]')).toHaveClass(/active/);
 }
 
@@ -88,7 +96,7 @@ async function download(page, action, file) {
 async function exportFile(page, kind, file) {
   await page.locator('.bld-tab[data-tab="3"]').click();
   const fn = { html: 'generateHtml', scorm: 'generate', scenario: 'exportScenario' }[kind];
-  return download(page, () => page.locator(`button[onclick="GenModule.${fn}()"]`).click(), file);
+  return download(page, () => page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click(), file);
 }
 
 async function runInTerminal(page, deviceName, command) {
@@ -127,6 +135,39 @@ async function studentBrowse(scope, deviceName, url) {
   await scope.locator('#bd-sel').selectOption({ label: deviceName });
   await scope.locator('#burl').fill(url);
   await scope.locator('button[onclick="browGo()"]').click();
+}
+
+/* Bureau d'un appareil (mode simulation) : double-clic, puis l'icône de l'application.
+   Rend la fenêtre de l'appareil. */
+async function openDeskApp(scope, deviceName, appLabel) {
+  const id = await deviceId(scope, deviceName);
+  // Les fenêtres ouvertes peuvent couvrir l'appareil : on les réduit d'abord dans le dock.
+  for (const min of await scope.locator('.dwin .dw-min').all()) {
+    if (await min.isVisible()) await min.click();
+  }
+  await scope.locator(`#gd${id}`).dblclick();
+  const win = scope.locator(`#dwin-${id}`);
+  await expect(win).toBeVisible();
+  const home = win.locator('.dw-home');
+  if (await home.isEnabled()) await home.click();
+  await win.locator('.dico', { hasText: appLabel }).click();
+  await expect(win.locator('.abar')).toContainText(appLabel);
+  return win;
+}
+
+async function deskTerminal(scope, deviceName, command) {
+  const win = await openDeskApp(scope, deviceName, 'Invite de commandes');
+  await win.locator('.dterm-in').fill(command);
+  await win.locator('.dterm-in').press('Enter');
+  await expect(win.locator('.dterm-out')).toContainText('> ' + command);
+  return win;
+}
+
+async function deskBrowse(scope, deviceName, url) {
+  const win = await openDeskApp(scope, deviceName, 'Navigateur');
+  await win.locator('.dbrow-url').fill(url);
+  await win.locator('.dbrow-url').press('Enter');
+  return win;
 }
 
 /* reseau-maison : l'élève corrige la passerelle puis prouve que tout fonctionne. */
@@ -256,21 +297,168 @@ test.describe('Vue élève (export HTML)', () => {
     await finish(page);
     await expect.poll(() => page.dialogs.at(-1)).toContain('RÉUSSI');
   });
+
+  test('l\'élève qui revient sur le même poste retrouve son réseau modifié (adresse, poste ajouté et câblé, service)', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const file = await exportFile(page, 'html', info.outputPath('entreprise-reprise.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+
+    // Modifications de l'élève : adresse d'un poste, poste ajouté et câblé, service du serveur (bureau)
+    const charlie = await deviceId(page, 'PC-Charlie');
+    const added = await page.evaluate((cid) => {
+      setIface(cid, 0, 'ip', '192.168.1.77');
+      const id = mkDev('pc', 420, 420, 'desktop');
+      S.devs[id].name = 'PC-Ajoute';
+      const sw = Object.values(S.devs).find((d) => d.name === 'Switch-LAN');
+      addLink(id, sw.id);
+      render();
+      return id;
+    }, charlie);
+    await page.locator('#btn-sim').click();   // les services se règlent dans le bureau, en simulation
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+
+    const snapshot = () => page.evaluate(() => ({
+      ip: Object.values(S.devs).find((d) => d.name === 'PC-Charlie').ifaces[0].ip,
+      added: Object.values(S.devs).some((d) => d.name === 'PC-Ajoute'),
+      links: Object.keys(S.links).length,
+      dns: Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on,
+      score: S.score,
+    }));
+    const before = await snapshot();
+    expect(before).toMatchObject({ ip: '192.168.1.77', added: true, dns: true });   // le DNS était en panne : l'élève l'a démarré
+
+    // Même navigateur, même poste : l'élève ferme puis revient
+    await page.reload();
+    const after = await snapshot();
+    expect(after).toEqual(before);
+    expect(added).toBeTruthy();
+
+    // La reprise fonctionne encore après un deuxième aller-retour (rien n'est rejoué depuis le départ)
+    await page.reload();
+    expect(await snapshot()).toEqual(before);
+  });
+
+  test('panne « service arrêté » : l\'élève redémarre le DNS dans le bureau du serveur, conservé après rechargement', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const file = await exportFile(page, 'html', info.outputPath('entreprise-dns.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+
+    // En Configuration, la fiche du serveur ne règle plus les services : elle mène au bureau.
+    const srv = await deviceId(page, 'Serveur');
+    await page.locator(`#gd${srv}`).click();
+    await expect(page.locator('#props-body')).not.toContainText('Activer le serveur DNS');
+    await page.locator('#props-body button', { hasText: 'Ouvrir le bureau en simulation' }).click();
+    await expect(page.locator(`#dwin-${srv}`)).toBeVisible();
+
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await expect(dns.locator('.dpill')).toHaveText('arrêté');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(dns.locator('.dpill')).toHaveText('démarré');
+    await studentScore(page, 20);
+
+    await page.reload();
+    await studentScore(page, 20);
+    expect(await page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on)).toBe(true);
+  });
+
+  test('bureau des appareils : terminal et navigateur en fenêtre valident l\'activité, une session par appareil', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const file = await exportFile(page, 'html', info.outputPath('maison-bureau.html'));
+    await page.goto(pathToFileURL(file).href);
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await studentScore(page, 35);
+    await page.locator('#btn-sim').click();
+
+    await deskTerminal(page, 'Laptop', 'dhcp');
+    await deskTerminal(page, 'Laptop', 'ping 8.8.8.8');
+    const laptop = await deskBrowse(page, 'Laptop', 'www.exemple.fr');
+    await expect(laptop.locator('.bpage h1')).toBeVisible();
+    await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
+    const pc = await deskTerminal(page, 'PC-Bureau', 'ping 8.8.8.8');
+    await deskBrowse(page, 'PC-Bureau', 'www.exemple.fr');
+    await studentScore(page, 100);
+
+    // Chaque appareil a sa propre sortie ; le bandeau du bas n'a rien reçu.
+    await pc.locator('.aclose').click();
+    await openDeskApp(page, 'PC-Bureau', 'Invite de commandes');
+    await expect(pc.locator('.dterm-out')).toContainText('> ping 192.168.1.1');
+    await expect(pc.locator('.dterm-out')).not.toContainText('> dhcp');
+    await expect(page.locator('#tout')).not.toContainText('> ping 8.8.8.8');
+
+    // Fermer l'application garde la fenêtre ; × ferme le bureau ; le mode Conception ferme tout.
+    await pc.locator('.aclose').click();
+    await expect(pc.locator('.dico')).toHaveCount(3);
+    await pc.locator('.dw-x').click();
+    await expect(pc).toHaveCount(0);
+    await expect(page.locator('.dwin')).toHaveCount(1);
+    await page.locator('#btn-cfg').click();
+    await expect(page.locator('.dwin')).toHaveCount(0);
+  });
 });
 
 test.describe('Builder', () => {
+  test('services réglés en simulation : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
+    // Vue Corrigé : le bureau s'ouvre sans simulation, et ce qui y est réglé fait partie du corrigé exporté
+    await openBuilderWith(page, 'reseau-maison');
+    const box = await openDeskApp(page, 'Box-WiFi', 'Administration');
+    const dhcp = box.locator('.dpill');
+    await expect(dhcp).toHaveText('démarré');
+    await box.locator('[data-act="toggle"]').click();
+    await expect(dhcp).toHaveText('arrêté');
+    await page.keyboard.press('Control+z');
+    await expect(dhcp).toHaveText('démarré');
+    await box.locator('[data-act="toggle"]').click();
+    await expect(dhcp).toHaveText('arrêté');
+
+    const file = await exportFile(page, 'html', info.outputPath('maison-dhcp-off.html'));
+    await page.goto(pathToFileURL(file).href);
+    await page.locator('#btn-sim').click();
+    const sbox = await openDeskApp(page, 'Box-WiFi', 'Administration');
+    await expect(sbox.locator('.dpill')).toHaveText('arrêté');
+    const laptop = await deskTerminal(page, 'Laptop', 'dhcp');
+    const before = await page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Laptop').ifaces[0].ip);
+    expect(before || '').toBe('');
+
+    await openDeskApp(page, 'Box-WiFi', 'Administration');
+    await sbox.locator('[data-act="toggle"]').click();
+    await expect(sbox.locator('.dpill')).toHaveText('démarré');
+    await deskTerminal(page, 'Laptop', 'dhcp');
+    await expect.poll(() => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Laptop').ifaces[0].ip))
+      .toMatch(/^192\.168\.1\.\d+$/);
+    await expect(laptop).toBeVisible();
+  });
+
+  test('bureau des appareils dans le builder : terminal en fenêtre, adresse dans le titre', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('#btn-sim').click();
+    const before = await builderScore(page).textContent();
+    const win = await deskTerminal(page, 'PC-Bureau', 'ipconfig');
+    await expect(win.locator('.dterm-out')).toContainText('192.168.1.');
+    await expect(win.locator('.dwin-ip')).toHaveText(/^192\.168\.1\.\d+$/);
+    await expect(builderScore(page)).toHaveText(before);
+  });
+
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
-    // Réseau du builder sans pannes, mais score de l'élève : les réparations ne comptent pas.
+    // Vue Essai : le professeur joue l'élève. Le DNS est en panne au départ : il le démarre, puis teste.
     await openBuilderWith(page, 'reseau-entreprise');
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
     await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await expect(dns.locator('.dpill')).toHaveText('arrêté');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // « DNS actif »
 
     await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
     await expect(page.locator('#tout')).toContainText('192.168.1.100');
-    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // pas depuis le bon poste
 
     await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
-    await expect(builderScore(page)).toHaveText('📊 Score : 10 / 100 pts');
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
   });
 
   /* Variantes de reseau-lycee où l'élève réussirait sans rien faire (seuil abaissé à 20).
@@ -298,7 +486,7 @@ test.describe('Builder', () => {
       fs.writeFileSync(scenario, JSON.stringify(data));
 
       await page.goto(BUILDER_URL);
-      await page.locator('#gen-import-file').setInputFiles(scenario);
+      await importScenarioFile(page, scenario);
       const file = await exportFile(page, 'html', info.outputPath('trop-facile.html'));
 
       expect(page.dialogs.length).toBe(1);
@@ -324,14 +512,14 @@ test.describe('Builder', () => {
     const scenario = info.outputPath('trop-facile.json');
     fs.writeFileSync(scenario, JSON.stringify(data));
     await page.goto(BUILDER_URL);
-    await page.locator('#gen-import-file').setInputFiles(scenario);
+    await importScenarioFile(page, scenario);
     await page.locator('.bld-tab[data-tab="3"]').click();
 
     page.dialogAction = 'dismiss';
     let downloaded = false;
     page.on('download', () => { downloaded = true; });
     for (const fn of ['generateHtml', 'generate']) {
-      await page.locator(`button[onclick="GenModule.${fn}()"]`).click();
+      await page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click();
     }
     await expect.poll(() => page.dialogs.length).toBe(2);
     await page.waitForTimeout(500);
@@ -515,7 +703,7 @@ test.describe('Builder', () => {
     expect(exported.activity.evalOrder).toEqual(order);
     expect(String(exported.activity.objectives[0].id)).toBe(String(last.id));
     await page.goto(BUILDER_URL);
-    await page.locator('#gen-import-file').setInputFiles(file);
+    await importScenarioFile(page, file);
     await page.locator('.bld-tab[data-tab="2"]').click();
     expect(await keys()).toEqual(order);
 
@@ -638,11 +826,11 @@ test.describe('Builder', () => {
   test('Connexion WiFi : SSID suivi dans le builder, mot de passe faux puis corrigé chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     // Builder : renommer le réseau de la box, les terminaux connectés suivent
-    const box = await deviceId(page, 'Box-WiFi');
-    await page.locator(`#gd${box}`).click();
-    const ssid = page.locator('#props-body .pr', { hasText: 'SSID (nom du réseau)' }).locator('input');
-    await ssid.fill('WiFi-Famille');
-    await ssid.press('Tab');
+    // (le WiFi de la box se règle dans son application Administration, en mode simulation)
+    await page.locator('#btn-sim').click();
+    const admin = await openDeskApp(page, 'Box-WiFi', 'Administration');
+    await admin.locator('[data-f="ssid"]').fill('WiFi-Famille');
+    await admin.locator('[data-act="wifi-save"]').click();
     const laptop = await deviceId(page, 'Laptop');
     await page.locator(`#gd${laptop}`).click();
     await expect(page.locator('#props-body')).toContainText('Connecté à « WiFi-Famille »');
@@ -717,6 +905,292 @@ test.describe('Builder', () => {
     await studentTerminal(page, 'Poste-1', 'nslookup ent.etablissement.fr');
     await studentTerminal(page, 'Poste-2', 'ping 192.168.10.100');
     await studentScore(page, 100);
+  });
+
+  test('contrôle du départ élève : bandeau, pastilles de panne sur le schéma, état des objectifs, réouverture', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const banner = page.locator('#ctl-banner');
+    await expect(banner).toContainText('Départ élève : 0 / 100');
+    await expect(banner).toContainText('Tout est atteignable');
+    await expect(banner).toContainText('2 pannes');
+
+    // Une pastille par panne, sur l'appareil touché, dans l'ordre de la liste
+    const badges = page.locator('#layer-badges g');
+    await expect(badges).toHaveCount(2);
+    await expect(badges.nth(0)).toContainText('P1');
+    await expect(badges.nth(0)).toContainText('Service désactivé · Serveur');
+    await expect(badges.nth(1)).toContainText('P2');
+
+    // Le détail du score explique pourquoi un objectif vrai dans le corrigé reste à zéro
+    await page.locator('#hdr-score').click();
+    await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P1');
+    await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P2');
+    // Ici chaque panne est mesurée par un objectif de réparation : pas de section « pannes sans points »
+    await expect(page.locator('#score-details')).not.toContainText('Pannes sans points');
+
+    // Onglet Évaluation : état par rapport au corrigé et au départ élève
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const dnsCard = page.locator('#ev-list .obj-card', { hasText: 'Le service DNS du Serveur est actif' });
+    await expect(dnsCard.locator('.obj-preview')).toContainText('Vrai dans le corrigé');
+    await expect(dnsCard.locator('.obj-preview')).toContainText('faux au départ élève (panne P1)');
+
+    // Sans aucun objectif, les pannes restent visibles (score et bandeau) et le bandeau prévient qu'elles ne rapportent rien
+    await page.evaluate(() => { window.__objs = EvalModule.getConfig().objectives.splice(0); });
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await expect(banner).toContainText('2 pannes sans points');
+    await page.locator('#hdr-score').click();
+    await expect(page.locator('#score-details')).toContainText('le score se calcule à partir des objectifs');
+    await expect(page.locator('#score-details')).toContainText('P2 — Passerelle incorrecte · PC-Bob');
+    await expect(page.locator('#score-details')).toContainText('ne rapporte aucun point');
+    await page.locator('#hdr-score').click();
+    await page.evaluate(() => { EvalModule.getConfig().objectives.push(...window.__objs); });
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('.bld-tab[data-tab="1"]').click();
+
+    // Sans panne, l'élève aurait des points d'office : le bandeau prévient
+    await page.evaluate(() => { EvalModule.getConfig().faults.length = 0; });
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await expect(banner).toContainText('⚠️ Départ élève : 40 / 100');
+    await expect(page.locator('#layer-badges g')).toHaveCount(0);
+
+    // Le titre de l'activité ouverte est affiché dans la barre orange
+    await expect(page.locator('#ctl-act')).toContainText('Entreprise');
+    expect(await page.evaluate(() => !!START_SNAP)).toBe(true);
+  });
+
+  test('le builder s\'ouvre vierge ; fermer sans enregistrer prévient, enregistrer ou ouvrir un fichier lève l\'alerte', async ({ page }, info) => {
+    // Une ancienne sauvegarde automatique du navigateur n'est plus reprise, et elle est effacée
+    await page.goto(BUILDER_URL);
+    await page.evaluate(() => localStorage.setItem('sim_reseau_v2_builder',
+      JSON.stringify({ devs: { d1: { id: 'd1', type: 'pc', name: 'Ancien', x: 10, y: 10, ifaces: [] } }, links: {}, nid: 2 })));
+    await page.reload();
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(0);
+    expect(await page.evaluate(() => localStorage.getItem('sim_reseau_v2_builder'))).toBeNull();
+
+    const warns = () => page.evaluate(() => {
+      const e = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(await warns()).toBe(false);                                       // vierge : rien à perdre
+
+    // Ouvrir un scénario : le travail est celui du fichier, pas d'alerte
+    await importScenarioFile(page, scenarioPath('reseau-entreprise'));
+    await expect(page.locator('#ctl-act')).toContainText('Entreprise');
+    await page.waitForTimeout(1200);
+    expect(await warns()).toBe(false);
+
+    // Changer de vue ou jouer un essai ne crée pas de travail à enregistrer
+    await page.locator('#btn-sim').click();
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    expect(await warns()).toBe(false);
+    await page.locator('#btn-cfg').click();
+    expect(await warns()).toBe(false);
+
+    // Une modification du corrigé : alerte
+    await page.evaluate(() => { Object.values(S.devs).find((d) => d.name === 'PC-Charlie').ifaces[0].ip = '192.168.1.77'; render(); });
+    expect(await warns()).toBe(true);
+    // Même si l'on est dans une autre vue au moment de fermer
+    await page.locator('#btn-sim').click();
+    expect(await warns()).toBe(true);
+
+    // Enregistrer le scénario lève l'alerte ; modifier l'activité (titre) la rétablit
+    await exportFile(page, 'scenario', info.outputPath('enregistre.json'));
+    await page.waitForTimeout(1200);
+    expect(await warns()).toBe(false);
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('#ev-title').fill('Autre titre');
+    expect(await warns()).toBe(true);
+
+    // Une activité créée par l'assistant n'est pas enregistrée : alerte
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await page.locator('#btn-open').click({ trial: true });                  // le bouton existe, visible dans la barre du haut
+    await page.locator('#btn-wizard').click();
+    await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+    await page.waitForTimeout(1200);
+    expect(await warns()).toBe(true);
+  });
+
+  test('vues Corrigé / Départ élève / Essai : copie jetable, lecture seule, corrigé intact et exports inchangés', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const dnsOn = () => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on);
+    expect(await dnsOn()).toBe(true);                                      // corrigé : DNS démarré
+
+    // Corrigé : le bureau s'ouvre sans simulation, sans terminal ni navigateur
+    const srv = await deviceId(page, 'Serveur');
+    await page.locator(`#gd${srv}`).dblclick();
+    const win = page.locator(`#dwin-${srv}`);
+    await expect(win).toBeVisible();
+    await expect(win.locator('.dico', { hasText: 'Serveur DNS' })).toBeVisible();
+    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+    await win.locator('.dw-x').click();
+
+    // Départ élève : la panne est appliquée, lecture seule
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#view-bar')).toContainText('Départ élève');
+    expect(await dnsOn()).toBe(false);
+    await expect(page.locator('#layer-badges g')).toHaveCount(2);
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    expect(await dnsOn()).toBe(false);                                     // refusé : lecture seule
+    await expect(page.locator('.dwin .dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+
+    // Essai : on répare, le score monte ; sans pastilles de panne
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#view-bar')).toContainText('Essai');
+    await expect(page.locator('#layer-badges g')).toHaveCount(0);
+    const dns2 = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns2.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+
+    // Un export pendant l'essai donne le corrigé, pas la copie : DNS démarré, pannes seulement dans l'activité
+    const file = await exportFile(page, 'scenario', info.outputPath('essai.json'));
+    await expect(page.locator('#btn-cfg')).toHaveClass(/active/);          // l'onglet 3 ramène au corrigé
+    const exported = JSON.parse(fs.readFileSync(file, 'utf8'));
+    expect(Object.values(exported.network.devs).find((d) => d.name === 'Serveur').dns.on).toBe(true);
+    expect(exported.activity.faults.length).toBe(2);
+
+    // Retour au corrigé : rien n'a bougé, score de départ de nouveau 0
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    expect(await dnsOn()).toBe(true);
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await expect(page.locator('#view-bar')).toBeHidden();
+  });
+
+  test('une panne se note comme un objectif : points saisis sur la panne, gagnés quand l\'élève la répare', async ({ page }, info) => {
+    // Activité à deux pannes et aucun objectif (cas d'un professeur qui commence par les pannes)
+    const data = readScenario('reseau-entreprise');
+    data.activity.objectives = [];
+    delete data.activity.evalOrder;
+    const scenario = info.outputPath('pannes-seules.json');
+    fs.writeFileSync(scenario, JSON.stringify(data));
+    await page.goto(BUILDER_URL);
+    await importScenarioFile(page, scenario);
+    await expect(page.locator('#ctl-banner')).toContainText('2 pannes sans points');
+
+    // Points saisis directement sur chaque panne
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const cards = page.locator('#ev-list .obj-card.fault');
+    await expect(cards).toHaveCount(2);
+    await cards.nth(0).locator('.obj-card-hdr').click();
+    await cards.nth(0).locator('.fault-repair input[type="number"]').fill('30');
+    await cards.nth(0).locator('.fault-repair input[type="number"]').press('Tab');
+    await cards.nth(1).locator('.obj-card-hdr').click();
+    await cards.nth(1).locator('.fault-repair input[type="number"]').fill('20');
+    await cards.nth(1).locator('.fault-repair input[type="number"]').press('Tab');
+
+    // Aucun objectif n'est créé : la liste reste vide, c'est la panne qui porte ses points et la condition de sa réparation
+    await expect(page.locator('#ev-list .obj-card:not(.fault)')).toHaveCount(0);
+    const cfg = await page.evaluate(() => { const c = EvalModule.getConfig(); return { order: c.evalOrder, objs: c.objectives, faults: c.faults }; });
+    expect(cfg.objs).toEqual([]);
+    expect(cfg.order).toEqual(['f:1', 'f:2']);
+    expect(cfg.faults.map((f) => [f.points, f.goal.check])).toEqual([[30, 'service_active'], [20, 'gateway_configured']]);
+    expect(cfg.faults[1].goal.params).toMatchObject({ dev: 'PC-Bob', gateway: '192.168.1.1' });
+
+    // Le bandeau ne signale plus rien ; l'élève part de 0 et gagne les points en réparant
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await expect(page.locator('#ctl-banner')).not.toContainText('sans points');
+    await expect(page.locator('#ctl-banner')).toContainText('Départ élève : 0 / 50');
+    await page.locator('#btn-sim').click();
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 50 pts');
+    await page.locator('#btn-cfg').click();
+
+    // Enregistré puis rouvert : points et conditions conservés, toujours aucun objectif
+    const saved = await exportFile(page, 'scenario', info.outputPath('pannes-notees.json'));
+    await importScenarioFile(page, saved);
+    const again = await page.evaluate(() => { const c = EvalModule.getConfig(); return { n: c.objectives.length, pts: c.faults.map((f) => f.points), goals: c.faults.map((f) => !!f.goal) }; });
+    expect(again).toEqual({ n: 0, pts: [30, 20], goals: [true, true] });
+
+    // Si un objectif de réparation existe déjà (scénarios fournis), il fait foi : pas de points sur la panne
+    await importScenarioFile(page, scenarioPath('reseau-entreprise'));
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('#ev-list .obj-card.fault').nth(0).locator('.obj-card-hdr').click();
+    await expect(page.locator('.fault-repair').nth(0)).toContainText('Réparation déjà mesurée par');
+    await expect(page.locator('.fault-repair').nth(0).locator('input[type="number"]')).toHaveCount(0);
+    expect(await page.evaluate(() => EvalModule.getConfig().faults.filter((f) => f.goal).length)).toBe(0);
+
+    // Chez l'élève, les pannes notées sont listées comme des objectifs, score de départ 0
+    await importScenarioFile(page, saved);
+    const html = await exportFile(page, 'html', info.outputPath('pannes-notees.html'));
+    await page.goto(pathToFileURL(html).href);
+    await studentScore(page, 0);
+    await expect(page.locator('.activ-obj')).toHaveCount(2);
+  });
+
+  test('carte de panne : « Service à activer », libellé proposé à l\'élève mis à jour dès le choix de l\'appareil', async ({ page }, info) => {
+    // Réseau de l'entreprise sans objectif ni panne : aucun objectif de réparation écrit à la main ne mesure la nouvelle panne
+    const data = readScenario('reseau-entreprise');
+    data.activity.objectives = [];
+    data.activity.faults = [];
+    delete data.activity.evalOrder;
+    const scenario = info.outputPath('sans-objectif.json');
+    fs.writeFileSync(scenario, JSON.stringify(data));
+    await page.goto(BUILDER_URL);
+    await importScenarioFile(page, scenario);
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.getByRole('button', { name: '+ Ajouter une panne' }).click();
+    const card = page.locator('#ev-list .obj-card.fault').last();
+    await card.locator('select').first().selectOption('service_down');
+    await expect(card).toContainText('Service à activer');
+    await expect(card).not.toContainText('Service à désactiver');
+
+    const goal = card.locator('.fault-repair input').nth(1);                    // libellé affiché à l'élève
+    await expect(goal).toHaveAttribute('placeholder', /choisissez d'abord l'appareil/);
+    await card.locator('.bld-row', { hasText: 'Appareil concerné' }).locator('select').selectOption('Serveur');
+    await card.locator('.bld-row', { hasText: 'Service à activer' }).locator('select').selectOption('http');
+    await expect(goal).toHaveAttribute('placeholder', 'Le service web de Serveur est actif');
+    await card.locator('.bld-row', { hasText: 'Service à activer' }).locator('select').selectOption('dns');
+    await expect(goal).toHaveAttribute('placeholder', 'Le service DNS de Serveur est actif');
+  });
+
+  test('l\'essai est conservé quand on change de vue ; remis à zéro si l\'activité change ou sur demande', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const dnsOn = () => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on);
+
+    // Essai : on répare le DNS et on teste
+    await page.locator('#btn-sim').click();
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
+
+    // Corrigé puis Départ élève, puis retour : l'essai est repris tel quel
+    await page.locator('#btn-cfg').click();
+    await page.locator('#btn-depart').click();
+    expect(await dnsOn()).toBe(false);
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
+    expect(await dnsOn()).toBe(true);
+    await expect(page.locator('#tout')).toContainText('192.168.1.100');   // la sortie du terminal aussi
+
+    // Le corrigé change (adresse d'un poste) : l'essai ne correspond plus, il repart de zéro, avec un message
+    await page.locator('#btn-cfg').click();
+    await page.evaluate(() => { const d = Object.values(S.devs).find((x) => x.name === 'PC-Charlie');
+      d.ifaces[0].ip = '192.168.1.77'; render(); });
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    expect(await dnsOn()).toBe(false);
+
+    // Un simple déplacement d'appareil dans le corrigé ne remet rien à zéro
+    const dns2 = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns2.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+    await page.locator('#btn-cfg').click();
+    await page.evaluate(() => { const d = Object.values(S.devs).find((x) => x.name === 'PC-Alice'); d.x += 40; render(); });
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+
+    // « Recommencer l'essai » : confirmation (des points seraient perdus), puis départ neuf
+    page.dialogs.length = 0;
+    await page.locator('#view-bar button', { hasText: 'Recommencer' }).click();
+    expect(page.dialogs.at(-1)).toContain('20 % obtenus');
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    expect(await dnsOn()).toBe(false);
   });
 
   test('le builder affiche le score de départ de l\'élève : 0 pour chaque scénario et chaque dépannage de l\'assistant', async ({ page }) => {
@@ -873,7 +1347,7 @@ test.describe('Builder', () => {
     expect(exported.activity.faults.length).toBe(original.activity.faults.length);
 
     await page.goto(BUILDER_URL);
-    await page.locator('#gen-import-file').setInputFiles(file);
+    await importScenarioFile(page, file);
     // Comme chez l'élève : pannes appliquées et routes recalculées à l'import, rien n'est acquis.
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
   });
