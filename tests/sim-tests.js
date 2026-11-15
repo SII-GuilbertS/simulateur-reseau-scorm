@@ -3310,6 +3310,68 @@ test('le contrôle signale une activité trop facile', function() {
   ok(au.start > 0, 'les réparations sont acquises dès l\'ouverture sans pannes');
 });
 
+suite('Contrôle du corrigé (vue Corrigé du builder)');
+
+function reviewRow(rv, check, n) {
+  return rv.rows.filter(function(r) { return r.check === check; })[n || 0];
+}
+
+test('corrigé complet : objectifs réalisés, commandes rejouées, pannes qui les masquent au départ', function() {
+  var data = readScenario('reseau-entreprise.json');
+  var before = JSON.stringify(S.devs);
+  var rv = AW.review(data);
+  eq(JSON.stringify(S.devs), before);                       // le réseau affiché n'est pas touché
+  ok(rv.ok); eq(rv.ko, 0); eq(rv.later, 0); eq(rv.acquired, 0);
+  eq(rv.rows.length, data.activity.objectives.length);
+  var svc = reviewRow(rv, 'service_active');
+  eq(svc.corrige, 'ok'); eq(svc.corrigeText, 'réalisé');
+  eq(svc.start, 'todo'); eq(svc.startText, 'à faire (panne P1)');
+  var nsl = reviewRow(rv, 'dns_success');
+  eq(nsl.corrigeText, 'nslookup www.mon-entreprise.fr depuis PC-Alice : réussit');
+  eq(nsl.startText, 'échoue tant que P1 n\'est pas réparée');
+  ok(nsl.fromId);
+  var ping = reviewRow(rv, 'ping_success');                 // premier ping : aucun rapport avec les pannes
+  eq(ping.corrigeText, 'ping 192.168.1.100 depuis PC-Alice : réussit');
+  eq(ping.start, 'open'); eq(ping.startText, 'réussit déjà, sans rien réparer');
+});
+
+test('corrigé incomplet : objectif non réalisé, commande qui échoue avec sa raison, objectif acquis d\'avance', function() {
+  var data = readScenario('reseau-entreprise.json');
+  var srv = Object.values(data.network.devs).filter(function(d) { return d.name === 'Serveur'; })[0];
+  srv.dns.on = false;                                        // le professeur a oublié d'activer le DNS
+  data.activity.faults = data.activity.faults.filter(function(f) { return f.type === 'service_down'; });
+  var rv = AW.review(data);
+  notOk(rv.ok);
+  var svc = reviewRow(rv, 'service_active');
+  eq(svc.corrige, 'ko'); eq(svc.corrigeText, 'non réalisé dans le corrigé'); eq(svc.start, '');
+  var nsl = reviewRow(rv, 'dns_success');
+  eq(nsl.corrige, 'ko');
+  ok(/^nslookup www\.mon-entreprise\.fr depuis PC-Alice : .*DNS/.test(nsl.corrigeText), nsl.corrigeText);
+  eq(rv.ko, 4);                                              // service, nslookup et les deux pages web
+  var gw = reviewRow(rv, 'gateway_configured');              // sa panne a été retirée
+  eq(gw.corrige, 'ok'); eq(gw.start, 'acquired');
+  ok(/^déjà acquis à l'ouverture/.test(gw.startText));
+  eq(rv.acquired, 1);
+});
+
+test('poste au choix de l\'élève : tous les postes essayés ; poste à ajouter : à vérifier en Essai', function() {
+  var data = readScenario('reseau-entreprise.json');
+  var a = data.activity, ping = a.objectives.filter(function(o) { return o.check === 'ping_success'; })[0];
+  delete ping.params.from;
+  eq(reviewRow(AW.review(data), 'ping_success').corrigeText, 'ping 192.168.1.100 réussit depuis tous les postes');
+  var bob = Object.values(data.network.devs).filter(function(d) { return d.name === 'PC-Bob'; })[0];
+  bob.ifaces[0].ip = '';
+  var row = reviewRow(AW.review(data), 'ping_success');
+  eq(row.corrige, 'ok');
+  ok(/réussit depuis \d+ postes? sur \d+ \(échoue depuis PC-Bob\)$/.test(row.corrigeText), row.corrigeText);
+  // Poste à ajouter sans nom imposé : ni « impossible » pour le contrôle, ni « non réalisé »
+  a.objectives.push({id: 99, label: 'Un poste est ajouté', check: 'device_added', points: 5, params: {newdev: '', ip: '192.168.1.*'}});
+  var rv = AW.review(data), add = reviewRow(rv, 'device_added');
+  eq(add.corrige, 'later'); eq(add.start, 'todo'); eq(rv.later, 1);
+  ok(/à vérifier en Essai/.test(add.corrigeText));
+  ok(AW.audit(data).failing.every(function(l) { return l !== 'Un poste est ajouté'; }));
+});
+
 suite('Variantes d\'une activité');
 
 const VARIANTS = [

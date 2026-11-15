@@ -84,6 +84,9 @@ async function openBuilderWith(page, scenario) {
 }
 
 const builderScore = (page) => page.locator('#hdr-score');
+/* Vue Corrigé : pas de score, mais l'état du corrigé ; le départ de l'élève est dans le bandeau. */
+const corrigeComplet = (page) => expect(builderScore(page)).toHaveText(/^✅ Corrigé complet/);
+const departZero = (page) => expect(page.locator('#ctl-banner')).toContainText('Départ élève : 0 / 100');
 
 async function download(page, action, file) {
   const pending = page.waitForEvent('download');
@@ -473,7 +476,7 @@ test.describe('Builder', () => {
 
   test('vue Corrigé : terminal et navigateur pour vérifier le réseau, non comptabilisés ; les mêmes gestes comptent en Essai', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
-    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+    await corrigeComplet(page);
 
     // Le corrigé fonctionne : le professeur le constate sans quitter la vue
     const pc = await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
@@ -485,12 +488,12 @@ test.describe('Builder', () => {
     await expect(web.locator('.dnote')).toContainText('non comptabilisé');
     await page.locator('.bot .bt', { hasText: 'Journal' }).click();
     await expect(page.locator('#lout')).toContainText('PING');
-    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);        // aucun point
+    await corrigeComplet(page);                                              // ni score ni point
 
     // Casser puis rétablir la passerelle dans le corrigé ne rapporte rien non plus
     await setGateway(page, 'PC-Bureau', '192.168.9.9');
     await setGateway(page, 'PC-Bureau', '192.168.1.1');
-    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+    await corrigeComplet(page);
     expect(await page.evaluate(() => Object.keys(ACTIVITY_PROOFS).length)).toBe(0);
 
     // En Essai, la réparation et les mêmes commandes marquent leurs points
@@ -502,10 +505,55 @@ test.describe('Builder', () => {
     await expect.poll(() => page.evaluate(() => S.score)).toBeGreaterThan(before);
   });
 
+  test('vue Corrigé : pas de score mais le contrôle du corrigé (pastille, tableau, commande rejouée, corrigé incomplet)', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(builderScore(page)).toHaveText('✅ Corrigé complet');
+
+    // Tableau : état dans le corrigé (commande rejouée sans terminal) et au départ de l'élève
+    await builderScore(page).click();
+    const panel = page.locator('#score-details');
+    await expect(panel).toContainText('Contrôle du corrigé');
+    await expect(panel).not.toContainText('Score');
+    const nsl = panel.locator('tr', { hasText: 'nslookup' }).last();
+    await expect(nsl.locator('td').nth(1)).toContainText('nslookup www.mon-entreprise.fr depuis PC-Alice : réussit');
+    await expect(nsl.locator('td').nth(2)).toContainText('échoue tant que P1 n\'est pas réparée');
+    const first = panel.locator('tbody tr').first();          // un ping sans rapport avec les pannes
+    await expect(first.locator('td').nth(2)).toContainText('réussit déjà, sans rien réparer');
+
+    // « Voir dans le terminal » rejoue la commande dans le bureau du poste, sans marquer de point
+    await nsl.locator('.rv-go').click();
+    await expect(panel).not.toHaveClass(/open/);
+    const alice = page.locator(`#dwin-${await deviceId(page, 'PC-Alice')}`);
+    await expect(alice.locator('.dterm-out')).toContainText('> nslookup www.mon-entreprise.fr');
+    await expect(alice.locator('.dterm-out')).toContainText('192.168.1.100');
+    expect(await page.evaluate(() => Object.keys(ACTIVITY_PROOFS).length)).toBe(0);
+    await alice.locator('.dw-x').click();
+
+    // Le professeur arrête le DNS dans le corrigé : la pastille le signale, le tableau dit pourquoi
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('⚠️ Corrigé : 4 objectifs non réalisés');
+    await dns.locator('.dw-x').click();
+    await builderScore(page).click();
+    await expect(panel.locator('tr', { hasText: 'Le service DNS du Serveur est actif' }).locator('td').nth(1))
+      .toContainText('non réalisé dans le corrigé');
+    await expect(nsl.locator('td').nth(1)).toContainText('DNS');
+    await expect(nsl.locator('td').nth(2)).toHaveText('—');
+    await builderScore(page).click();
+
+    // Annuler rétablit le corrigé ; le score ne revient qu'en Essai
+    await page.keyboard.press('Control+z');
+    await expect(builderScore(page)).toHaveText('✅ Corrigé complet');
+    await page.locator('#btn-sim').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await page.locator('#btn-cfg').click();
+    await expect(builderScore(page)).toHaveText('✅ Corrigé complet');
+  });
+
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
     // Vue Essai : le professeur joue l'élève. Le DNS est en panne au départ : il le démarre, puis teste.
     await openBuilderWith(page, 'reseau-entreprise');
-    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await corrigeComplet(page); await departZero(page);
     await page.locator('#btn-sim').click();
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
 
@@ -981,8 +1029,9 @@ test.describe('Builder', () => {
 
     // Le détail du score explique pourquoi un objectif vrai dans le corrigé reste à zéro
     await page.locator('#hdr-score').click();
-    await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P1');
-    await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P2');
+    await expect(page.locator('#score-details')).toContainText('Contrôle du corrigé');
+    await expect(page.locator('#score-details')).toContainText('à faire (panne P1)');
+    await expect(page.locator('#score-details')).toContainText('à faire (panne P2)');
     // Ici chaque panne est mesurée par un objectif de réparation : pas de section « pannes sans points »
     await expect(page.locator('#score-details')).not.toContainText('Pannes sans points');
 
@@ -1114,7 +1163,7 @@ test.describe('Builder', () => {
     // Retour au corrigé : rien n'a bougé, score de départ de nouveau 0
     await page.locator('.bld-tab[data-tab="1"]').click();
     expect(await dnsOn()).toBe(true);
-    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await corrigeComplet(page); await departZero(page);
     await expect(page.locator('#view-bar')).toBeHidden();
   });
 
@@ -1255,7 +1304,7 @@ test.describe('Builder', () => {
   test('le builder affiche le score de départ de l\'élève : 0 pour chaque scénario et chaque dépannage de l\'assistant', async ({ page }) => {
     for (const { name } of SCENARIOS) {
       await openBuilderWith(page, name);
-      await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+      await corrigeComplet(page); await departZero(page);
     }
     for (const theme of ['maison', 'entreprise', 'classe']) {
       await page.locator('#btn-wizard').click();
@@ -1263,7 +1312,7 @@ test.describe('Builder', () => {
       await page.locator(`.wz-card[data-group="theme"][data-id="${theme}"]`).click();
       await page.locator('#wz-create').click();
       await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
-      await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+      await corrigeComplet(page); await departZero(page);
     }
   });
 
@@ -1313,7 +1362,7 @@ test.describe('Builder', () => {
     await page.locator('.wz-card[data-group="level"][data-id="college"]').click();
     await page.locator('#wz-create').click();
     await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
-    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await corrigeComplet(page); await departZero(page);
     const fault = await page.evaluate(() => {
       const f = EvalModule.getConfig().faults.find((x) => x.type === 'missing_cable'); return f.params || f; });
     const pts = await page.evaluate(() => EvalModule.getConfig().objectives.find((o) => o.check === 'cable_exists').points);
@@ -1410,7 +1459,7 @@ test.describe('Builder', () => {
     await page.goto(BUILDER_URL);
     await importScenarioFile(page, file);
     // Comme chez l'élève : pannes appliquées et routes recalculées à l'import, rien n'est acquis.
-    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    await corrigeComplet(page); await departZero(page);
   });
 });
 

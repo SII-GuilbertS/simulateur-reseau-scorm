@@ -49,6 +49,10 @@
 
 ## 🛠️ Expérience enseignant (builder)
 
+- [x] **Vue Corrigé : contrôle du corrigé à la place du score** (15 novembre 2026) — le mot « score » prêtait à confusion (0 affiché sur un corrigé juste). L'en-tête dit si le corrigé réalise tous les objectifs ; un clic ouvre un tableau : état dans le corrigé (commandes rejouées sans terminal, raison de l'échec) et au départ de l'élève (pannes qui le masquent, objectif acquis d'avance). Calcul dans `ActivityWizard.review`.
+- [ ] **Appareil « à ajouter par l'élève » posé dans le corrigé** — aujourd'hui un objectif « ajouter un appareil » (et les tests qui en dépendent) ne peut pas être réalisé dans le corrigé : le contrôle indique « à vérifier en Essai ». Idée : le professeur pose le poste dans le corrigé et le marque « à ajouter par l'élève » ; il est retiré au départ, comme une panne. Le corrigé serait alors complet et vérifiable de bout en bout.
+- [ ] **Onglet Évaluation : aperçu des objectifs à commande** — l'aperçu d'un ping ou d'un nslookup y dit encore « pas encore validé dans votre essai » ; il pourrait reprendre le résultat du contrôle du corrigé (`ActivityWizard.review`).
+
 - [ ] **Assistant « Nouvelle activité » : d'autres modèles** — un lycée à deux salles, une construction où l'élève configure le routeur, d'autres thèmes (médiathèque, hôpital…). Chaque modèle passe automatiquement les règles des scénarios dans `sim-tests.js`.
 
 - [ ] **Variante « une panne de plus » sur une Box** — elle vise un poste à adresse fixe, ou à défaut un terminal WiFi d'une box protégée (mot de passe faux) : Maison en bénéficie. Restent le DHCP coupé et le SSID faux sur la Box elle-même.

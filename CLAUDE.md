@@ -43,8 +43,14 @@ renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les
 l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a qu'un point
 d'accroche (`deskView` dans `src/sim-ui.js`, qui lit `BUILDER_VIEW` ; chez l'élève il vaut toujours « essai »).
 `readOnly()` en découle (vue Départ élève) : ni glisser, ni dépôt, ni suppression, fiche aux champs figés
-(`propsLock`), palette grisée (`palLock`). En vue Corrigé, le score affiché est celui de l'élève à
-l'ouverture (`studentStartResults`), et `checkDynamicObjective` n'enregistre rien : les fenêtres du terminal
+(`propsLock`), palette grisée (`palLock`). En vue Corrigé, il n'y a pas de score : l'en-tête (`#hdr-score`,
+`ctlPill`) dit si le corrigé réalise tous les objectifs (« ✅ Corrigé complet », « ⚠️ Corrigé : N objectifs non
+réalisés », « · N à vérifier en Essai » pour ce que l'élève doit construire), et un clic ouvre le tableau
+« Contrôle du corrigé » (`ctlReviewHTML`) : pour chaque objectif, son état dans le corrigé et au départ de l'élève.
+Le calcul est `ActivityWizard.review` (bloc WIZARD, sans interface, testé) : les objectifs dynamiques y sont
+rejoués sans terminal (`play`, depuis le poste imposé ou depuis chaque poste s'il est au choix), avec la raison
+de l'échec et les pannes qui les cassent ; « ▶ Voir dans le terminal » rejoue la commande dans le bureau
+(`ctlShowRun`). `checkDynamicObjective` n'y enregistre rien : les fenêtres du terminal
 et du navigateur y portent la mention « non comptabilisé » (`deskUncounted`). L'essai est mis de côté dans `ESSAI_SNAP` quand on
 le quitte et repris au retour tant que `essaiKey()` (réseau corrigé normalisé sans positions, objectifs et
 pannes) n'a pas changé ; sinon il repart de zéro avec un message, comme avec « Recommencer l'essai ».
@@ -117,9 +123,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 402/402
+## Tests : `node tests/sim-tests.js` → doit afficher 405/405
 
-Suite de 402 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 405 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -134,7 +140,7 @@ terminal, `wifiLinkUp`, `wifiProblem`), mode panne (`applyFaults` : 8 types, for
 et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
 sauvegarde et reprise, fichier ou session abîmés refusés avant de remplacer le réseau (`networkDataProblem`),
 sauvegarde refusée par le LMS signalée, sauvegarde temporisée (une minuterie, un envoi seulement si le réseau a changé), annuler et rétablir (appareil supprimé retrouvé, pas groupés, pas sans effet sautés, lecture seule), cœur réseau exécuté seul sans navigateur (`linkCheck`, scénarios chargés, évalués et mis en panne), et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
-de 100 une fois le réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Les mêmes règles sont vérifiées sur chaque
+de 100 une fois le réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Le contrôle du corrigé (`ActivityWizard.review` : corrigé complet ou non, commandes rejouées, poste au choix, poste à ajouter) a sa suite. Les mêmes règles sont vérifiées sur chaque
 modèle de l'assistant « Nouvelle activité » (27 combinaisons, 3 tirages) et sur chaque variante des
 4 scénarios. Non couverts : rendu de l'interface et `EvalModule`/`GenModule` du builder (exports).
 
@@ -155,7 +161,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 53 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 54 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -164,7 +170,7 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs), le builder vierge à l'ouverture et l'alerte avant fermeture sans enregistrement, un câble débranché puis rebranché par le professeur en vue Essai (compté seulement au switch indiqué), la vue Corrigé où terminal et navigateur ne marquent aucun point, le bandeau du bas (Journal, Paquets, Activité ; replié, déplié, sans boutons de mode), la sauvegarde automatique de l'élève quelques secondes après une modification, Ctrl+Z et Ctrl+Y chez l'élève et dans le builder (suppression, déplacement, câble, poste ajouté, adresse), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic ; terminal et
+le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs), le builder vierge à l'ouverture et l'alerte avant fermeture sans enregistrement, un câble débranché puis rebranché par le professeur en vue Essai (compté seulement au switch indiqué), la vue Corrigé où terminal et navigateur ne marquent aucun point, le contrôle du corrigé (pastille de l'en-tête, tableau, commande rejouée dans le terminal, corrigé incomplet signalé), le bandeau du bas (Journal, Paquets, Activité ; replié, déplié, sans boutons de mode), la sauvegarde automatique de l'élève quelques secondes après une modification, Ctrl+Z et Ctrl+Y chez l'élève et dans le builder (suppression, déplacement, câble, poste ajouté, adresse), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic ; terminal et
 navigateur en fenêtre, une session par appareil, chez l'élève et dans le builder ; services réglés dans le
 bureau : Ctrl+Z, état laissé par le professeur reçu par l'élève, panne « service arrêté » réparée et conservée
 après rechargement), la connexion WiFi (SSID suivi dans le builder, mot de passe
@@ -247,14 +253,14 @@ Le tag local `avant-mode-unique` marque l'état d'avant.
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
   HTML et énoncé ne comptent pas comme un enregistrement (alerte à la fermeture, voir plus haut).
 - **Hook de commit partagé** : `.git/hooks/pre-commit` (un seul pour tous les dossiers de travail) exige
-  exactement 402/402 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
+  exactement 405/405 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic sur l'onglet Générer avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
 - **Documentation non régénérée** : `docs/*.pdf`, `README.md` et `site/` datent de la v1.9.4 et ne décrivent
   ni les vues du builder, ni les pannes notées, ni le builder vierge. À refaire à la prochaine release
   (voir la règle plus bas).
-- **Résultat de la dernière session** : 402 tests unitaires et 53 tests navigateur passent sur `master`, mode unique fusionné (non poussé par Claude : l'envoi est fait par l'utilisateur).
+- **Résultat de la dernière session** : 405 tests unitaires et 54 tests navigateur passent, mode unique fusionné, contrôle du corrigé à la place du score en vue Corrigé (non poussé par Claude : l'envoi est fait par l'utilisateur).
 
 ## Scénarios
 
@@ -295,7 +301,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 402/402
+node tests/sim-tests.js    # → 405/405
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -343,6 +349,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS (tout le script du builder, modules après `STUDENT_TEMPLATE` compris), résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 402 tests Node.js |
+| `tests/sim-tests.js` | Suite de 405 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

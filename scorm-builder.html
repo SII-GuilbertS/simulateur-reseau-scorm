@@ -187,6 +187,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .view-bar button{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:.95em}
 .view-bar button:hover{background:rgba(255,255,255,.35)}
 .sd-note{font-size:.78em;color:#718096;padding:4px 0 8px;border-bottom:1px solid #edf2f7;margin-bottom:4px}
+#score-details.wide{max-width:min(680px,calc(100vw - 16px));}
+.rv-tab{border-collapse:collapse;width:100%;font-size:.78em;color:#4a5568}
+.rv-tab th{text-align:left;font-weight:700;color:#2d3748;padding:5px 6px;border-bottom:1px solid #e2e8f0}
+.rv-tab td{padding:6px;border-bottom:1px solid #f0f4f8;vertical-align:top;line-height:1.35}
+.rv-pts{color:#718096;font-weight:700;white-space:nowrap}
+.rv-ko,.rv-acquired{color:#c05621}
+.rv-later,.rv-open,.rv-none{color:#718096}
+.rv-go{margin-top:4px;font-size:.95em;padding:2px 7px;border:1px solid #cbd5e0;border-radius:5px;background:#f7fafc;color:#2d3748;cursor:pointer}
 .tbar .wbtn{background:rgba(255,255,255,.2);font-size:.85em;padding:3px 10px}
 .tbar .wbtn:hover{background:rgba(255,255,255,.35)}
 .tbar-sep{width:1px;height:18px;background:rgba(255,255,255,.3)}
@@ -486,13 +494,13 @@ body{padding-top:0}/* nav is flex child */
   </div>
 
   <div class="hdr-mode">
-    <button class="mbtn active" id="btn-cfg" onclick="setBuilderView('corrige')" title="Le réseau qui fonctionne : on y règle adresses, câbles et services (double-clic sur un appareil pour son bureau, terminal compris). Aucun point ne s'y gagne : le score affiché est celui de l'élève à l'ouverture.">✏️ Corrigé</button>
+    <button class="mbtn active" id="btn-cfg" onclick="setBuilderView('corrige')" title="Le réseau qui fonctionne : on y règle adresses, câbles et services (double-clic sur un appareil pour son bureau, terminal compris). Aucun point ne s'y gagne : l'en-tête indique si le corrigé réalise tous les objectifs.">✏️ Corrigé</button>
     <button class="mbtn"        id="btn-depart" onclick="setBuilderView('depart')" title="Ce que l'élève trouve à l'ouverture : le corrigé avec les pannes, en lecture seule">👁️ Départ élève</button>
     <button class="mbtn"        id="btn-sim" onclick="setBuilderView('essai')" title="Vous jouez l'élève sur une copie : terminal, réparations, score réel. Le corrigé reste intact.">🧪 Essai</button>
   </div>
 
   <div class="hdr-r">
-    <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs" style="cursor:pointer">📊 Score : 0 / 100</div>
+    <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs" style="cursor:pointer">📋 Corrigé : aucun objectif</div>
     <button class="wbtn icon-only" onclick="resetScore()" title="Remettre le score à zéro et recalculer">🔄</button>
     <button class="wbtn" onclick="freezeStart()" title="Mémoriser le réseau corrigé actuel comme point de retour pour ↺ Réinitialiser (fait automatiquement à l'import d'un scénario)">📌 Figer le départ</button>
     <button class="wbtn" id="btn-reset-start" onclick="resetToStart()" title="Aucun état de départ figé">↺ Réinitialiser</button>
@@ -4081,6 +4089,8 @@ function updScore(){
   var cfg=(typeof EvalModule!=='undefined')?EvalModule.getConfig():null;
   var objs=cfg?scoredObjectives(cfg):[];
   var hasObj=objs.length>0;
+  // Vue Corrigé : pas de score (rien ne s'y gagne), mais l'état du corrigé — voir ctlReview
+  if(BUILDER_VIEW==='corrige'){ctlPill(TEACHER_CTL.review||ctlReview());return;}
   if(hasObj){
     var total=objs.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
     var earned=objs.reduce(function(s,o){return s+(ACTIVITY_RESULTS[o.id]?(parseInt(o.points)||0):0);},0);
@@ -4098,6 +4108,15 @@ function renderScoreDetails(){
   var _so=cfg?scoredObjectives(cfg):[];
   var objs=_so.length?_so:null;
   var h='<div class="sd-title">📊 Détail des objectifs</div>';
+  panel.classList.toggle('wide',BUILDER_VIEW==='corrige'&&!!objs);
+  // Sous la pastille, même quand l'en-tête passe sur deux lignes : un clic sur elle referme le panneau
+  var hb=document.getElementById('hdr-score');
+  if(hb&&hb.getBoundingClientRect)panel.style.top=Math.round(hb.getBoundingClientRect().bottom+6)+'px';
+  if(objs&&BUILDER_VIEW==='corrige'){
+    panel.innerHTML=ctlReviewHTML(ctlReview())+ctlFaultsHTML(cfg);
+    ctlPill(TEACHER_CTL.review);
+    return;
+  }
   if(objs){
     try{ctlCompute();}catch(e){}
     var total=objs.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
@@ -4350,12 +4369,55 @@ function ctlRenderBanner(){
     (au.problems.length?'\n• '+au.problems.join('\n• '):'')+'\nCliquer pour ouvrir l\'onglet Évaluation.';
 }
 
+/* ── Contrôle du corrigé (vue Corrigé) ───────────────────────
+   À la place du score : chaque objectif est-il réalisé dans le réseau corrigé ? Le calcul est dans
+   ActivityWizard.review (objectifs dynamiques rejoués sans terminal). ctlReview le refait et le garde
+   pour la pastille de l'en-tête ; ctlRefresh le relance après chaque dessin du réseau. */
+function ctlReview(){
+  var cfg=typeof ActivityWizard==='undefined'||!ActivityWizard?null:ctlCfg();
+  TEACHER_CTL.review=cfg&&scoredObjectives(cfg).length
+    ?ActivityWizard.review({network:SimModule.getState(),activity:cfg}):null;
+  return TEACHER_CTL.review;
+}
+function ctlPill(rv){
+  var el=document.getElementById('hdr-score');if(!el)return;
+  var pl=function(n,one,many){return n+' '+(n>1?many:one);};
+  el.textContent=!rv?'📋 Corrigé : aucun objectif'
+    :rv.ko?'⚠️ Corrigé : '+pl(rv.ko,'objectif non réalisé','objectifs non réalisés')
+    :'✅ Corrigé complet'+(rv.later?' · '+rv.later+' à vérifier en Essai':'');
+}
+function ctlReviewHTML(rv){
+  var ICON={ok:'✅',ko:'❌',later:'➖',todo:'✅',acquired:'⚠️',open:'ℹ️','':''};
+  var h='<div class="sd-title">📋 Contrôle du corrigé</div>'+
+    '<div class="sd-note">Chaque objectif est vérifié dans le <strong>réseau corrigé</strong> (les commandes sont rejouées '+
+    'automatiquement), puis au <strong>départ de l\'élève</strong>, pannes appliquées. Aucun point ne se gagne ici : '+
+    'pour jouer l\'élève, vue Essai.</div>'+
+    '<table class="rv-tab"><thead><tr><th>Objectif</th><th>Dans le corrigé</th><th>Au départ élève</th></tr></thead><tbody>';
+  rv.rows.forEach(function(r){
+    var show=r.dynamic&&r.cmd&&r.fromId&&r.check!=='dhcp_success';
+    h+='<tr data-rv="'+esc(String(r.id))+'"><td>'+esc(r.label)+' <span class="rv-pts">'+r.points+' pt</span></td>'+
+      '<td class="rv-'+r.corrige+'">'+ICON[r.corrige]+' '+esc(r.corrigeText)+
+      (show?'<br><button type="button" class="rv-go" onclick="ctlShowRun(\''+esc(String(r.id)).replace(/'/g,'')+'\')">▶ Voir dans le '+
+        (r.check==='http_success'?'navigateur':'terminal')+'</button>':'')+'</td>'+
+      '<td class="rv-'+(r.start||'none')+'">'+(r.start?ICON[r.start]+' '+esc(r.startText):'—')+'</td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+/* Rejoue la commande d'une ligne dans le bureau du poste, pour la lire en détail. */
+function ctlShowRun(id){
+  var rv=TEACHER_CTL.review,r=rv&&rv.rows.filter(function(x){return String(x.id)===String(id);})[0];
+  if(!r||!S.devs[r.fromId])return;
+  var panel=document.getElementById('score-details');if(panel)panel.classList.remove('open');
+  if(r.check==='http_success'){deskSess(r.fromId).url=r.cmd;deskOpen(r.fromId,'brow');deskBrowse(r.fromId);}
+  else{deskOpen(r.fromId,'term');deskTermRun(r.fromId,r.cmd);}
+}
+
 /* Recalcul différé : appelé après chaque dessin du réseau. */
 function ctlRefresh(){
   if(TEACHER_CTL.timer)return;
   TEACHER_CTL.timer=setTimeout(function(){
     TEACHER_CTL.timer=null;
-    try{ctlRenderBadges();ctlRenderBanner();}catch(e){}
+    try{ctlRenderBadges();ctlRenderBanner();if(BUILDER_VIEW==='corrige')ctlPill(ctlReview());}catch(e){}
   },150);
 }
 
@@ -4506,10 +4568,13 @@ function _viewUI(){
   var fz=document.querySelector('.hdr-r button[onclick="freezeStart()"]'),rs=document.getElementById('btn-reset-start');
   if(fz)fz.style.display=v==='corrige'?'':'none';
   if(rs)rs.style.display=v==='corrige'?'':'none';
+  // « Remettre le score à zéro » : sans objet en vue Corrigé, qui n'a pas de score
+  var rz=document.querySelector('.hdr-r button[onclick="resetScore()"]');
+  if(rz)rz.style.display=v==='corrige'?'none':'';
   var hs=document.getElementById('hdr-score');
   if(hs)hs.title=v==='essai'?'Score de votre essai : celui que l\'élève obtiendrait avec les mêmes gestes. Cliquer pour le détail.'
     :v==='depart'?'Score de l\'élève à l\'ouverture de l\'activité. Cliquer pour le détail.'
-    :'Score de l\'élève à l\'ouverture de l\'activité (corrigé + pannes). Rien ne se gagne dans le corrigé : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
+    :'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
 }
 
 /* Annuler / Rétablir : mécanisme du moteur (snapHistory, undo, redo), partagé avec l'élève. */
@@ -4597,7 +4662,7 @@ function resetScore(){
   S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
   checkAllObjectives();
   updScore();
-  notif('🔄 Score remis à zéro','info');
+  if(BUILDER_VIEW!=='corrige')notif('🔄 Score remis à zéro','info');   // pas de score en vue Corrigé
 }
 
 /* ── État de départ (Figer / Réinitialiser) ─────────────────
@@ -6854,14 +6919,50 @@ var ActivityWizard=(function(){
   function holds(o){
     var p=o.params||{};
     if(DYNAMIC_OBJ_TYPES.indexOf(o.check)<0)return !!checkObjectiveStatic(o);
-    var from=devByName(p.from);if(!from)return false;
-    switch(o.check){
-      case 'ping_success':var ip=pingTargetIP(p.to);return !!ip&&!!simPing(from.id,ip).ok;
-      case 'dns_success':return !!simDNS(from.id,p.domain||'').ok;
-      case 'http_success':return !!simHTTP(from.id,p.url||'').ok;
-      case 'dhcp_success':return !!simDHCP(from.id).ok;
-    }
-    return false;
+    return play(o).ok;
+  }
+  /* Commande d'un objectif dynamique, jouée depuis un appareil sur le réseau en place :
+     {ok, cmd, reason}. Sans cible imposée, toute cible du réseau convient. */
+  function playFrom(o,d){
+    var p=o.params||{},tries=[],out=null;
+    function add(cmd,fn){tries.push({cmd:cmd,fn:fn});}
+    if(o.check==='ping_success'){
+      if(p.to){
+        var ip=pingTargetIP(p.to);
+        if(!ip)return {ok:false,cmd:'ping '+(refName(p.to)||p.to),reason:'adresse de la cible inconnue'};
+        add('ping '+ip,function(){return simPing(d.id,ip);});
+      } else Object.values(S.devs).forEach(function(t){
+        var f=t.id!==d.id&&mainIface(t);
+        if(f&&f.ip)add('ping '+f.ip,function(){return simPing(d.id,f.ip);});
+      });
+    } else if(o.check==='dns_success'){
+      var doms=p.domain?[p.domain.trim()]:[];
+      if(!p.domain)Object.values(S.devs).forEach(function(t){doms=doms.concat(Object.keys((t.dns||{}).records||{}));});
+      doms.forEach(function(dom){add('nslookup '+dom,function(){return simDNS(d.id,dom);});});
+    } else if(o.check==='http_success'){
+      var urls=p.url?[p.url.trim()]:[];
+      if(!p.url)Object.values(S.devs).forEach(function(t){
+        var f=mainIface(t);if(t.http&&t.http.on&&f&&f.ip)urls.push(f.ip);
+      });
+      urls.forEach(function(u){add(u,function(){return simHTTP(d.id,u);});});
+    } else if(o.check==='dhcp_success')add('dhcp',function(){return simDHCP(d.id);});
+    tries.some(function(t){
+      var r=t.fn(),res={ok:!!r.ok,cmd:t.cmd,reason:r.ok?'':(r.reason||'échec')};
+      if(res.ok||!out)out=res;
+      return res.ok;
+    });
+    return out||{ok:false,cmd:'',reason:'aucune cible dans le réseau'};
+  }
+  /* Depuis le poste imposé par l'objectif, ou depuis chaque poste s'il est laissé au choix de l'élève. */
+  function play(o){
+    var named=((o.params||{}).from||'').trim(),nd=named?devByName(named):null;
+    var srcs=named?(nd?[nd]:[]):Object.values(S.devs).filter(function(d){return d.type==='pc'||d.type==='server';});
+    if(!srcs.length)return {ok:false,cmd:'',from:named,fromId:'',any:!named,okFrom:[],koFrom:[],
+      reason:named?'« '+named+' » n\'est pas dans le réseau':'aucun poste dans le réseau'};
+    var runs=srcs.map(function(d){var r=playFrom(o,d);r.from=d.name;r.fromId=d.id;return r;});
+    var good=runs.filter(function(r){return r.ok;}),bad=runs.filter(function(r){return !r.ok;}),first=good[0]||bad[0];
+    return {ok:!!good.length,cmd:first.cmd,from:first.from,fromId:first.fromId,reason:first.reason,any:!named,
+      okFrom:good.map(function(r){return r.from;}),koFrom:bad.map(function(r){return r.from;})};
   }
   function pts(o){return +o.points||0;}
   function sum(objs){return objs.reduce(function(s,o){return s+pts(o);},0);}
@@ -6887,6 +6988,8 @@ var ActivityWizard=(function(){
     });
     return objs.filter(function(o){
       var p=o.params||{};
+      // Poste à ajouter sans nom imposé : aucun appareil du réseau de départ ne compte
+      if(o.check==='device_added'&&!(p.newdev||'').trim())return true;
       if(Object.keys(p).some(function(k){
         var v=String(p[k]||'').trim(),r=refName(v);
         return names[v]||(r!==null&&names[r])||(k==='to'&&ips[v]);
@@ -6919,6 +7022,61 @@ var ActivityWizard=(function(){
       res.problems.push('l\'élève atteint le seuil ('+res.unfixed+' / '+res.mastery+' %) sans rien réparer ni construire');
     res.ok=!res.problems.length;
     return res;
+  }
+
+  /* ── Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé, et que vaut-il au
+     départ de l'élève ? Une ligne par objectif noté (pannes notées comprises) :
+       corrige : 'ok' (réalisé ; commande rejouée pour un objectif dynamique), 'ko' (non réalisé),
+                 'later' (porte sur ce que l'élève doit construire : à vérifier en Essai) ;
+       start   : 'todo' (à faire ; blockers = pannes qui le cassent), 'acquired' (statique déjà vrai à
+                 l'ouverture), 'open' (commande qui réussit sans rien réparer), '' (sans objet).
+     Sans toucher au réseau affiché. */
+  function review(sc){
+    var a=sc.activity||{},objs=scoredObjectives(a),faults=a.faults||[],build=toBuild(sc),nums={},n=0;
+    (a.evalOrder||[]).forEach(function(k){k=String(k);if(k[0]==='f'&&!nums[k.slice(2)])nums[k.slice(2)]=++n;});
+    faults.forEach(function(f){if(!nums[f.id])nums[f.id]=++n;});
+    function dyn(o){return DYNAMIC_OBJ_TYPES.indexOf(o.check)>=0;}
+    function shot(fl){
+      var r={};
+      withNetwork(sc.network,fl,function(){
+        dhcpFirst(objs).forEach(function(o){r[o.id]=dyn(o)?play(o):{ok:!!checkObjectiveStatic(o)};});
+      });
+      return r;
+    }
+    var fixed=shot([]),start=faults.length?shot(faults):fixed,per={};
+    faults.forEach(function(f){per[f.id]=faults.length>1?shot([f]):start;});
+    var rows=objs.map(function(o){
+      var c=fixed[o.id],s=start[o.id],d=dyn(o);
+      var row={id:o.id,label:o.label||o.check,points:pts(o),check:o.check,dynamic:d,fault:!!o.fault,
+        cmd:c.cmd||'',from:c.from||'',fromId:c.fromId||'',blockers:[]};
+      row.corrige=c.ok?'ok':build.indexOf(o)>=0?'later':'ko';
+      if(row.corrige==='ok')faults.slice().sort(function(x,y){return nums[x.id]-nums[y.id];})
+        .forEach(function(f){if(!per[f.id][o.id].ok)row.blockers.push('P'+nums[f.id]);});
+      row.start=row.corrige==='ko'||(d&&row.corrige==='later')?'':s.ok?(d?'open':'acquired'):'todo';
+      // Textes affichés au professeur
+      var t;
+      if(row.corrige==='later')t='à vérifier en Essai : dépend de ce que l\'élève doit construire';
+      else if(!d)t=c.ok?'réalisé':'non réalisé dans le corrigé';
+      else{
+        t=c.cmd?c.cmd+' ':'';
+        if(!c.any)t+=(c.from?'depuis '+c.from+' : ':'')+(c.ok?'réussit':c.reason);
+        else if(!c.ok)t+='échoue depuis tous les postes : '+c.reason;
+        else if(!c.koFrom.length)t+='réussit depuis tous les postes';
+        else t+='réussit depuis '+c.okFrom.length+' poste'+(c.okFrom.length>1?'s':'')+' sur '+
+          (c.okFrom.length+c.koFrom.length)+' (échoue depuis '+c.koFrom.join(', ')+')';
+      }
+      row.corrigeText=t;
+      var b=row.blockers,many=b.length>1;
+      row.startText=row.start==='acquired'?'déjà acquis à l\'ouverture'+(faults.length?' : aucune panne ne le casse':'')
+        :row.start==='open'?'réussit déjà, sans rien réparer'
+        :row.start!=='todo'?''
+        :d?(b.length?'échoue tant que '+b.join(', ')+(many?' ne sont pas réparées':' n\'est pas réparée'):'échoue à l\'ouverture')
+        :'à faire'+(b.length?' (panne'+(many?'s ':' ')+b.join(', ')+')':'');
+      return row;
+    });
+    function count(k,v){return rows.filter(function(r){return r[k]===v;}).length;}
+    return {rows:rows,ko:count('corrige','ko'),later:count('corrige','later'),acquired:count('start','acquired'),
+      ok:!count('corrige','ko')};
   }
 
   /* ── Variantes d'une activité existante ── */
@@ -7278,7 +7436,7 @@ var ActivityWizard=(function(){
     });
   }
 
-  return {TYPES:TYPES,THEMES:THEMES,LEVELS:LEVELS,build:build,audit:audit,makeVariant:makeVariant,
+  return {TYPES:TYPES,THEMES:THEMES,LEVELS:LEVELS,build:build,audit:audit,review:review,makeVariant:makeVariant,
     orderedItems:orderedItems,distribute:distribute};
 })();
 /* WIZARD-END */
@@ -7481,7 +7639,8 @@ window.addEventListener('load', function() {
       '<span class="tbar-hint">Dessinez le réseau qui fonctionne ; les pannes se règlent dans l\'onglet 2</span>';
     // Le score de l'en-tête est celui de l'essai du professeur ; « Terminer » et « Mode Professeur » ne servent qu'à l'élève
     var hs = document.getElementById('hdr-score');
-    if(hs) hs.title = 'Score de l\'élève à l\'ouverture de l\'activité (corrigé + pannes). Rien ne se gagne dans le corrigé : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
+    if(hs) hs.title = 'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
+    var rz0 = document.querySelector('.hdr-r button[onclick="resetScore()"]'); if(rz0) rz0.style.display = 'none';   // vue Corrigé : pas de score
     var fb = document.querySelector('.hdr-r .fbtn'); if(fb) fb.style.display = 'none';
     // 📤 et 📂 de l'en-tête exportaient un « réseau » : Ouvrir et Enregistrer (barre du haut) font l'activité entière
     document.querySelectorAll('#hdr-tools button[onclick="saveTopology()"], #hdr-tools button[onclick*="load-inp"]').forEach(function(b){ b.style.display = 'none'; });
