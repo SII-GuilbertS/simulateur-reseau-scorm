@@ -187,10 +187,12 @@ function clearAll(){
       applyFaults(ACTIVITY_CONFIG.faults);
     S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
     localStorage.removeItem(SESSION_KEY);
+    histReset();   // on repart de zéro : rien à annuler
     render();noSel();updScore();renderActivityTab();checkAllObjectives();
     notif('\u21a9\ufe0f R\u00e9seau de d\u00e9part recharg\u00e9 \u2014 score remis \u00e0 z\u00e9ro','ok');
   } else {
     if(!confirm('Effacer tout le r\u00e9seau ?'))return;
+    snapHistory();
     S.devs={};S.links={};S.frames={};S.texts={};S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
     render();noSel();
   }
@@ -249,6 +251,7 @@ function loadTopology(ev){
       if(pb)throw new Error(pb);
       var prev={devs:S.devs,links:S.links,nid:S.nid,frames:S.frames,texts:S.texts};
       try{
+        snapHistory();   // un fichier chargé par erreur s'annule
         applyNetworkData(data);
         S.sel=null;S.cableFrom=null;S.drag=null;
         render();noSel();

@@ -3,8 +3,50 @@
    S'appuie sur net-core.js, chargé juste avant. Tout ce qui touche la page, les minuteries ou
    le LMS est ici ; une règle de réseau ou d'évaluation va dans net-core.js.
 ───────────────────────────────────────────────────── */
-/* stub overridé par le builder */
-function snapHistory(){}
+/* ── Annuler / Rétablir (Ctrl+Z, Ctrl+Y) : builder et élève ──
+   snapHistory() s'appelle juste avant une modification du réseau : il met de côté l'état courant.
+   histBatch(fn) regroupe plusieurs modifications en un seul pas. Un pas qui n'a rien changé est sauté
+   à l'annulation. L'historique n'est pas sauvegardé : il repart de zéro au rechargement de la page. */
+var _undoStack=[],_redoStack=[],_MAX_HIST=40,_histHold=0;
+function _histState(){return JSON.stringify({devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid});}
+function snapHistory(){
+  if(_histHold)return;
+  var st=_histState();
+  if(_undoStack.length&&_undoStack[_undoStack.length-1]===st)return;
+  _undoStack.push(st);
+  if(_undoStack.length>_MAX_HIST)_undoStack.shift();
+  _redoStack=[];
+  _updUndoUI();
+}
+function histBatch(fn){
+  snapHistory();_histHold++;
+  try{return fn();}finally{_histHold--;}
+}
+function histReset(){_undoStack=[];_redoStack=[];_updUndoUI();}
+function _applySnap(snapStr){
+  var snap=JSON.parse(snapStr);
+  S.devs=snap.devs;S.links=snap.links;
+  S.frames=snap.frames;S.texts=snap.texts;S.nid=snap.nid;
+  S.sel=null;S.cableFrom=null;S.drag=null;S.activeLinks=new Set();
+  render();noSel();checkAllObjectives();updScore();
+  _updUndoUI();
+}
+function _histStep(from,to,msg){
+  if(readOnly()){roNotice();return;}
+  var cur=_histState(),target=null;
+  while(from.length){target=from.pop();if(target!==cur)break;target=null;}
+  if(target===null){_updUndoUI();return;}
+  to.push(cur);
+  _applySnap(target);
+  notif(msg,'info');
+}
+function undo(){_histStep(_undoStack,_redoStack,'↩ Annulé');}
+function redo(){_histStep(_redoStack,_undoStack,'↪ Rétabli');}
+function _updUndoUI(){
+  var u=document.getElementById('btn-undo'),r=document.getElementById('btn-redo');
+  if(u)u.disabled=!_undoStack.length;
+  if(r)r.disabled=!_redoStack.length;
+}
 
 /* Mot de passe du mode professeur : la ligne suivante est remplacée lors de la génération */
 var TEACHER_PWD = 'prof'; /* __TEACHER_PWD__ */
@@ -176,6 +218,7 @@ function addLink(a,b){
   var c=linkCheck(a,b);
   if(!c.ok){if(c.msg)notif('⚠️ '+c.msg,'err');return null;}
   var da=S.devs[a],db=S.devs[b];
+  snapHistory();
   var id='l'+(S.nid++);S.links[id]={id:id,from:a,to:b};
   setTimeout(function(){checkAllObjectives();},50);
   if(c.wifi){S.links[id].type='wifi';wifiPrefill(da.type==='wifi_router'?db:da,da.type==='wifi_router'?da:db);}
@@ -192,6 +235,7 @@ function wifiPrefill(t,b){
 }
 function setTermWifi(id,field,value){
   var d=S.devs[id];if(!d)return;
+  snapHistory();
   if(!d.wifi){var b=wifiBoxOf(d);d.wifi={ssid:b?b.ssid||'':'',pass:b?b.wifiPass||'':''};}
   d.wifi[field]=value;
   render();showProps(id);
@@ -200,6 +244,7 @@ function setTermWifi(id,field,value){
    passe ; dans l'activité, ils se déconnectent, comme avec une vraie box. */
 function setBoxWifi(id,field,value){
   var b=S.devs[id];if(!b)return;
+  snapHistory();
   var key=field==='ssid'?'ssid':'pass',old=field==='ssid'?b.ssid||'':b.wifiPass||'';
   if(isBuilderApp())Object.values(S.links).forEach(function(l){
     if(l.type!=='wifi'||(l.from!==id&&l.to!==id))return;
@@ -408,6 +453,7 @@ function palDS(e,type){if(readOnly()){e.preventDefault();return;}e.dataTransfer.
 function cwDrop(e){
   e.preventDefault();if(readOnly())return;
   var type=e.dataTransfer.getData('dvtype');if(!type)return;
+  snapHistory();
   var kind;if(type.indexOf(':')>0){kind=type.split(':')[1];type=type.split(':')[0];}
   var r=document.getElementById('canvas').getBoundingClientRect();
   var x=e.clientX-r.left,y=e.clientY-r.top;
@@ -487,6 +533,7 @@ function cvMM(e){
     } else if(S.drag.id&&S.devs[S.drag.id]){
       // Un appui qui ne bouge presque pas reste un clic : l'appareil ne glisse pas pendant un double-clic
       if(!S.drag.moved&&Math.abs(pt.x-S.drag.sx)<3&&Math.abs(pt.y-S.drag.sy)<3)return;
+      if(!S.drag.moved)snapHistory();   // un déplacement s'annule en un pas
       S.drag.moved=true;
       S.devs[S.drag.id].x=Math.max(4,pt.x-S.drag.ox);S.devs[S.drag.id].y=Math.max(4,pt.y-S.drag.oy);renderLinks();renderDevs();
     }
@@ -511,7 +558,7 @@ function selLink(id){
     '<div class="psection">Câble réseau</div>'+
     '<div class="pr"><label>De</label><div class="mono">'+esc(a?a.name:'?')+'</div></div>'+
     '<div class="pr"><label>Vers</label><div class="mono">'+esc(b?b.name:'?')+'</div></div>'+
-    '<button class="pb pb-red" onclick="delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer ce câble</button>';
+    '<button class="pb pb-red" onclick="snapHistory();delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer ce câble</button>';
   propsLock();
 }
 
@@ -545,6 +592,11 @@ function deleteSelection(){
 document.addEventListener('keydown',function(e){
   var t=e.target||{};
   var typing=t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable;
+  if((e.ctrlKey||e.metaKey)&&!typing){
+    var k=(e.key||'').toLowerCase();
+    if(k==='z'&&!e.shiftKey){e.preventDefault();undo();return;}
+    if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();redo();return;}
+  }
   if(e.key==='Escape'){S.drag=null;setTool('select');return;}
   if((e.key==='Delete'||e.key==='Backspace')&&!typing&&deleteSelection())e.preventDefault();
 });
@@ -712,6 +764,7 @@ function toggleDHCPMode(devId, enabled){
   var d=S.devs[devId];if(!d||!d.ifaces[0])return;
   var fi=d.ifaces[0],keys=['ip','mask','gateway','dns'];
   var was=!!fi.dhcpMode;
+  snapHistory();
   fi.dhcpMode=enabled;
   // La configuration fixe est mise de côté (staticCfg), jamais lue par la simulation ni
   // l'évaluation, et remise en place si la case DHCP est décochée.
@@ -728,7 +781,7 @@ function toggleDHCPMode(devId, enabled){
   }
   // Comme un vrai poste : activer le DHCP envoie aussitôt une demande d'adresse
   // (même effet que la commande dhcp, y compris pour les objectifs).
-  if(enabled)doDHCP(devId);
+  if(enabled){_histHold++;try{doDHCP(devId);}finally{_histHold--;}}   // même pas d'annulation que la case
   render();showProps(devId);
   setTimeout(function(){checkAllObjectives();},50);
 }
@@ -741,6 +794,7 @@ function setIface(devId,idx,field,val){
   if(field==='mask'&&!isValidUserMask(v)){
     notif('⚠️ Masque invalide : "'+v+'"','err');showProps(devId);return;
   }
+  snapHistory();
   S.devs[devId].ifaces[idx][field]=v;
   // Recalcul automatique si c'est un routeur avec la case cochée
   if(isRouter(S.devs[devId])&&S.devs[devId].autoRouteEnabled!==false){
@@ -759,18 +813,21 @@ function setDHCP(devId,field,val){
   if(field==='mask'&&!isValidUserMask(v)){
     notif('⚠️ Masque invalide : "'+v+'"','err');showProps(devId);return;
   }
+  snapHistory();
   S.devs[devId].dhcp[field]=v;
 }
 
 function addIface(devId){
   var d=S.devs[devId];if(!d||d.type!=='router')return;
   var n=d.ifaces.length;
+  snapHistory();
   d.ifaces.push({name:'eth'+n,ip:'',mask:'255.255.255.0'});
   showProps(devId);render();
 }
 
 function removeIface(devId,idx){
   var d=S.devs[devId];if(!d||d.ifaces.length<=2)return;
+  snapHistory();
   d.ifaces.splice(idx,1);
   // Renommer eth0, eth1, ...
   d.ifaces.forEach(function(f,i){f.name='eth'+i;});
@@ -1164,8 +1221,7 @@ function deskFilesChanged(id){
 }
 function deskApply(id,fn){
   if(readOnly()){roNotice();deskRefresh(id);return;}
-  snapHistory();
-  fn();
+  histBatch(fn);
   render();
   if(typeof checkAllObjectives==='function')checkAllObjectives();
   if(typeof saveToSession==='function')saveToSession();
@@ -1589,6 +1645,7 @@ function doDHCP(devId){
   }
   var d=S.devs[devId];tpr('');
   tpr('Envoi requête DHCP Discover…','info');
+  snapHistory();
   var res=simDHCP(devId);
   if(res.ok){
     tpr('DHCP Offer reçu de '+res.server+' :','ok');
@@ -1726,19 +1783,19 @@ function showFrameProps(id){
   var h='<div class="devbadge" style="background:'+f.bg+';color:'+f.border+';border:1.5px solid '+f.border+'">▭ Cadre</div>';
   h+='<div class="psection">Étiquette</div>';
   h+='<div class="pr"><label>Texte</label><input value="'+esc(f.label||'')+'" placeholder="Zone réseau"'+
-    ' onchange="S.frames[\''+id+'\'].label=this.value;renderFrames()"/></div>';
+    ' onchange="snapHistory();S.frames[\''+id+'\'].label=this.value;renderFrames()"/></div>';
   h+='<div class="psection">Couleur</div>';
   h+='<div class="pr"><label>Fond</label><input type="color" value="'+colorToHex(f.bg||'#fffbeb')+'"'+
-    ' onchange="S.frames[\''+id+'\'].bg=this.value;renderFrames()"/></div>';
+    ' onchange="snapHistory();S.frames[\''+id+'\'].bg=this.value;renderFrames()"/></div>';
   h+='<div class="pr"><label>Bordure & titre</label><input type="color" value="'+colorToHex(f.border||'#d97706')+'"'+
-    ' onchange="S.frames[\''+id+'\'].border=this.value;renderFrames()"/></div>';
+    ' onchange="snapHistory();S.frames[\''+id+'\'].border=this.value;renderFrames()"/></div>';
   h+='<div class="psection">Dimensions</div>';
   h+='<div class="pr"><label>Largeur (px)</label><input type="number" min="80" value="'+(f.w||300)+'"'+
-    ' onchange="S.frames[\''+id+'\'].w=Math.max(80,parseInt(this.value)||300);renderFrames()"/></div>';
+    ' onchange="snapHistory();S.frames[\''+id+'\'].w=Math.max(80,parseInt(this.value)||300);renderFrames()"/></div>';
   h+='<div class="pr"><label>Hauteur (px)</label><input type="number" min="50" value="'+(f.h||200)+'"'+
-    ' onchange="S.frames[\''+id+'\'].h=Math.max(50,parseInt(this.value)||200);renderFrames()"/></div>';
+    ' onchange="snapHistory();S.frames[\''+id+'\'].h=Math.max(50,parseInt(this.value)||200);renderFrames()"/></div>';
   h+='<div class="psection"></div>';
-  h+='<button class="pb pb-red" onclick="delete S.frames[\''+id+'\'];S.sel=null;renderFrames();noSel()">🗑️ Supprimer ce cadre</button>';
+  h+='<button class="pb pb-red" onclick="snapHistory();delete S.frames[\''+id+'\'];S.sel=null;renderFrames();noSel()">🗑️ Supprimer ce cadre</button>';
   document.getElementById('props-body').innerHTML=h;
 }
 
@@ -1747,14 +1804,14 @@ function showTextProps(id){
   var h='<div class="devbadge" style="background:#f1f5f9;color:#1e293b;border:1.5px solid #64748b">𝐓 Texte</div>';
   h+='<div class="psection">Contenu</div>';
   h+='<div class="pr"><label>Texte</label><input value="'+esc(t.text||'')+'"'+
-    ' onchange="S.texts[\''+id+'\'].text=this.value;renderTexts()"/></div>';
+    ' onchange="snapHistory();S.texts[\''+id+'\'].text=this.value;renderTexts()"/></div>';
   h+='<div class="psection">Style</div>';
   h+='<div class="pr"><label>Taille (px)</label><input type="number" min="8" max="72" value="'+(t.size||16)+'"'+
-    ' onchange="S.texts[\''+id+'\'].size=Math.max(8,Math.min(72,parseInt(this.value)||16));renderTexts()"/></div>';
+    ' onchange="snapHistory();S.texts[\''+id+'\'].size=Math.max(8,Math.min(72,parseInt(this.value)||16));renderTexts()"/></div>';
   h+='<div class="pr"><label>Couleur</label><input type="color" value="'+colorToHex(t.color||'#1e293b')+'"'+
-    ' onchange="S.texts[\''+id+'\'].color=this.value;renderTexts()"/></div>';
+    ' onchange="snapHistory();S.texts[\''+id+'\'].color=this.value;renderTexts()"/></div>';
   h+='<div class="psection"></div>';
-  h+='<button class="pb pb-red" onclick="delete S.texts[\''+id+'\'];S.sel=null;renderTexts();noSel()">🗑️ Supprimer ce texte</button>';
+  h+='<button class="pb pb-red" onclick="snapHistory();delete S.texts[\''+id+'\'];S.sel=null;renderTexts();noSel()">🗑️ Supprimer ce texte</button>';
   document.getElementById('props-body').innerHTML=h;
 }
 

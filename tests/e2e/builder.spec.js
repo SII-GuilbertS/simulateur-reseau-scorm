@@ -1764,6 +1764,103 @@ test.describe('Souris sur le schéma', () => {
     await studentScore(page, 0);
   });
 
+  test('élève : Ctrl+Z rend un appareil supprimé par erreur, annule un déplacement, un câble et une adresse ; Ctrl+Y rétablit', async ({ page }, info) => {
+    await openStudentExport(page, info, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const box = await deviceId(page, 'Box-WiFi');
+    const undo = page.locator('#btn-undo'), redo = page.locator('#btn-redo');
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+    const links0 = await linkList(page);
+
+    // Réparation, puis suppression par erreur : Ctrl+Z rend l'appareil, ses câbles, son réglage et ses points
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await studentScore(page, 35);
+    await clickDev(page, pcB);
+    await page.keyboard.press('Delete');
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(false);
+    await studentScore(page, 0);
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+    expect(await linkList(page)).toEqual(links0);
+    await studentScore(page, 35);
+    await expect(redo).toBeEnabled();
+
+    // Ctrl+Y rétablit la suppression, le bouton ↩ l'annule de nouveau
+    await page.keyboard.press('Control+y');
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(false);
+    await undo.click();
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(true);
+
+    // Un déplacement s'annule en un pas
+    const start = await devPos(page, pcB);
+    await page.waitForTimeout(600);
+    await dragDev(page, pcB, 70, 40);
+    expect(await devPos(page, pcB)).not.toEqual(start);
+    await page.locator('#cw').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('Control+z');
+    expect(await devPos(page, pcB)).toEqual(start);
+
+    // Un poste ajouté et câblé : deux pas (le câble, puis le poste)
+    const spot = await freeSpot(page);
+    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+    await page.locator('#pi-link').click();
+    await clickDev(page, pc);
+    await clickDev(page, box);
+    await page.keyboard.press('Escape');
+    expect(await linkList(page)).toHaveLength(links0.length + 1);
+    await page.keyboard.press('Control+z');
+    expect(await linkList(page)).toEqual(links0);
+    expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(true);
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(false);
+
+    // Pendant une saisie, Ctrl+Z reste celui du champ : le réseau ne recule pas
+    await clickDev(page, pcB);
+    const name = page.locator('#props-body input').first();
+    await name.focus();
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(true);
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+
+    // L'historique ne survit pas au rechargement ; le réseau, si
+    await page.reload();
+    await expect(page.locator('#btn-undo')).toBeDisabled();
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+  });
+
+  test('builder : Ctrl+Z annule aussi une adresse, un câble posé et un appareil ajouté ; rien ne s\'annule en vue Départ élève', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const box = await deviceId(page, 'Box-WiFi');
+    const links0 = await linkList(page);
+    const n0 = await page.evaluate(() => Object.keys(S.devs).length);
+
+    await setGateway(page, 'PC-Bureau', '192.168.1.254');
+    const spot = await freeSpot(page);
+    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+    await page.locator('#pi-link').click();
+    await clickDev(page, pc);
+    await clickDev(page, box);
+    await page.keyboard.press('Escape');
+    await page.locator('#cw').click({ position: { x: 5, y: 5 } });
+
+    // Départ élève : lecture seule, l'historique du corrigé n'y est pas rejoué
+    await page.locator('#btn-depart').click();
+    await page.keyboard.press('Control+z');
+    await page.locator('#btn-cfg').click();
+    expect(await linkList(page)).toHaveLength(links0.length + 1);
+
+    await page.keyboard.press('Control+z');                                  // le câble
+    expect(await linkList(page)).toEqual(links0);
+    await page.keyboard.press('Control+z');                                  // le poste
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(n0);
+    await page.keyboard.press('Control+z');                                  // la passerelle
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+    await page.keyboard.press('Control+y');
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.254');
+  });
+
   test('un glisser suivi d\'un clic n\'ouvre pas le bureau ; un double-clic qui tremble ne déplace pas l\'appareil', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
     const pcB = await deviceId(page, 'PC-Bureau');

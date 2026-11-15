@@ -216,6 +216,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
     <button class="tbtn icon-only active" id="t-select" onclick="setTool('select')" title="Outil Sélection">🖱</button>
     <button class="tbtn icon-only"        id="t-link"   onclick="setTool('link')"   title="Outil Câble">🔗</button>
     <button class="tbtn icon-only"        id="t-delete" onclick="setTool('delete')" title="Outil Suppression">🗑</button>
+    <button class="tbtn icon-only" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled>↩</button>
+    <button class="tbtn icon-only" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled>↪</button>
     <button class="tbtn icon-only"        id="t-clear"  onclick="clearAll()"        title="Reset — Recharger le réseau de départ">♻</button>
     <button class="tbtn icon-only" id="t-save" onclick="manualSave()"               title="Sauvegarder dans la session (reprise possible)">💾</button>
     <button class="tbtn icon-only" onclick="saveTopology()"                         title="Exporter le réseau en fichier JSON">📤</button>

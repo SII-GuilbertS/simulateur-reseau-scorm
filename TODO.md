@@ -6,7 +6,7 @@
 
 ## ⭐ Priorité haute
 
-- [ ] **Mode unique : supprimer le mode « Simulation »** — éditer (ajouter, câbler, configurer) et simuler (terminal, navigateur, objectifs) dans le même état, sans basculer. Décidé en principe le 15 novembre 2026 ; à reprendre en trois étapes, chacune livrable seule. Détail ci-dessous.
+- ✅ **Mode unique : supprimer le mode « Simulation »** — éditer (ajouter, câbler, configurer) et simuler (terminal, navigateur, objectifs) dans le même état, sans basculer. Décidé en principe le 15 novembre 2026 ; à reprendre en trois étapes, chacune livrable seule. Détail ci-dessous.
 
   **Pourquoi.** Le moteur simule déjà en permanence : chaque `render()` appelle `scheduleObjectiveCheck()`, les objectifs sont réévalués et les objectifs dynamiques rejoués (`ACTIVITY_PROOFS`). Le mode ne fait que filtrer l'interface (`S.mode` : `'config'` ou `'simulation'`). Il ne protège rien (l'élève bascule librement), force des allers-retours « je configure → je teste », et double le code (deux fiches de propriétés, une vingtaine de gardes). Dans le builder, il ne sert déjà plus qu'à la vue Essai.
 
@@ -19,11 +19,7 @@
 
   **Constaté à l'étape 2, à décider** : la sauvegarde complète (`suspend_data`) d'un scénario fourni fait de 4 100 à 7 500 caractères en fin d'activité, au-delà des 4 096 garantis par SCORM 1.2. Moodle l'accepte ; un LMS strict la refuse, et la reprise sur un autre poste est alors perdue (l'élève est prévenu). Piste : n'enregistrer que les écarts avec le réseau de départ.
 
-  **Étape 3 — option « Topologie verrouillée » (par activité)** : remplace la protection qui n'existe pas aujourd'hui, pour les exercices de diagnostic où l'élève ne doit pas recâbler.
-  - Champ `lockTopology` (booléen, faux par défaut) dans la configuration de l'activité : case dans l'onglet Évaluation, carte « Paramètres de notation » ; exporté dans `ACTIVITY_CONFIG` et dans le scénario JSON ; absent = faux, donc les anciens scénarios et packages ne changent pas.
-  - Effet côté élève : palette, outil Câble, Suppr., déplacement et suppression d'appareils, annotations désactivés, avec un message « Topologie verrouillée par l'enseignant ». **Restent permis** : adresses, services, WiFi, terminal, bureau.
-  - **À décider** : l'assistant « Nouvelle activité » coche-t-il la case par défaut pour le type Dépannage (et la laisse-t-il décochée pour Construction et Découverte) ? Les variantes la conservent-elles ? Le scénario du collège (adressage fixe par salle) doit-il être verrouillé ?
-  - Tests : `sim-tests.js` (la règle vit dans le moteur : un test sur le refus d'ajout et de suppression quand le verrou est actif), e2e (palette grisée chez l'élève, scénario ancien sans le champ inchangé).
+  **Étape 3 — option « Topologie verrouillée »** : abandonnée (15 novembre 2026). Le verrou ne protégeait pas la note (les objectifs visent des appareils et des valeurs précis), était incompatible avec les pannes de câble et les postes à ajouter (deux scénarios sur quatre, une partie de l'assistant), et le désordre se répare autrement : bouton « Recommencer depuis le réseau de départ », et surtout **Ctrl+Z / Ctrl+Y chez l'élève**, fait à la place (mécanisme du builder déplacé dans le moteur, étendu aux ajouts, câbles, adresses et déplacements).
 
   **Critère d'arrêt de chaque étape** : `node tests/sim-tests.js` et `npm --prefix tests/e2e test` verts, parcours élève complet (construire, câbler, configurer, tester, recharger la page et retrouver son réseau) vérifié dans le navigateur, et un export HTML ouvert directement.
 

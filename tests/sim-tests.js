@@ -2384,6 +2384,55 @@ test('poste ajouté et nommé en minuscules : ping au terminal validé puis rev�
   ok(done(1), 'toujours valide après revérification');
 });
 
+/* ── Annuler / Rétablir : même mécanisme pour le builder et l'élève ── */
+suite('Annuler / Rétablir (Ctrl+Z, Ctrl+Y)');
+
+test('appareil supprimé par erreur : retrouvé avec ses câbles et ses réglages ; rétablir le supprime de nouveau', function() {
+  resetNet(); sandbox.histReset();
+  var pc = mkPC('192.168.1.10', '255.255.255.0', '192.168.1.1'), sw = mkSwitch(); link(pc, sw);
+  S.sel = pc;
+  ok(sandbox.deleteSelection());
+  notOk(S.devs[pc]); eq(Object.keys(S.links).length, 0);
+  sandbox.undo();
+  ok(S.devs[pc]); eq(S.devs[pc].ifaces[0].gateway, '192.168.1.1'); eq(Object.keys(S.links).length, 1);
+  sandbox.redo();
+  notOk(S.devs[pc]); eq(Object.keys(S.links).length, 0);
+  sandbox.undo();
+  ok(S.devs[pc]);
+  // Rien de plus à annuler : sans effet
+  sandbox.undo(); sandbox.undo();
+  ok(S.devs[pc]); eq(Object.keys(S.links).length, 1);
+});
+
+test('adresse, câble, réglages groupés : un pas chacun ; un pas sans changement est sauté ; lecture seule refusée', function() {
+  resetNet(); sandbox.histReset();
+  var pc = mkPC('192.168.1.10'), sw = mkSwitch();
+  // Adresse changée dans la fiche, puis câble posé : deux pas
+  sandbox.setIface(pc, 0, 'ip', '192.168.1.50');
+  var l = sandbox.addLink(pc, sw); ok(l);
+  sandbox.undo(); notOk(S.links[l]); eq(S.devs[pc].ifaces[0].ip, '192.168.1.50');
+  sandbox.undo(); eq(S.devs[pc].ifaces[0].ip, '192.168.1.10');
+  sandbox.redo(); sandbox.redo();
+  ok(S.links[l]); eq(S.devs[pc].ifaces[0].ip, '192.168.1.50');
+  // Adresse refusée : rien n'est mis de côté
+  var n = sandbox._undoStack.length;
+  sandbox.setIface(pc, 0, 'ip', '999.1.1.1');
+  eq(sandbox._undoStack.length, n);
+  // Plusieurs réglages validés ensemble (formulaire du bureau) : un seul pas
+  sandbox.histBatch(function() {
+    sandbox.setIface(pc, 0, 'ip', '10.0.0.5'); sandbox.setIface(pc, 0, 'mask', '255.0.0.0'); sandbox.setIface(pc, 0, 'gateway', '10.0.0.1');
+  });
+  eq(sandbox._undoStack.length, n + 1);
+  // Même valeur revalidée : le pas existe mais ne change rien, l'annulation le saute
+  sandbox.setIface(pc, 0, 'ip', '10.0.0.5');
+  sandbox.undo();
+  eq(S.devs[pc].ifaces[0].ip, '192.168.1.50'); eq(S.devs[pc].ifaces[0].mask, '255.255.255.0');
+  // Vue Départ élève du builder : rien ne s'annule
+  sandbox.BUILDER_VIEW = 'depart';
+  try { sandbox.undo(); eq(S.devs[pc].ifaces[0].ip, '192.168.1.50'); ok(S.links[l]); }
+  finally { delete sandbox.BUILDER_VIEW; sandbox.histReset(); }
+});
+
 /* ── Touche Suppr : effacer la sélection ── */
 suite('Suppr — effacer l\'élément sélectionné');
 
