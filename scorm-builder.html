@@ -4218,6 +4218,7 @@ function renderScoreDetails(){
   } else {
     h+='<div style="color:#a0aec0;font-size:.9em;padding:6px 0">Aucun objectif configuré.<br>Utilisez l\'onglet Évaluation pour définir des objectifs.</div>';
   }
+  h+=ctlFaultsHTML(cfg);
   panel.innerHTML=h;
 }
 
@@ -4342,6 +4343,40 @@ function ctlScoreNote(o){
                            :'vrai dans le corrigé, à construire par l\'élève';
 }
 
+/* Pannes dont aucun objectif ne mesure la réparation (numéros « P1 »… renvoyés) : elles se règlent
+   sans rapporter de point. Un objectif « mesure » une panne s'il porte sur l'un de ses appareils. */
+function ctlUnmeasured(cfg){
+  var out=[],nums=ctlFaultNums(cfg),objs=(cfg&&cfg.objectives)||[];
+  ((cfg&&cfg.faults)||[]).forEach(function(f){
+    var p=f.params||{},names=[p.dev,p.devA,p.devB].filter(Boolean);
+    var measured=objs.some(function(o){
+      var q=o.params||{};
+      return Object.keys(q).some(function(k){
+        var v=String(q[k]||'').trim(),r=(typeof refName==='function')?refName(v):null;
+        return names.indexOf(v)>=0||(r!==null&&names.indexOf(r)>=0);
+      });
+    });
+    if(!measured)out.push('P'+nums[f.id]);
+  });
+  return out;
+}
+
+/* Section « Pannes » du détail du score : visibles même sans objectif. */
+function ctlFaultsHTML(cfg){
+  var faults=(cfg&&cfg.faults)||[];
+  if(!faults.length)return '';
+  var nums=ctlFaultNums(cfg),un=ctlUnmeasured(cfg);
+  var h='<div class="sd-title" style="margin-top:10px">🔧 Pannes injectées ('+faults.length+')</div>';
+  faults.forEach(function(f){
+    var n='P'+nums[f.id],lab=f.label||(EvalModule.faultAutoLabel?EvalModule.faultAutoLabel(f):f.type);
+    h+='<div class="sd-obj"><span>🔴</span><span class="sd-label"><strong>'+n+'</strong> — '+esc(lab)+
+      (un.indexOf(n)>=0?'<br><em style="color:#c05621;font-size:.85em">⚠️ aucun objectif ne mesure sa réparation : elle ne rapporte aucun point</em>':'')+
+      '</span><span class="sd-pts"></span></div>';
+  });
+  h+='<div class="sd-note">Appliquées à l\'ouverture de l\'activité chez l\'élève (vue « Départ élève » ou « Essai »).</div>';
+  return h;
+}
+
 /* Pastilles « P1 », « P2 »… sur les appareils touchés, visibles du professeur seulement. */
 function ctlRenderBadges(){
   var g=document.getElementById('layer-badges');if(!g)return;
@@ -4381,12 +4416,19 @@ function ctlRenderBanner(){
   var cfg=ctlCfg();
   if(ac)ac.textContent='📂 « '+((cfg&&cfg.title)||'Sans titre')+' »';
   var objs=(cfg&&cfg.objectives)||[];
-  if(!objs.length){bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans l\'onglet 2</span>';bn.title='';return;}
+  var nF=((cfg&&cfg.faults)||[]).length;
+  if(!objs.length){
+    bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans l\'onglet 2</span>'+
+      (nF?'<span class="ctl-pill warn">⚠️ '+nF+' panne'+(nF>1?'s':'')+' sans objectif : aucun point à gagner</span>':'');
+    bn.title='Une panne ne rapporte des points que si un objectif mesure sa réparation (onglet Évaluation).';return;
+  }
   var au=ActivityWizard.audit({network:SimModule.getState(),activity:cfg});
   var pill=function(c,t){return '<span class="ctl-pill '+c+'">'+t+'</span>';};
   var h=au.start>0?pill('warn','⚠️ Départ élève : '+au.start+' / '+au.total+' pts'):pill('ok','✓ Départ élève : 0 / '+au.total+' pts');
   h+=au.failing.length?pill('warn','⚠️ '+au.failing.length+' objectif'+(au.failing.length>1?'s':'')+' impossible'+(au.failing.length>1?'s':'')):pill('ok','✓ Tout est atteignable');
   if((au.faults||au.toBuild)&&au.unfixed>=au.mastery)h+=pill('warn','⚠️ Seuil atteint sans rien réparer');
+  var unm=ctlUnmeasured(cfg);
+  if(unm.length)h+=pill('warn','⚠️ '+unm.join(', ')+' sans objectif');
   h+=pill('',(au.faults?au.faults+' panne'+(au.faults>1?'s':''):'aucune panne')+' · seuil '+au.mastery+' %');
   bn.innerHTML=h;
   bn.title=(au.ok?'Aucun problème détecté. ':'')+'Départ élève = ce que l\'élève a en ouvrant l\'activité (réseau corrigé + pannes), sans rien faire.'+

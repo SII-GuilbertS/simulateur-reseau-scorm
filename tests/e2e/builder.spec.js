@@ -925,12 +925,28 @@ test.describe('Builder', () => {
     await page.locator('#hdr-score').click();
     await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P1');
     await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P2');
+    // Les pannes sont listées dans le détail du score, avec leur numéro
+    await expect(page.locator('#score-details')).toContainText('Pannes injectées (2)');
+    await expect(page.locator('#score-details')).toContainText('P1 — Service désactivé · Serveur');
 
     // Onglet Évaluation : état par rapport au corrigé et au départ élève
     await page.locator('.bld-tab[data-tab="2"]').click();
     const dnsCard = page.locator('#ev-list .obj-card', { hasText: 'Le service DNS du Serveur est actif' });
     await expect(dnsCard.locator('.obj-preview')).toContainText('Vrai dans le corrigé');
     await expect(dnsCard.locator('.obj-preview')).toContainText('faux au départ élève (panne P1)');
+
+    // Sans aucun objectif, les pannes restent visibles (score et bandeau) et le bandeau prévient qu'elles ne rapportent rien
+    await page.evaluate(() => { window.__objs = EvalModule.getConfig().objectives.splice(0); });
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await expect(banner).toContainText('2 pannes sans objectif');
+    await page.locator('#hdr-score').click();
+    await expect(page.locator('#score-details')).toContainText('Aucun objectif configuré');
+    await expect(page.locator('#score-details')).toContainText('P2 — Passerelle incorrecte · PC-Bob');
+    await expect(page.locator('#score-details')).toContainText('aucun objectif ne mesure sa réparation');
+    await page.locator('#hdr-score').click();
+    await page.evaluate(() => { EvalModule.getConfig().objectives.push(...window.__objs); });
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('.bld-tab[data-tab="1"]').click();
 
     // Sans panne, l'élève aurait des points d'office : le bandeau prévient
     await page.evaluate(() => { EvalModule.getConfig().faults.length = 0; });
