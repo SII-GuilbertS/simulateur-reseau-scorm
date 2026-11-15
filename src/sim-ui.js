@@ -107,7 +107,7 @@ function propsChangeHook(){
 function engineDomInit(){palIcons();propsChangeHook();}
 try{if(typeof document!=='undefined'&&document.addEventListener){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',engineDomInit);else engineDomInit();}}catch(e){}
-// Ligne « Modèle » du panneau de propriétés d'un PC (mode configuration)
+// Ligne « Modèle » du panneau de propriétés d'un PC
 function pcKindRowHTML(id){
   var d=S.devs[id];if(!d||d.type!=='pc')return '';
   var h='<div class="pr"><label>Modèle</label><select onchange="onPcKindChange(\''+id+'\',this.value)">';
@@ -419,9 +419,9 @@ function renderHint(){document.getElementById('cv-hint').style.display=Object.ke
 /* ─────────────────────────────────────────────────────
    PALETTE DRAG & DROP
 ───────────────────────────────────────────────────── */
-function palDS(e,type){if(S.mode==='simulation'){e.preventDefault();return;}e.dataTransfer.setData('dvtype',type);}
+function palDS(e,type){if(readOnly()){e.preventDefault();return;}e.dataTransfer.setData('dvtype',type);}
 function cwDrop(e){
-  e.preventDefault();if(S.mode==='simulation')return;
+  e.preventDefault();if(readOnly())return;
   var type=e.dataTransfer.getData('dvtype');if(!type)return;
   var kind;if(type.indexOf(':')>0){kind=type.split(':')[1];type=type.split(':')[0];}
   var r=document.getElementById('canvas').getBoundingClientRect();
@@ -444,37 +444,41 @@ function cwDrop(e){
 ───────────────────────────────────────────────────── */
 function svgPt(e){var r=document.getElementById('canvas').getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
 
+/* Lecture seule : la vue « Départ élève » du builder (deskView), où rien ne se modifie, ni sur le
+   schéma ni dans la fiche. Chez l'élève, toujours faux. */
+function readOnly(){return deskView()==='depart';}
+function roNotice(){notif('👁️ Vue « Départ élève » en lecture seule : passez en « Essai » pour agir','info');}
+
+/* Appui sur un appareil. Outils Supprimer et Câble : l'action de l'outil. Sinon : sélection, fiche,
+   début d'un glisser ; le terminal du bandeau suit l'appareil ; un second appui rapproché ouvre son
+   bureau (deskDblCheck) et ne commence pas de glisser. */
 function devMD(e,id){
   e.stopPropagation();
-  if(S.mode==='simulation'){
-    var _d=S.devs[id];
-    if(_d.type!=='switch'){S.termDev=id;setTermDev(id);showTab('term');}
-    S.sel=id;render();showPropsSimu(id);
-    if(!_propsVisible)toggleProps();
-    deskDblCheck(id);
-    return;
-  }
-  if(S.tool==='delete'){delDev(id);render();noSel();return;}
-  if(S.tool==='link'){
+  var ro=readOnly(),d=S.devs[id];
+  if(!ro&&S.tool==='delete'){delDev(id);render();noSel();return;}
+  if(!ro&&S.tool==='link'){
     if(!S.cableFrom){S.cableFrom=id;render();}
     else{if(S.cableFrom!==id){addLink(S.cableFrom,id);}S.cableFrom=null;hidePrev();render();}
     return;
   }
+  if(d.type!=='switch')setTermDev(id);
   var pt=svgPt(e);
-  S.sel=id;S.drag={id:id,ox:pt.x-S.devs[id].x,oy:pt.y-S.devs[id].y};render();showProps(id);
+  S.sel=id;
+  S.drag=ro?null:{id:id,ox:pt.x-d.x,oy:pt.y-d.y,sx:pt.x,sy:pt.y,moved:false};
+  render();showProps(id);
   if(!_propsVisible)toggleProps();
-  deskDblCheck(id);
+  if(deskDblCheck(id))S.drag=null;
 }
 
 function devRC(e,id){
   e.preventDefault();e.stopPropagation();
   // Clic droit : sélectionner sans supprimer
-  if(S.mode==='config'){S.sel=id;render();showProps(id);}
+  S.sel=id;render();showProps(id);
 }
 function linkRC(e,id){
   e.preventDefault();e.stopPropagation();
   // Clic droit : sélectionner le câble sans le supprimer
-  if(S.mode==='config'){S.sel=id;render();}
+  S.sel=id;render();
 }
 
 function cvMD(e){
@@ -497,6 +501,9 @@ function cvMM(e){
     } else if(S.drag.type==='anntext'){
       var t=S.texts[S.drag.id];if(t){t.x=Math.max(4,pt.x-S.drag.ox);t.y=Math.max(10,pt.y-S.drag.oy);renderTexts();}
     } else if(S.drag.id&&S.devs[S.drag.id]){
+      // Un appui qui ne bouge presque pas reste un clic : l'appareil ne glisse pas pendant un double-clic
+      if(!S.drag.moved&&Math.abs(pt.x-S.drag.sx)<3&&Math.abs(pt.y-S.drag.sy)<3)return;
+      S.drag.moved=true;
       S.devs[S.drag.id].x=Math.max(4,pt.x-S.drag.ox);S.devs[S.drag.id].y=Math.max(4,pt.y-S.drag.oy);renderLinks();renderDevs();
     }
   }
@@ -507,11 +514,12 @@ function cvMM(e){
     pl.setAttribute('x2',pt.x);pl.setAttribute('y2',pt.y);pl.setAttribute('display','block');
   }
 }
-function cvMU(){S.drag=null;}
+/* Fin du glisser. Un appareil déplacé ne compte pas comme premier clic d'un double-clic. */
+function cvMU(){if(S.drag&&S.drag.moved)DESK.last={id:null,t:0};S.drag=null;}
 function hidePrev(){var pl=document.getElementById('prev-line');pl.setAttribute('display','none');}
 
 function selLink(id){
-  if(S.tool==='delete'){delete S.links[id];render();noSel();return;}
+  if(S.tool==='delete'&&!readOnly()){delete S.links[id];render();noSel();return;}
   S.sel=id;render();
   var l=S.links[id];if(!l){noSel();return;}
   var a=S.devs[l.from],b=S.devs[l.to];
@@ -520,6 +528,7 @@ function selLink(id){
     '<div class="pr"><label>De</label><div class="mono">'+esc(a?a.name:'?')+'</div></div>'+
     '<div class="pr"><label>Vers</label><div class="mono">'+esc(b?b.name:'?')+'</div></div>'+
     '<button class="pb pb-red" onclick="delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer ce câble</button>';
+  propsLock();
 }
 
 /* ─────────────────────────────────────────────────────
@@ -534,10 +543,10 @@ function setTool(t){
   render();
 }
 
-/* Suppr : efface l'élément sélectionné (appareil, câble, cadre ou texte), en mode Configuration. */
+/* Suppr : efface l'élément sélectionné (appareil, câble, cadre ou texte). */
 function deleteSelection(){
   var id=S.sel;
-  if(!id||S.mode!=='config')return false;
+  if(!id||readOnly())return false;
   if(S.devs[id]){snapHistory();delDev(id);}
   else if(S.links[id]){snapHistory();delete S.links[id];}
   else if(S.frames&&S.frames[id]){snapHistory();delete S.frames[id];}
@@ -556,27 +565,28 @@ document.addEventListener('keydown',function(e){
   if((e.key==='Delete'||e.key==='Backspace')&&!typing&&deleteSelection())e.preventDefault();
 });
 
+/* Les deux boutons de mode ne règlent plus que le bandeau du bas (terminal, navigateur, journal) :
+   le schéma se modifie et se teste dans les deux. */
 function setMode(m){
   S.mode=m;
   document.getElementById('btn-cfg').classList.toggle('active',m==='config');
   document.getElementById('btn-sim').classList.toggle('active',m==='simulation');
   var simMode=(m==='simulation');
-  ['link','pc','pc-desktop','pc-laptop','pc-phone','pc-tablet','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){
-    var el=document.getElementById('pi-'+t);
-    if(el){el.classList.toggle('disabled',simMode);el.draggable=!simMode;}
-  });
-  ['t-link','t-delete','t-clear'].forEach(function(id){
-    var b=document.getElementById(id);if(b)b.classList.toggle('disabled',simMode);
-  });
   // Afficher le panneau bas en simulation — ou toujours si une activité est configurée
   var _keepBot=typeof ACTIVITY_CONFIG!=='undefined'&&ACTIVITY_CONFIG&&scoredObjectives(ACTIVITY_CONFIG).length;
   document.querySelector('.bot').style.display=(simMode||_keepBot)?'flex':'none';
-  if(!simMode)deskCloseAll();
-  if(simMode){
-    setTool('select');
-    saveToSession(); // auto-save à chaque passage en simulation
-    tpr('Mode Simulation activé — double-cliquez sur un appareil pour ouvrir son bureau, ou sélectionnez-le ci-dessus.','info');
-  }
+  if(simMode)saveToSession(); // auto-save à chaque passage en simulation
+}
+/* Palette et outils grisés quand le schéma ne se modifie pas (vue « Départ élève » du builder). */
+function palLock(on){
+  ['link','del','pc','pc-desktop','pc-laptop','pc-phone','pc-tablet','server','switch','router','wifi_router','internet','frame','anntext'].forEach(function(t){
+    var el=document.getElementById('pi-'+t);
+    if(el){el.classList.toggle('disabled',on);if(el.hasAttribute('draggable'))el.draggable=!on;}
+  });
+  ['t-link','t-delete','t-clear'].forEach(function(id){
+    var b=document.getElementById(id);if(b)b.classList.toggle('disabled',on);
+  });
+  if(on&&S.tool!=='select')setTool('select');
 }
 
 var _propsSavedW=275,_propsVisible=true;
@@ -585,13 +595,126 @@ var _propsSavedW=275,_propsVisible=true;
    PROPERTIES PANEL
 ───────────────────────────────────────────────────── */
 function noSel(){
-  var msg=S.mode==='simulation'
-    ?'<div class="nosel"><div class="ico">🖱️</div>Cliquez sur un appareil<br>pour voir ses propriétés</div>'
-    :'<div class="nosel"><div class="ico">🖱️</div>Cliquez sur un appareil<br>pour configurer</div>';
-  document.getElementById('props-body').innerHTML=msg;
+  document.getElementById('props-body').innerHTML=
+    '<div class="nosel"><div class="ico">🖱️</div>Cliquez sur un appareil<br>pour le configurer'+
+    '<br><span style="font-size:.9em">Double-clic : son bureau</span></div>';
+}
+/* Fiche en lecture seule : champs figés, boutons d'action retirés (ceux du bureau restent). */
+function propsLock(){
+  if(!readOnly())return;
+  var pb=document.getElementById('props-body');
+  pb.querySelectorAll('input,select,textarea').forEach(function(el){el.disabled=true;});
+  pb.querySelectorAll('button').forEach(function(b){if(!b.hasAttribute('data-ro-ok'))b.style.display='none';});
 }
 
-/* ── Vue lecture seule (mode simulation) ─────────────────── */
+/* Fiche d'un appareil, la même pour le builder et l'élève : identification, configuration réseau,
+   connexion WiFi, état des services (réglés dans le bureau), routage ; ses applications en tête.
+   En lecture seule (readOnly), les champs sont figés. */
+function showProps(id){
+  if(!id){noSel();return;}
+  if(id.charAt(0)==='f'){showFrameProps(id);return;}
+  if(S.texts[id]){showTextProps(id);return;}
+  var d=S.devs[id];if(!d){noSel();return;}
+  var dt=DT[d.type];
+  var h='<div class="devbadge" style="background:'+dt.bg+';color:'+dt.tc+';border:1.5px solid '+dt.bd+'">'+devIconHTML(d,20)+' '+esc(d.name)+'</div>';
+
+  // Nom
+  h+='<div class="psection">Identification</div>';
+  h+='<div class="pr"><label>Nom</label><input value="'+esc(d.name)+'" onchange="snapHistory();S.devs[\''+id+'\'].name=this.value;render();showProps(\''+id+'\')"/></div>';
+  h+=pcKindRowHTML(id);
+  if(d.mac)h+='<div class="pr"><label>Adresse MAC</label><div class="mono">'+esc(d.mac)+'</div></div>';
+
+  // Interfaces réseau
+  if(d.type==='pc'||d.type==='server'){
+    var fi=d.ifaces[0]||{};
+    h+='<div class="psection">Configuration réseau</div>';
+    if(d.type==='pc'){
+      h+='<div class="pr ck"><input type="checkbox" id="dhcpmode" '+(fi.dhcpMode?'checked':'')+
+        ' onchange="toggleDHCPMode(\''+id+'\',this.checked)"/>'+
+        '<label for="dhcpmode">Obtenir l\'adresse IP automatiquement (DHCP)</label></div>';
+    }
+    if(!fi.dhcpMode){
+      h+=prow(id,0,'Adresse IP','ip',fi.ip,'192.168.1.10');
+      h+=prow(id,0,'Masque de sous-réseau','mask',fi.mask,'255.255.255.0');
+      h+=prow(id,0,'Passerelle (gateway)','gateway',fi.gateway||'','192.168.1.1');
+      h+=prow(id,0,'Serveur DNS','dns',fi.dns||'','192.168.1.254');
+    } else {
+      h+='<div class="pr"><label>Adresse IP</label><div class="mono" style="color:#a0aec0;font-size:.82em">'+
+        (fi.ip?esc(fi.ip):'(aucune adresse reçue)')+'</div></div>';
+      if(fi.ip){
+        h+='<div class="pr"><label>Masque</label><div class="mono" style="color:#718096;font-size:.82em">'+esc(fi.mask||'—')+'</div></div>';
+        h+='<div class="pr"><label>Passerelle</label><div class="mono" style="color:#718096;font-size:.82em">'+esc(fi.gateway||'—')+'</div></div>';
+      }
+      if(fi.staticCfg&&fi.staticCfg.ip)h+='<div class="pr" style="font-size:.75em;color:#718096">Configuration fixe mise de côté ('+
+        esc(fi.staticCfg.ip)+') : ignorée en DHCP, rétablie si vous décochez la case.</div>';
+      // Même effet que la commande dhcp du terminal
+      h+='<button class="pb pb-blue" onclick="doDHCP(\''+id+'\')">📡 '+(fi.ip?'Renouveler l\'adresse (DHCP)':'Demander une adresse (DHCP)')+'</button>';
+    }
+    h+=wifiPropsHTML(id,true);
+  }
+
+
+  // Routeur / Internet / Box WiFi : interfaces dynamiques
+  if(d.type==='router'||d.type==='internet'||d.type==='wifi_router'){
+    h+='<div class="psection">Interfaces réseau</div>';
+    d.ifaces.forEach(function(fi,i){
+      h+='<div class="iface-box">'+
+        '<div class="iface-title"><span>📶 '+esc(fi.name)+'</span>'+
+        (d.ifaces.length>2?'<button class="del-iface" onclick="removeIface(\''+id+'\','+i+')" title="Supprimer cette interface">✕</button>':'')+
+        '</div>'+
+        '<div class="pr"><label>Adresse IP</label><input value="'+esc(fi.ip||'')+'" placeholder="192.168.'+i+'.1"'+
+          ' oninput="chkIP(this)" onchange="setIface(\''+id+'\','+i+',\'ip\',this.value)"/></div>'+
+        '<div class="pr"><label>Masque</label><input value="'+esc(fi.mask||'')+'" placeholder="255.255.255.0"'+
+          ' oninput="chkMask(this)" onchange="setIface(\''+id+'\','+i+',\'mask\',this.value)"/></div>'+
+        '</div>';
+    });
+    if(d.type!=='wifi_router'){
+      h+='<button class="pb pb-gray" onclick="addIface(\''+id+'\')">+ Ajouter une interface (eth'+d.ifaces.length+')</button>';
+    }
+  }
+
+  // Services serveur : réglés dans le bureau
+  if(d.type==='server')h+=deskConfigNote(id);
+
+  // Table de routage pour les routeurs / internet / box wifi
+  if(d.type==='router'||d.type==='internet'||d.type==='wifi_router'){
+    h+='<div class="psection">Table de routage</div>';
+    var ar=(d.autoRouteEnabled!==false); // true par défaut
+    h+='<div class="pr ck" style="margin-bottom:8px"><input type="checkbox" id="aro" '+(ar?'checked':'')+
+      ' onchange="S.devs[\''+id+'\'].autoRouteEnabled=this.checked;if(this.checked)autoRoute();else{S.devs[\''+id+'\'].staticRoutes=[];render();}showProps(\''+id+'\')"/>'+
+      '<label for="aro" style="font-weight:600">Calculer les routes automatiquement (RIP)</label></div>';
+    var rt=getRoutingTable(id);
+    h+='<table style="width:100%;font-size:.71em;border-collapse:collapse;margin-bottom:6px">';
+    h+='<tr style="background:#edf2f7"><th style="padding:2px 5px;text-align:left">Réseau dest.</th>'+
+       '<th style="padding:2px 5px;text-align:left">Masque</th>'+
+       '<th style="padding:2px 5px;text-align:left">Passerelle</th>'+
+       '<th style="padding:2px 5px;text-align:left">If.</th></tr>';
+    if(rt.length===0){
+      h+='<tr><td colspan="4" style="padding:4px 5px;color:#a0aec0;font-style:italic">Aucune route — configurez les interfaces</td></tr>';
+    }
+    rt.forEach(function(r){
+      h+='<tr style="'+(r.type==='rip'?'background:#f0fff4':'')+'">'+
+        '<td style="padding:2px 5px;font-family:monospace">'+esc(r.dest)+'</td>'+
+        '<td style="padding:2px 5px;font-family:monospace">'+esc(r.mask)+'</td>'+
+        '<td style="padding:2px 5px;font-family:monospace;color:'+(r.gw?'#553c9a':'#718096')+'">'+esc(r.gw||'direct')+'</td>'+
+        '<td style="padding:2px 5px">'+esc(r.iface)+(r.type==='rip'?' <span style="color:#48bb78;font-size:.85em">RIP</span>':'')+'</td>'+
+        '</tr>';
+    });
+    h+='</table>';
+    if(!ar){h+='<button class="pb pb-blue" onclick="autoRoute();showProps(\''+id+'\')" style="margin-bottom:4px">⚡ Calculer les routes maintenant</button>';}
+  }
+
+  // WiFi et DHCP de la box : réglés dans le bureau
+  if(d.type==='wifi_router')h+=deskConfigNote(id);
+
+  h+='<div class="psection"></div>';
+  if(typeof copyDev==='function')   // builder seulement
+    h+='<button class="pb" onclick="copyDev(\''+id+'\');pasteDev()" style="margin-right:6px">📋 Dupliquer</button>';
+  h+='<button class="pb pb-red" onclick="snapHistory();delDev(\''+id+'\');render();noSel()">🗑️ Supprimer cet appareil</button>';
+  document.getElementById('props-body').innerHTML=h;
+  propsLock();
+  deskPropsApps(id);
+}
 
 function prow(devId,idx,label,field,val,ph){
   var oi='';
@@ -779,7 +902,7 @@ function termRun(raw,devId){
 }
 
 /* ─────────────────────────────────────────────────────
-   BUREAU DES APPAREILS (mode simulation)
+   BUREAU DES APPAREILS
    Double-clic sur un appareil : une fenêtre flottante s'ouvre avec ses applications.
    Chaque appareil garde sa session de terminal et sa page de navigateur.
 ───────────────────────────────────────────────────── */
@@ -796,11 +919,9 @@ var DESK_APPS={
   routes:{icon:'🧭',label:'Routage',form:true}
 };
 // Applications de chaque appareil. Les services (web, DNS, DHCP, WiFi de la box) ne se
-// règlent qu'ici, en mode simulation ; ce qui est réglé dans le builder part à l'export.
-/* Le bureau s'ouvre en simulation ; le builder l'ouvre aussi dans sa vue « Corrigé » (BUILDER_VIEW,
-   défini par le builder seulement : chez l'élève ce prédicat se réduit au mode simulation). */
-function deskOn(){return S.mode==='simulation'||(typeof BUILDER_VIEW!=='undefined'&&BUILDER_VIEW==='corrige');}
-/* Vue du builder : « corrige » (réglages seulement), « depart » (lecture seule), « essai » (tout). */
+// règlent qu'ici ; ce qui est réglé dans le builder part à l'export.
+/* Vue du builder (BUILDER_VIEW, défini par le builder seulement) : « corrige » (réglages, sans terminal
+   ni navigateur), « depart » (lecture seule), « essai » (tout). Chez l'élève : toujours « essai ». */
 function deskView(){return typeof BUILDER_VIEW!=='undefined'?BUILDER_VIEW:'essai';}
 function deskApps(d){
   var a=deskAppsAll(d);
@@ -907,7 +1028,7 @@ function deskDblCheck(id){
 }
 function deskOpen(id,app){
   var d=S.devs[id];
-  if(!d||!deskOn()||!deskApps(d).length)return;
+  if(!d||!deskApps(d).length)return;
   deskInit();
   var w=DESK.wins[id];
   if(!w){
@@ -1043,13 +1164,13 @@ function deskBrowse(id){
   var s=deskSess(id);
   if(typeof browGo==='function')browGo(id,s.url,s.bc);
 }
-// Ajoute les applications de l'appareil en tête de sa fiche (mode simulation).
+// Ajoute les applications de l'appareil en tête de sa fiche.
 function deskPropsApps(id){
   var d=S.devs[id],apps=deskApps(d),pb=document.getElementById('props-body');
-  if(!apps.length||!pb||!deskOn())return;
+  if(!apps.length||!pb)return;
   var div=document.createElement('div');div.className='desk-papps';
   div.innerHTML='<span class="dpl">Applications · double-clic sur l\'appareil</span>'+apps.map(function(a){
-    return '<button type="button" onclick="deskOpen(\''+id+'\',\''+a+'\')">'+DESK_APPS[a].icon+' '+DESK_APPS[a].label+'</button>';
+    return '<button type="button" data-ro-ok onclick="deskOpen(\''+id+'\',\''+a+'\')">'+DESK_APPS[a].icon+' '+DESK_APPS[a].label+'</button>';
   }).join('');
   deskInit();
   pb.insertBefore(div,pb.firstChild?pb.firstChild.nextSibling:null);
@@ -1059,7 +1180,7 @@ function deskSync(){
   var ids=Object.keys(DESK.wins);if(!ids.length)return;
   ids.forEach(function(id){
     var d=S.devs[id];
-    if(!d||!deskApps(d).length||!deskOn()){deskClose(id);return;}
+    if(!d||!deskApps(d).length){deskClose(id);return;}
     var w=DESK.wins[id],fi=mainIface(d);
     w.el.querySelector('.dwin-ip').textContent=fi&&fi.ip?fi.ip:'';
     // Bureau : toujours à jour. Application à formulaire : redessinée seulement si l'appareil a été
@@ -1081,10 +1202,7 @@ function deskFilesChanged(id){
   deskRefresh(id);
 }
 function deskApply(id,fn){
-  if(deskView()==='depart'){
-    if(typeof notif==='function')notif('👁️ Vue « Départ élève » en lecture seule : passez en « Essai » pour agir','info');
-    deskRefresh(id);return;
-  }
+  if(readOnly()){roNotice();deskRefresh(id);return;}
   snapHistory();
   fn();
   render();
@@ -1276,7 +1394,7 @@ var DESK_FORMS={
   },
   routes:function(d,body){
     var rt=getRoutingTable(d.id),ar=d.autoRouteEnabled!==false;
-    var h='<h4>Table de routage</h4><div class="dnote">'+(ar?'Routes calculées automatiquement (RIP).':'Routes statiques, réglées en mode Configuration.')+'</div>';
+    var h='<h4>Table de routage</h4><div class="dnote">'+(ar?'Routes calculées automatiquement (RIP).':'Routes statiques : le calcul automatique est décoché dans la fiche de l\'appareil.')+'</div>';
     h+='<table class="dtab"><tr><th>Réseau</th><th>Masque</th><th>Passerelle</th><th>Interface</th></tr>'+
       (rt.length?rt.map(function(r){return '<tr><td class="m">'+esc(r.dest)+'</td><td class="m">'+esc(r.mask)+'</td><td class="m">'+esc(r.gw||'direct')+'</td><td>'+esc(r.iface)+'</td></tr>';}).join('')
         :'<tr><td colspan="4">Aucune route.</td></tr>')+'</table>';
@@ -1284,7 +1402,7 @@ var DESK_FORMS={
   }
 };
 
-/* Fiche en mode Configuration : les services se règlent dans le bureau (mode simulation).
+/* Fiche d'un serveur ou d'une box : les services se règlent dans le bureau.
    On rappelle leur état et on y mène en un clic. */
 function deskConfigNote(id){
   var d=S.devs[id];if(!d)return '';
@@ -1298,17 +1416,13 @@ function deskConfigNote(id){
     h+='<div class="dcr"><span>📶 WiFi</span><span class="m">'+esc(d.ssid||'(sans nom)')+(d.wifiPass?' · '+esc(d.wifiPass):' · ouvert')+'</span></div>'+
       '<div class="dcr"><span>🏷️ Serveur DHCP</span>'+pill(d.dhcp&&d.dhcp.on)+'</div>';
   }
-  var inCfg=S.mode!=='simulation'&&deskOn();   // builder, vue Corrigé : pas besoin de la simulation
-  h+='<div class="dcn">'+(inCfg?'Ils se règlent dans le bureau de l\'appareil (double-clic sur l\'appareil).'
-      :'Ils se règlent dans le bureau de l\'appareil, en mode Simulation.')+'</div>'+
-    '<button type="button" class="pb pb-blue" onclick="deskOpenSim(\''+id+'\')">'+(inCfg?'▶ Ouvrir le bureau':'▶ Ouvrir le bureau en simulation')+'</button></div>';
+  h+='<div class="dcn">Ils se règlent dans le bureau de l\'appareil (double-clic sur l\'appareil).</div>'+
+    '<button type="button" class="pb pb-blue" data-ro-ok onclick="deskOpenFromProps(\''+id+'\')">▶ Ouvrir le bureau</button></div>';
   deskInit();
   return h;
 }
-function deskOpenSim(id){
-  if(!deskOn())setMode('simulation');
+function deskOpenFromProps(id){
   var d=S.devs[id];if(!d)return;
-  S.sel=id;render();if(typeof showPropsSimu==='function')showPropsSimu(id);
   deskOpen(id,d.type==='wifi_router'?'admin':null);
 }
 
@@ -1586,7 +1700,7 @@ function renderFrames(){
     h+='<rect x="'+f.x+'" y="'+f.y+'" width="'+f.w+'" height="26" rx="8" fill="'+bd+'" opacity="0.22"/>';
     h+='<text x="'+(f.x+10)+'" y="'+(f.y+17)+'" font-size="13" font-weight="700" fill="'+bd+'" font-family="Segoe UI,Arial" pointer-events="none">'+esc(f.label||'Zone')+'</text>';
     // Poignée redimensionnement (coin bas-droite)
-    if(isSel||S.mode==='config'){
+    if(!readOnly()){
       h+='<polygon points="'+(f.x+f.w-14)+','+(f.y+f.h)+' '+(f.x+f.w)+','+(f.y+f.h-14)+' '+(f.x+f.w)+','+(f.y+f.h)+'"'+
          ' fill="'+bd+'" opacity="0.6" style="cursor:nwse-resize"'+
          ' onmousedown="frameResizeMD(event,\''+f.id+'\')"/>';
@@ -1613,8 +1727,8 @@ function renderTexts(){
 
 function frameMD(e,id){
   e.stopPropagation();
-  if(S.mode==='simulation')return;
-  if(S.tool==='delete'){delete S.frames[id];if(S.sel===id)S.sel=null;renderFrames();noSel();return;}
+  if(readOnly())return;
+  if(S.tool==='delete'){snapHistory();delete S.frames[id];if(S.sel===id)S.sel=null;renderFrames();noSel();return;}
   S.sel=id;
   var pt=svgPt(e);
   S.drag={id:id,type:'frame',ox:pt.x-S.frames[id].x,oy:pt.y-S.frames[id].y};
@@ -1622,14 +1736,14 @@ function frameMD(e,id){
 }
 function frameResizeMD(e,id){
   e.stopPropagation();
-  if(S.mode==='simulation')return;
+  if(readOnly())return;
   var pt=svgPt(e);var f=S.frames[id];if(!f)return;
   S.drag={id:id,type:'frame-resize',sx:pt.x,sy:pt.y,sw:f.w,sh:f.h};
 }
 function textMD(e,id){
   e.stopPropagation();
-  if(S.mode==='simulation')return;
-  if(S.tool==='delete'){delete S.texts[id];if(S.sel===id)S.sel=null;renderTexts();noSel();return;}
+  if(readOnly())return;
+  if(S.tool==='delete'){snapHistory();delete S.texts[id];if(S.sel===id)S.sel=null;renderTexts();noSel();return;}
   S.sel=id;
   var pt=svgPt(e);var t=S.texts[id];if(!t)return;
   S.drag={id:id,type:'anntext',ox:pt.x-t.x,oy:pt.y-t.y};

@@ -346,11 +346,11 @@ test.describe('Vue élève (export HTML)', () => {
     await page.goto(pathToFileURL(file).href);
     await studentScore(page, 0);
 
-    // En Configuration, la fiche du serveur ne règle plus les services : elle mène au bureau.
+    // La fiche du serveur ne règle pas les services : elle mène au bureau.
     const srv = await deviceId(page, 'Serveur');
     await page.locator(`#gd${srv}`).click();
     await expect(page.locator('#props-body')).not.toContainText('Activer le serveur DNS');
-    await page.locator('#props-body button', { hasText: 'Ouvrir le bureau en simulation' }).click();
+    await page.locator('#props-body button', { hasText: 'Ouvrir le bureau' }).click();
     await expect(page.locator(`#dwin-${srv}`)).toBeVisible();
 
     const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
@@ -370,7 +370,6 @@ test.describe('Vue élève (export HTML)', () => {
     await page.goto(pathToFileURL(file).href);
     await setGateway(page, 'PC-Bureau', '192.168.1.1');
     await studentScore(page, 35);
-    await page.locator('#btn-sim').click();
 
     await deskTerminal(page, 'Laptop', 'dhcp');
     await deskTerminal(page, 'Laptop', 'ping 8.8.8.8');
@@ -388,14 +387,15 @@ test.describe('Vue élève (export HTML)', () => {
     await expect(pc.locator('.dterm-out')).not.toContainText('> dhcp');
     await expect(page.locator('#tout')).not.toContainText('> ping 8.8.8.8');
 
-    // Fermer l'application garde la fenêtre ; × ferme le bureau ; le mode Conception ferme tout.
+    // Fermer l'application garde la fenêtre ; × ferme le bureau ; changer de mode ne ferme plus rien.
     await pc.locator('.aclose').click();
     await expect(pc.locator('.dico')).toHaveCount(3);
     await pc.locator('.dw-x').click();
     await expect(pc).toHaveCount(0);
     await expect(page.locator('.dwin')).toHaveCount(1);
+    await page.locator('#btn-sim').click();
     await page.locator('#btn-cfg').click();
-    await expect(page.locator('.dwin')).toHaveCount(0);
+    await expect(page.locator('.dwin')).toHaveCount(1);
   });
 });
 
@@ -1650,39 +1650,135 @@ test.describe('Souris sur le schéma', () => {
     expect(await devPos(page, pcB)).toEqual(start);
   });
 
-  test('élève : palette, câble et double-clic selon le mode (Configuration puis Simulation)', async ({ page }, info) => {
+  test('élève : un seul comportement, quel que soit le bouton de mode (palette, câble, fiche, glisser, double-clic, Suppr)', async ({ page }, info) => {
     await openStudentExport(page, info, 'reseau-maison');
     const boxId = await deviceId(page, 'Box-WiFi');
     const laptop = await deviceId(page, 'Laptop');
 
-    // Configuration : déposer un PC fixe, le câbler à la box
-    const spot = await freeSpot(page);
-    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
-    expect(pc).not.toBeNull();
-    expect(await page.evaluate(() => S.sel)).toBe(pc);
-    await page.locator('#pi-link').click();
-    await clickDev(page, pc);
-    await clickDev(page, boxId);
-    expect(await linkList(page)).toContainEqual(expect.objectContaining({ from: pc, to: boxId, type: 'cable' }));
-    await page.keyboard.press('Escape');
+    for (const mode of ['#btn-cfg', '#btn-sim']) {
+      await page.locator(mode).click();
 
-    // Configuration : le double-clic n'ouvre pas le bureau
-    await clickDev(page, laptop, { clickCount: 2 });
+      // Palette active : déposer un PC fixe, le câbler à la box
+      await expect(page.locator('#pi-pc-desktop'), mode).not.toHaveClass(/disabled/);
+      const spot = await freeSpot(page);
+      const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+      expect(pc, mode).not.toBeNull();
+      expect(await page.evaluate(() => S.sel)).toBe(pc);
+      await page.locator('#pi-link').click();
+      await clickDev(page, pc);
+      await clickDev(page, boxId);
+      expect(await linkList(page), mode).toContainEqual(expect.objectContaining({ from: pc, to: boxId, type: 'cable' }));
+      await page.keyboard.press('Escape');
+
+      // Clic : fiche modifiable, le terminal du bandeau suit l'appareil
+      await clickDev(page, laptop);
+      await expect(page.locator('#td-sel'), mode).toHaveValue(laptop);
+      await expect(page.locator('#props-body input').first()).toHaveValue('Laptop');
+      await expect(page.locator('#props-body input').first()).toBeEditable();
+      await expect(page.locator('#props-body .desk-papps button', { hasText: 'Invite de commandes' })).toBeVisible();
+
+      // Glisser : l'appareil se déplace
+      await page.waitForTimeout(600);
+      const start = await devPos(page, laptop);
+      await dragDev(page, laptop, 40, 30);
+      const moved = await devPos(page, laptop);
+      expect(Math.abs(moved.x - start.x - 40) + Math.abs(moved.y - start.y - 30), mode).toBeLessThanOrEqual(2);
+      await expect(page.locator('.dwin')).toHaveCount(0);
+
+      // Double-clic, juste après le glisser : le bureau s'ouvre, l'appareil ne bouge pas
+      await clickDev(page, laptop, { clickCount: 2 });
+      await expect(page.locator(`#dwin-${laptop}`), mode).toBeVisible();
+      expect(await devPos(page, laptop)).toEqual(moved);
+      await page.locator(`#dwin-${laptop} .dw-x`).click();
+
+      // Suppr : l'appareil sélectionné est effacé, avec son câble
+      await clickDev(page, pc);
+      await page.keyboard.press('Delete');
+      expect(await page.evaluate((id) => !!S.devs[id], pc), mode).toBe(false);
+      expect((await linkList(page)).some((l) => l.from === pc || l.to === pc)).toBe(false);
+    }
+    await studentScore(page, 0);
+  });
+
+  test('un glisser suivi d\'un clic n\'ouvre pas le bureau ; un double-clic qui tremble ne déplace pas l\'appareil', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+
+    // Clic moins de 450 ms après l'appui qui a commencé le glisser : ce n'est pas un double-clic
+    await dragDev(page, pcB, 50, 30);
+    await clickDev(page, pcB);
     await expect(page.locator('.dwin')).toHaveCount(0);
 
-    // Simulation : palette inactive, appareils immobiles, le terminal suit l'appareil cliqué,
-    // le double-clic ouvre le bureau
-    await page.locator('#btn-sim').click();
-    await expect(page.locator('#pi-pc-desktop')).toHaveClass(/disabled/);
-    expect(await page.locator('#pi-pc-desktop').evaluate((el) => el.draggable)).toBe(false);
-    const start = await devPos(page, laptop);
-    await dragDev(page, laptop, 60, 40);
-    expect(await devPos(page, laptop)).toEqual(start);
-    await expect(page.locator('#td-sel')).toHaveValue(laptop);
+    // Double-clic avec deux pixels de tremblement : le bureau s'ouvre, l'appareil reste en place
     await page.waitForTimeout(600);
-    await clickDev(page, laptop, { clickCount: 2 });
-    await expect(page.locator(`#dwin-${laptop}`)).toBeVisible();
-    expect(await devPos(page, laptop)).toEqual(start);
+    const start = await devPos(page, pcB);
+    const c = await devCenter(page, pcB);
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 2, c.y + 1);
+    await page.mouse.up();
+    await page.mouse.down();
+    await page.mouse.move(c.x + 1, c.y + 2);
+    await page.mouse.up();
+    await expect(page.locator(`#dwin-${pcB}`)).toBeVisible();
+    expect(await devPos(page, pcB)).toEqual(start);
+    expect(await page.evaluate(() => S.drag)).toBeNull();
+  });
+
+  test('vue Départ élève : lecture seule à la souris, au clavier et dans la fiche ; vue Essai : tout se règle, le corrigé reste intact', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const start = await devPos(page, pcB);
+    const n = await page.evaluate(() => [Object.keys(S.devs).length, Object.keys(S.links).length]);
+    const counts = () => page.evaluate(() => [Object.keys(S.devs).length, Object.keys(S.links).length]);
+
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#pi-pc-desktop')).toHaveClass(/disabled/);
+    await expect(page.locator('#pi-link')).toHaveClass(/disabled/);
+
+    // Glisser : rien ne bouge ; la fiche s'affiche, champs figés, sans bouton d'action
+    await dragDev(page, pcB, 60, 40);
+    expect(await devPos(page, pcB)).toEqual(start);
+    await expect(page.locator('#props-body input').first()).toHaveValue('PC-Bureau');
+    await expect(page.locator('#props-body input').first()).toBeDisabled();
+    await expect(page.locator('.pr', { hasText: 'Passerelle' }).locator('input').first()).toBeDisabled();
+    await expect(page.locator('#props-body button', { hasText: 'Supprimer' })).toBeHidden();
+    await expect(page.locator('#props-body button', { hasText: 'Dupliquer' })).toBeHidden();
+
+    // Suppr sur l'appareil puis sur un câble : rien n'est effacé
+    await page.keyboard.press('Delete');
+    const lid = await page.evaluate(() => Object.keys(S.links)[0]);
+    await page.evaluate((id) => selLink(id), lid);
+    await expect(page.locator('#props-body')).toContainText('Câble réseau');
+    await expect(page.locator('#props-body button', { hasText: 'Supprimer' })).toBeHidden();
+    await page.keyboard.press('Delete');
+    expect(await counts()).toEqual(n);
+
+    // Le bureau s'ouvre quand même (lecture seule), sans terminal
+    await page.waitForTimeout(600);
+    await clickDev(page, pcB, { clickCount: 2 });
+    const win = page.locator(`#dwin-${pcB}`);
+    await expect(win).toBeVisible();
+    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+
+    // Essai : palette active, la fiche répare la panne, l'appareil se déplace
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#pi-pc-desktop')).not.toHaveClass(/disabled/);
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await expect(builderScore(page)).toHaveText(/Score : 35 \/ 100/);
+    await page.waitForTimeout(600);
+    await dragDev(page, pcB, 60, 40);
+    const moved = await devPos(page, pcB);
+    expect(Math.abs(moved.x - start.x - 60) + Math.abs(moved.y - start.y - 40)).toBeLessThanOrEqual(2);
+    const spot = await freeSpot(page);
+    expect(await dropFromPalette(page, 'pc-desktop', spot.x, spot.y)).not.toBeNull();
+
+    // Retour au corrigé : ni le poste ajouté, ni le déplacement de l'essai
+    await page.locator('#btn-cfg').click();
+    expect(await counts()).toEqual(n);
+    expect(await devPos(page, pcB)).toEqual(start);
+    await expect(page.locator('#props-body input')).toHaveCount(0);
   });
 });
 

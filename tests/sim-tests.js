@@ -2420,13 +2420,18 @@ test('cadre et texte sélectionnés : effacés', function() {
   S.frames = {}; S.texts = {};
 });
 
-test('mode Simulation ou rien de sélectionné : rien n\'est effacé', function() {
+test('lecture seule (vue Départ élève du builder) ou rien de sélectionné : rien n\'est effacé', function() {
   resetNet();
   var pc = mkPC('192.168.1.10');
+  S.sel = pc; sandbox.BUILDER_VIEW = 'depart';
+  try { notOk(sandbox.deleteSelection()); ok(S.devs[pc]); }
+  finally { delete sandbox.BUILDER_VIEW; }
+  S.sel = null;
+  notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
+  // Plus de mode : la sélection s'efface, que l'ancien « mode » soit Configuration ou Simulation
   S.sel = pc; S.mode = 'simulation';
-  notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
-  S.mode = 'config'; S.sel = null;
-  notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
+  try { ok(sandbox.deleteSelection()); notOk(S.devs[pc]); }
+  finally { S.mode = 'config'; }
 });
 
 /* ── SCORM ── */

@@ -11,18 +11,13 @@
   **Pourquoi.** Le moteur simule déjà en permanence : chaque `render()` appelle `scheduleObjectiveCheck()`, les objectifs sont réévalués et les objectifs dynamiques rejoués (`ACTIVITY_PROOFS`). Le mode ne fait que filtrer l'interface (`S.mode` : `'config'` ou `'simulation'`). Il ne protège rien (l'élève bascule librement), force des allers-retours « je configure → je teste », et double le code (deux fiches de propriétés, une vingtaine de gardes). Dans le builder, il ne sert déjà plus qu'à la vue Essai.
 
   **Où est le code à toucher** (chercher par nom, les numéros de ligne bougent) :
-  - `src/sim-ui.js` : gardes `S.mode` dans `palDS`, `cwDrop`, `devMD` (deux branches : simulation / configuration), `devRC`, `linkRC`, `deleteSelection` (`S.mode!=='config'`), `setMode`, `noSel`, `frameMD` et `textMD` (annotations), `deskOn`, `deskConfigNote` / `deskOpenSim`.
-  - `src/template-extra.js` : la reprise de session force `S.mode='config'` au chargement ; le rendu de l'onglet Activité teste `S.mode==='simulation'`.
-  - `scorm-builder.html` (JS du builder) : `showPropsSimu` (fiche lecture seule) et `showProps` (fiche éditable) ; `setBuilderView` appelle `setMode` ; le bandeau du bas `.bot` est affiché selon le mode.
+  - `src/sim-ui.js` : `setMode` (ne règle plus que le bandeau du bas et la sauvegarde au passage en simulation) et `S.mode`, à supprimer à l'étape 2.
+  - `src/template-extra.js` : `clearAll` force `S.mode='config'` ; le bandeau du bas est masqué au chargement sans activité ; le message d'accueil du terminal parle du mode Simulation.
+  - `scorm-builder.html` (JS du builder) : `setBuilderView` appelle `setMode` ; `_viewUI` affiche le bandeau du bas `.bot` en vue Essai seulement.
   - Tests : 19 occurrences de `#btn-sim` / `#btn-cfg` dans `tests/e2e/builder.spec.js` (une dizaine de tests entrent en simulation ; certains valident la configuration puis testent). `sim-tests.js` ne dépend pas du mode.
   - Documentation (à regénérer seulement à la prochaine release) : `tools/gen_docs.py` (guide élève : « Mode Simulation », « Cliquez sur SIMU », étape 5 du pas-à-pas ; guide enseignant), `README.md`, `CLAUDE.md` (section Bureau des appareils et « Trois vues »).
 
-  **Étape 1 — un seul comportement de clic, une seule fiche** (moteur partagé, builder et élève) :
-  - Clic simple sur un appareil : le sélectionne et affiche la fiche. Double-clic : ouvre son bureau (détection déjà en place, `deskDblCheck` : deux `mousedown` à moins de 450 ms sur le même appareil). **À régler** : un glisser terminé ne doit pas compter comme premier clic d'un double-clic (ignorer si l'appareil a bougé), et le `mousedown` qui démarre un glisser ne doit pas déplacer l'appareil au double-clic.
-  - Les outils Câble et Suppr. restent explicites (palette), Échap revient à la sélection, la touche Suppr. supprime la sélection : plus de garde de mode.
-  - Palette et glisser-déposer toujours actifs (retirer `simMode` dans `setMode` : classe `disabled`, `draggable`).
-  - Fiche unique, éditable : identification, configuration réseau, connexion WiFi (poste), services (état + bouton « Ouvrir le bureau »), liste des applications en tête (`deskPropsApps`). `showPropsSimu` disparaît ; la vue Départ élève du builder a besoin d'un mode **lecture seule** : le garder comme paramètre de `showProps` (déjà géré pour le bureau par `deskApply` et `doDHCP`).
-  - Sélection d'un poste : renseigner `S.termDev` (comme le faisait la branche simulation) pour que le terminal du bas suive.
+  **Étape 1 — un seul comportement de clic, une seule fiche** : ✅ faite. `devMD` unique (sélection, fiche, glisser, terminal du bandeau qui suit, double-clic vers le bureau), palette toujours active, fiche unique `showProps` dans `src/sim-ui.js`, lecture seule de la vue Départ élève par `readOnly()` / `propsLock()` / `palLock()` (un prédicat plutôt qu'un paramètre de `showProps`, parce que la fiche est rappelée depuis ses propres champs). Le clic sur un appareil ne bascule plus le bandeau sur l'onglet Terminal. La fiche ne liste plus les appareils connectés en WiFi à une box, les enregistrements DNS ni les fichiers d'un serveur : ils se lisent dans les applications du bureau.
 
   **Étape 2 — retirer les boutons de mode et repenser le bandeau du bas** :
   - Supprimer `#btn-cfg` / `#btn-sim` chez l'élève ; le builder garde ses trois boutons de vue (Corrigé / Départ élève / Essai), qui répondent à « quel réseau regarde-t-on ? ».

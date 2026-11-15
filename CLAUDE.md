@@ -40,8 +40,10 @@ navigateur), **Départ élève** (copie du corrigé + pannes, lecture seule, pas
 **Essai** (même copie, le professeur joue l'élève : terminal, réparations, score réel, règles de l'élève).
 `setBuilderView` met le corrigé de côté dans `VIEW_SNAP` et le rétablit au retour ; `SimModule.getState()`
 renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les onglets 2 et 3, l'import,
-l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a que deux points
-d'accroche (`deskOn`, `deskView` dans `src/sim-ui.js`), inertes chez l'élève. Le score « corrigé »
+l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a qu'un point
+d'accroche (`deskView` dans `src/sim-ui.js`, qui lit `BUILDER_VIEW` ; chez l'élève il vaut toujours « essai »).
+`readOnly()` en découle (vue Départ élève) : ni glisser, ni dépôt, ni suppression, fiche aux champs figés
+(`propsLock`), palette grisée (`palLock`). Le score « corrigé »
 (`BUILDER_TOUCHED`) ne s'applique qu'à la vue Corrigé. L'essai est mis de côté dans `ESSAI_SNAP` quand on
 le quitte et repris au retour tant que `essaiKey()` (réseau corrigé normalisé sans positions, objectifs et
 pannes) n'a pas changé ; sinon il repart de zéro avec un message, comme avec « Recommencer l'essai ».
@@ -152,7 +154,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 47 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 49 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -169,7 +171,8 @@ faux puis corrigé chez l'élève), l'assistant
 « Nouvelle activité » et la fenêtre Variante jusqu'à l'élève (choix de pannes combinés), la souris sur le schéma
 (suite « Souris sur le schéma » : appareil glissé depuis la palette, déplacement d'un appareil avec ses câbles,
 câblage au clic avec aperçu, annulations et refus, liaison WiFi, sélection et suppression d'un câble, double-clic
-qui ouvre le bureau sans déplacer l'appareil), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+qui ouvre le bureau sans déplacer l'appareil, glisser suivi d'un clic qui ne l'ouvre pas, même comportement chez
+l'élève quel que soit le bouton de mode, lecture seule de la vue Départ élève), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
 
 Non couverts : vrai Moodle, déplacement et redimensionnement des cadres et des textes, le reste de l'énoncé imprimable (seul son plan
@@ -184,11 +187,20 @@ Un double-clic sur un appareil ouvre son bureau : une fenêtre flottante avec le
 relié à une box, Serveur web, Serveur DNS et Serveur DHCP sur un serveur, Administration (WiFi et DHCP) et
 Routage sur la box, Routage sur un routeur.
 
-**Où il s'ouvre** (`deskOn`, `deskView` dans `src/sim-ui.js`) : chez l'élève, en mode simulation (et pas en mode
-configuration) ; dans le builder, en vue **Corrigé** (sans terminal ni navigateur : `deskApps` les retire hors
-vue Essai), **Départ élève** (lecture seule : `deskApply` et `doDHCP` refusent) et **Essai** (tout).
+**Où il s'ouvre** : partout, par double-clic (`deskDblCheck` dans `devMD` : deux appuis à moins de 450 ms sur le
+même appareil ; un appui qui bouge de moins de 3 px ne déplace rien, et un glisser terminé ne compte pas comme
+premier clic). Chez l'élève, toutes les applications ; dans le builder (`deskView`), vue **Corrigé** sans
+terminal ni navigateur (`deskApps` les retire hors vue Essai), **Départ élève** en lecture seule (`deskApply`
+et `doDHCP` refusent) et **Essai** complet.
 
-**Les services (web, DNS, DHCP, WiFi de la box) ne se règlent que dans le bureau** : la fiche Configuration affiche
+**Un seul comportement de clic, une seule fiche** (étape 1 du mode unique) : `devMD` sélectionne, affiche la
+fiche, commence un glisser et fait suivre le terminal du bandeau (`setTermDev`), quel que soit `S.mode`. La fiche
+est `showProps`, dans `src/sim-ui.js`, la même pour le builder et l'élève (bouton « Dupliquer » si `copyDev`
+existe, donc dans le builder seulement) ; `showPropsSimu` et les surcharges builder de `showProps`, `frameMD` et
+`textMD` n'existent plus. `S.mode` et `setMode` ne règlent plus que l'affichage du bandeau du bas et la
+sauvegarde au passage en simulation.
+
+**Les services (web, DNS, DHCP, WiFi de la box) ne se règlent que dans le bureau** : la fiche affiche
 seulement leur état (`deskConfigNote`) et un bouton vers le bureau. Ce que le professeur règle en vue Corrigé part à
 l'export, puis les pannes s'appliquent ; ce qu'il règle en Essai reste sur la copie d'essai. Les applications à
 formulaire (`DESK_FORMS`) passent par `deskApply` : `snapHistory` (Ctrl+Z), mêmes setters que les fiches
@@ -200,8 +212,10 @@ Chaque appareil garde sa session (historique, sortie, page). Une commande lancé
 `browGo(devId, url, conteneur)`. Le bandeau du bas (Terminal, Navigateur, Journal, Paquets, Activité) est conservé
 pour l'instant.
 
-**Évolution décidée, pas encore faite** : supprimer le mode Simulation (un seul mode, simulation permanente) ;
-plan détaillé en trois étapes dans `TODO.md` (« Mode unique »).
+**Évolution en cours** : supprimer le mode Simulation (un seul mode, simulation permanente). Étape 1 faite
+(clic et fiche uniques) ; restent les étapes 2 (boutons de mode, bandeau du bas, sauvegarde temporisée) et 3
+(`lockTopology`), détaillées dans `TODO.md` (« Mode unique »). Le tag local `avant-mode-unique` marque l'état
+d'avant.
 
 ## Pour reprendre le travail
 
@@ -215,7 +229,7 @@ plan détaillé en trois étapes dans `TODO.md` (« Mode unique »).
 - **Documentation non régénérée** : `docs/*.pdf`, `README.md` et `site/` datent de la v1.9.4 et ne décrivent
   ni les vues du builder, ni les pannes notées, ni le builder vierge. À refaire à la prochaine release
   (voir la règle plus bas).
-- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master` (47 avec la suite souris de la branche du mode unique).
+- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master` (49 sur la branche du mode unique).
 
 ## Scénarios
 
