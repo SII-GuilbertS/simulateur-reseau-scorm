@@ -97,7 +97,7 @@
   "activity": {
     "title": "Réseau Maison — Panne WiFi",
     "level": "4ème / 3ème",
-    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Sur le Laptop, obtenez une adresse par DHCP (bouton de sa fiche, ou commande dhcp). Passez en mode Simulation, puis vérifiez qu'il accède à Internet (ping 8.8.8.8) et au site www.exemple.fr (onglet Navigateur).\n2. Sur le PC-Bureau, faites les mêmes tests : il joint la Box, mais pas Internet. Utilisez ipconfig pour comprendre pourquoi.\n3. Repassez en mode Configuration pour corriger le réglage fautif du PC-Bureau.\n4. Refaites les tests : le PC-Bureau doit accéder à Internet et au site.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux que la Box donne au Laptop.",
+    "instructions": "La Box WiFi de la maison ne fonctionne plus correctement depuis ce matin ! Le Laptop et le Smartphone semblent connectés au WiFi, mais le PC-Bureau n'arrive plus à accéder à Internet.\n\n🔍 Votre mission :\n1. Sur le Laptop, obtenez une adresse par DHCP (bouton de sa fiche, ou commande dhcp). Double-cliquez sur le Laptop pour ouvrir son bureau, puis vérifiez qu'il accède à Internet (ping 8.8.8.8 dans l'invite de commandes) et au site www.exemple.fr (Navigateur).\n2. Sur le PC-Bureau, faites les mêmes tests : il joint la Box, mais pas Internet. Utilisez ipconfig pour comprendre pourquoi.\n3. Corrigez le réglage fautif dans la fiche du PC-Bureau.\n4. Refaites les tests : le PC-Bureau doit accéder à Internet et au site.\n\n💡 Astuce : comparez les paramètres réseau du PC-Bureau avec ceux que la Box donne au Laptop.",
     "masteryscore": 60,
     "displayMode": "full",
     "objectives": [
@@ -109,7 +109,7 @@
           "from": "Laptop"
         },
         "points": 10,
-        "hint": "Cliquez sur le Laptop : dans sa fiche, bouton « Demander une adresse (DHCP) ». Ou, en mode Simulation, terminal du Laptop : dhcp"
+        "hint": "Cliquez sur le Laptop : dans sa fiche, bouton « Demander une adresse (DHCP) ». Ou, dans le terminal du Laptop (double-clic sur l'appareil) : dhcp"
       },
       {
         "id": 2,
@@ -131,7 +131,7 @@
           "url": "www.exemple.fr"
         },
         "points": 5,
-        "hint": "Onglet Navigateur : choisissez le Laptop et entrez www.exemple.fr"
+        "hint": "Double-clic sur le Laptop, Navigateur : entrez www.exemple.fr"
       },
       {
         "id": 4,
@@ -175,7 +175,7 @@
           "url": "www.exemple.fr"
         },
         "points": 20,
-        "hint": "Onglet Navigateur : choisissez le PC-Bureau et entrez www.exemple.fr"
+        "hint": "Double-clic sur le PC-Bureau, Navigateur : entrez www.exemple.fr"
       }
     ],
     "faults": [

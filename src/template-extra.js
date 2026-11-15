@@ -94,9 +94,16 @@ function renderActivityTab(){
   pane.innerHTML=h;
 }
 
+function sessionJson(){
+  return JSON.stringify({version:2,devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid,score:S.score,activityResults:ACTIVITY_RESULTS,activityProofs:ACTIVITY_PROOFS});
+}
+var _lastSaved=null;   // dernier état enregistré
+/* Sauvegarde temporisée (scheduleSave) : rien n'est envoyé si rien n'a changé depuis la dernière. */
+function autoSave(){
+  if(sessionJson()!==_lastSaved)saveToSession();
+}
 function saveToSession(){
-  var data={version:2,devs:S.devs,links:S.links,frames:S.frames,texts:S.texts,nid:S.nid,score:S.score,activityResults:ACTIVITY_RESULTS,activityProofs:ACTIVITY_PROOFS};
-  var json=JSON.stringify(data);
+  var json=sessionJson();
   var saved=false;
   // SCORM suspend_data (limite 4096 chars SCORM 1.2 — la plupart des LMS acceptent plus).
   // Un LMS strict refuse une valeur trop longue : la reprise sur un autre poste est alors perdue.
@@ -107,6 +114,7 @@ function saveToSession(){
   }
   // localStorage en fallback ou complément
   try{localStorage.setItem(SESSION_KEY,json);saved=true;}catch(e){}
+  if(saved)_lastSaved=json;
   if(_lmsSaveRefused&&!_lmsSaveWarned){
     _lmsSaveWarned=true;
     var code='';try{code=_api.LMSGetLastError?String(_api.LMSGetLastError()):'';}catch(e){}
@@ -173,7 +181,6 @@ function toggleProps(){
 function clearAll(){
   if(STARTER_NETWORK&&STARTER_NETWORK.devs&&Object.keys(STARTER_NETWORK.devs).length>0){
     if(!confirm('Recommencer depuis le r\u00e9seau de d\u00e9part ?'))return;
-    S.mode='config';
     S.score=0;ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
     applyNetworkData(JSON.parse(JSON.stringify(STARTER_NETWORK)));
     if(ACTIVITY_CONFIG)
@@ -189,13 +196,8 @@ function clearAll(){
   }
 }
 
-// Sans argument : navigateur du bandeau du bas. Avec arguments : navigateur du bureau d'un appareil.
+// Navigateur du bureau d'un appareil : bc est la zone où la page s'affiche.
 function browGo(devId,url,bc){
-  if(bc===undefined){
-    devId=document.getElementById('bd-sel').value;
-    url=document.getElementById('burl').value.trim();
-    bc=document.getElementById('bcont');
-  }
   if(!devId){bc.innerHTML='<div class="berr">⚠️ Choisissez un appareil source.</div>';return;}
   if(!url){bc.innerHTML='<div class="berr">⚠️ Entrez une URL.</div>';return;}
   var res=simHTTP(devId,url);
@@ -303,24 +305,19 @@ window.addEventListener('load',function(){
   if(ACTIVITY_CONFIG&&scoredObjectives(ACTIVITY_CONFIG).length){
     var tabBtn=document.getElementById('btn-activ-tab');
     if(tabBtn)tabBtn.style.display='';
-    showTab('activ'); // afficher directement l'onglet Activité
     renderActivityTab();
     checkAllObjectives();
-    // Garder le panneau bas visible même en mode configuration
-    document.querySelector('.bot').style.display='flex';
+    showTab('activ'); // bandeau déplié sur l'onglet Activité
   } else {
-    document.querySelector('.bot').style.display='none'; // masqué en mode config par défaut
+    setBot(false);    // sans activité : bandeau replié, Journal et Paquets à un clic
   }
   window.addEventListener('keydown',function(e){
     if(e.key==='F11'){e.preventDefault();toggleFullscreen();}
   });
   window.addEventListener('beforeunload',function(){saveToSession();if(_api&&_apiOk){sSet('cmi.core.score.raw',String(S.score));sCom();}});
-  tpr('Bienvenue dans le Simulateur Réseau IPv4 (inspiré de Filius).','info');
-  tpr('Ajoutez des appareils depuis la palette, reliez-les avec des câbles,','info');
-  tpr('configurez les IPs, puis passez en mode Simulation pour tester.','info');
-  tpr('Tapez "help" pour voir toutes les commandes disponibles.','info');
-  tpr('');
-  if(window.opener)tpr('↗ Fenêtre séparée — SCORM actif via la fenêtre parente.','info');
+  addLog('Bienvenue ! Ajoutez des appareils depuis la palette, reliez-les avec des câbles et réglez leurs adresses.','info');
+  addLog('Double-cliquez sur un appareil pour ouvrir son bureau : invite de commandes, navigateur, services.','info');
+  if(window.opener)addLog('↗ Fenêtre séparée — SCORM actif via la fenêtre parente.','info');
 
   /* ── Redimensionnement des panneaux ── */
   (function(){

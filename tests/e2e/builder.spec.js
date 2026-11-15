@@ -99,13 +99,7 @@ async function exportFile(page, kind, file) {
   return download(page, () => page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click(), file);
 }
 
-async function runInTerminal(page, deviceName, command) {
-  const id = await deviceId(page, deviceName);
-  await page.locator(`#gd${id}`).click();
-  await expect(page.locator('#tprompt')).toContainText(deviceName.toLowerCase());
-  await page.locator('#tinput').fill(command);
-  await page.locator('#tinput').press('Enter');
-}
+const runInTerminal = (page, deviceName, command) => deskTerminal(page, deviceName, command);
 
 /* ── Vue élève ───────────────────────────────────────────────────────── */
 
@@ -121,23 +115,11 @@ async function setGateway(scope, deviceName, value) {
   await input.press('Tab');
 }
 
-/* Terminal côté élève : l'appareil se choisit dans la liste du terminal. */
-async function studentTerminal(scope, deviceName, command) {
-  await scope.locator('.bt', { hasText: 'Terminal' }).click();
-  await scope.locator('#td-sel').selectOption({ label: deviceName });
-  await scope.locator('#tinput').fill(command);
-  await scope.locator('#tinput').press('Enter');
-}
+/* Terminal et navigateur : ceux du bureau de l'appareil (le bandeau du bas n'en a plus). */
+const studentTerminal = (scope, deviceName, command) => deskTerminal(scope, deviceName, command);
+const studentBrowse = (scope, deviceName, url) => deskBrowse(scope, deviceName, url);
 
-/* Navigateur côté élève : appareil choisi dans la liste, puis l'adresse du site. */
-async function studentBrowse(scope, deviceName, url) {
-  await scope.locator('.bt', { hasText: 'Navigateur' }).click();
-  await scope.locator('#bd-sel').selectOption({ label: deviceName });
-  await scope.locator('#burl').fill(url);
-  await scope.locator('button[onclick="browGo()"]').click();
-}
-
-/* Bureau d'un appareil (mode simulation) : double-clic, puis l'icône de l'application.
+/* Bureau d'un appareil : double-clic, puis l'icône de l'application.
    Rend la fenêtre de l'appareil. */
 async function openDeskApp(scope, deviceName, appLabel) {
   const id = await deviceId(scope, deviceName);
@@ -315,7 +297,6 @@ test.describe('Vue élève (export HTML)', () => {
       render();
       return id;
     }, charlie);
-    await page.locator('#btn-sim').click();   // les services se règlent dans le bureau, en simulation
     const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
     await dns.locator('[data-act="toggle"]').click();
 
@@ -385,23 +366,69 @@ test.describe('Vue élève (export HTML)', () => {
     await openDeskApp(page, 'PC-Bureau', 'Invite de commandes');
     await expect(pc.locator('.dterm-out')).toContainText('> ping 192.168.1.1');
     await expect(pc.locator('.dterm-out')).not.toContainText('> dhcp');
-    await expect(page.locator('#tout')).not.toContainText('> ping 8.8.8.8');
 
-    // Fermer l'application garde la fenêtre ; × ferme le bureau ; changer de mode ne ferme plus rien.
+    // Fermer l'application garde la fenêtre ; × ferme le bureau.
     await pc.locator('.aclose').click();
     await expect(pc.locator('.dico')).toHaveCount(3);
     await pc.locator('.dw-x').click();
     await expect(pc).toHaveCount(0);
     await expect(page.locator('.dwin')).toHaveCount(1);
-    await page.locator('#btn-sim').click();
-    await page.locator('#btn-cfg').click();
-    await expect(page.locator('.dwin')).toHaveCount(1);
+
+    // Plus de boutons de mode, plus de terminal ni de navigateur dans le bandeau du bas.
+    await expect(page.locator('#btn-cfg, #btn-sim')).toHaveCount(0);
+    await expect(page.locator('#tinput, #td-sel, #burl, #tout')).toHaveCount(0);
+    await expect(page.locator('.bot .bt')).toHaveText(['📋 Journal', '🔍 Paquets', '📋 Activité']);
+
+    // Le bandeau est ouvert sur l'activité ; il se replie sur ses onglets et se rouvre d'un clic sur un onglet.
+    await expect(page.locator('#activ-pane')).toBeVisible();
+    const canvasH = () => page.locator('#cw').evaluate((el) => el.getBoundingClientRect().height);
+    const open = await canvasH();
+    await page.locator('#bot-toggle').click();
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+    await expect(page.locator('#activ-pane')).toBeHidden();
+    await expect(page.locator('.bot .bt').first()).toBeVisible();
+    expect(await canvasH()).toBeGreaterThan(open + 100);                    // la place est rendue au schéma
+    await expect(page.locator('.dwin')).toHaveCount(1);                     // les bureaux ouverts restent
+    await page.locator('.bot .bt', { hasText: 'Journal' }).click();
+    await expect(page.locator('.bot')).not.toHaveClass(/closed/);
+    await expect(page.locator('#lout')).toContainText('PING');
+    await page.locator('.bot .bt', { hasText: 'Paquets' }).click();
+    await expect(page.locator('#pkt-body tr').first()).toBeVisible();
+  });
+
+  test('élève sans activité : bandeau replié à l\'ouverture ; le réseau se sauvegarde seul, quelques secondes après une modification', async ({ page }, info) => {
+    await page.goto(BUILDER_URL);
+    const file = await exportFile(page, 'html', info.outputPath('libre.html'));
+    await page.goto(pathToFileURL(file).href);
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+    await expect(page.locator('#btn-activ-tab')).toBeHidden();
+    await expect(page.locator('#lout')).toBeHidden();
+
+    // Un poste déposé depuis la palette : sauvegardé sans rien demander
+    const saved = () => page.evaluate(() => localStorage.getItem(SESSION_KEY) || '');
+    const spot = await freeSpot(page);
+    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+    expect(pc).not.toBeNull();
+    expect(await saved()).not.toContain(`"${pc}"`);                         // pas encore : la sauvegarde est temporisée
+    await expect.poll(saved, { timeout: 9000 }).toContain(`"${pc}"`);
+
+    // Une modification de la fiche aussi
+    await page.locator(`#gd${pc}`).click();
+    const ip = page.locator('#props-body .pr', { hasText: /^Adresse IP/ }).locator('input:not([type="checkbox"])').first();
+    await ip.fill('192.168.50.7');
+    await ip.press('Tab');
+    await expect.poll(saved, { timeout: 9000 }).toContain('192.168.50.7');
+
+    // Page fermée brutalement (sans l'enregistrement de fermeture) : le réseau est retrouvé
+    await page.evaluate(() => { window.addEventListener('beforeunload', (e) => e.stopImmediatePropagation(), true); });
+    await page.reload();
+    expect(await page.evaluate((id) => S.devs[id] && S.devs[id].ifaces[0].ip, pc)).toBe('192.168.50.7');
   });
 });
 
 test.describe('Builder', () => {
-  test('services réglés en simulation : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
-    // Vue Corrigé : le bureau s'ouvre sans simulation, et ce qui y est réglé fait partie du corrigé exporté
+  test('services réglés dans le bureau : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
+    // Vue Corrigé : ce qui est réglé dans le bureau fait partie du corrigé exporté
     await openBuilderWith(page, 'reseau-maison');
     const box = await openDeskApp(page, 'Box-WiFi', 'Administration');
     const dhcp = box.locator('.dpill');
@@ -415,7 +442,6 @@ test.describe('Builder', () => {
 
     const file = await exportFile(page, 'html', info.outputPath('maison-dhcp-off.html'));
     await page.goto(pathToFileURL(file).href);
-    await page.locator('#btn-sim').click();
     const sbox = await openDeskApp(page, 'Box-WiFi', 'Administration');
     await expect(sbox.locator('.dpill')).toHaveText('arrêté');
     const laptop = await deskTerminal(page, 'Laptop', 'dhcp');
@@ -438,7 +464,42 @@ test.describe('Builder', () => {
     const win = await deskTerminal(page, 'PC-Bureau', 'ipconfig');
     await expect(win.locator('.dterm-out')).toContainText('192.168.1.');
     await expect(win.locator('.dwin-ip')).toHaveText(/^192\.168\.1\.\d+$/);
+    await expect(win.locator('.dnote')).toHaveCount(0);                      // en Essai, tout compte
     await expect(builderScore(page)).toHaveText(before);
+    // Le bandeau du bas n'a plus que le journal et les paquets, dans toutes les vues
+    await expect(page.locator('.bot .bt')).toHaveText(['📋 Journal', '🔍 Paquets']);
+    await expect(page.locator('#tinput, #td-sel, #burl, #tout')).toHaveCount(0);
+  });
+
+  test('vue Corrigé : terminal et navigateur pour vérifier le réseau, non comptabilisés ; les mêmes gestes comptent en Essai', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+
+    // Le corrigé fonctionne : le professeur le constate sans quitter la vue
+    const pc = await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
+    await expect(pc.locator('.dnote')).toContainText('non comptabilisé');
+    await expect(pc.locator('.dterm-out')).toContainText('Réponse de 192.168.1.1');
+    await deskTerminal(page, 'PC-Bureau', 'ping 8.8.8.8');
+    const web = await deskBrowse(page, 'PC-Bureau', 'www.exemple.fr');
+    await expect(web.locator('.bpage h1')).toBeVisible();
+    await expect(web.locator('.dnote')).toContainText('non comptabilisé');
+    await page.locator('.bot .bt', { hasText: 'Journal' }).click();
+    await expect(page.locator('#lout')).toContainText('PING');
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);        // aucun point
+
+    // Casser puis rétablir la passerelle dans le corrigé ne rapporte rien non plus
+    await setGateway(page, 'PC-Bureau', '192.168.9.9');
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+    expect(await page.evaluate(() => Object.keys(ACTIVITY_PROOFS).length)).toBe(0);
+
+    // En Essai, la réparation et les mêmes commandes marquent leurs points
+    await page.locator('#btn-sim').click();
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await expect(builderScore(page)).toHaveText(/Score : 35 \/ 100/);
+    const before = await page.evaluate(() => S.score);
+    await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
+    await expect.poll(() => page.evaluate(() => S.score)).toBeGreaterThan(before);
   });
 
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
@@ -453,8 +514,8 @@ test.describe('Builder', () => {
     await dns.locator('[data-act="toggle"]').click();
     await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // « DNS actif »
 
-    await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
-    await expect(page.locator('#tout')).toContainText('192.168.1.100');
+    const bob = await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
+    await expect(bob.locator('.dterm-out')).toContainText('192.168.1.100');
     await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // pas depuis le bon poste
 
     await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
@@ -755,11 +816,8 @@ test.describe('Builder', () => {
       addLink(pc, sw);
       render();
     });
-    // Côté élève, l'appareil du terminal se choisit dans la liste du terminal.
-    await page.locator('.bt', { hasText: 'Terminal' }).click();
-    await page.locator('#td-sel').selectOption({ label: 'b210-p3' });
-    await page.locator('#tinput').fill('ping 10.2.210.1');
-    await page.locator('#tinput').press('Enter');
+    // Côté élève, la commande se tape dans le bureau du poste ajouté.
+    await deskTerminal(page, 'b210-p3', 'ping 10.2.210.1');
     await page.locator('#btn-activ-tab').click();
     await expect(page.locator('.activ-obj', { hasText: 'Ping depuis le nouveau poste' })).toHaveClass(/done/);
   });
@@ -826,7 +884,7 @@ test.describe('Builder', () => {
   test('Connexion WiFi : SSID suivi dans le builder, mot de passe faux puis corrigé chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     // Builder : renommer le réseau de la box, les terminaux connectés suivent
-    // (le WiFi de la box se règle dans son application Administration, en mode simulation)
+    // (le WiFi de la box se règle dans son application Administration, ici sur la copie d'essai)
     await page.locator('#btn-sim').click();
     const admin = await openDeskApp(page, 'Box-WiFi', 'Administration');
     await admin.locator('[data-f="ssid"]').fill('WiFi-Famille');
@@ -1019,13 +1077,13 @@ test.describe('Builder', () => {
     const dnsOn = () => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on);
     expect(await dnsOn()).toBe(true);                                      // corrigé : DNS démarré
 
-    // Corrigé : le bureau s'ouvre sans simulation, sans terminal ni navigateur
+    // Corrigé : le bureau s'ouvre, avec le terminal (non comptabilisé : voir le test de la vue Corrigé)
     const srv = await deviceId(page, 'Serveur');
     await page.locator(`#gd${srv}`).dblclick();
     const win = page.locator(`#dwin-${srv}`);
     await expect(win).toBeVisible();
     await expect(win.locator('.dico', { hasText: 'Serveur DNS' })).toBeVisible();
-    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(1);
     await win.locator('.dw-x').click();
 
     // Départ élève : la panne est appliquée, lecture seule
@@ -1166,7 +1224,8 @@ test.describe('Builder', () => {
     await page.locator('#btn-sim').click();
     await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
     expect(await dnsOn()).toBe(true);
-    await expect(page.locator('#tout')).toContainText('192.168.1.100');   // la sortie du terminal aussi
+    const alice = await openDeskApp(page, 'PC-Alice', 'Invite de commandes');
+    await expect(alice.locator('.dterm-out')).toContainText('192.168.1.100');   // la sortie du terminal aussi
 
     // Le corrigé change (adresse d'un poste) : l'essai ne correspond plus, il repart de zéro, avec un message
     await page.locator('#btn-cfg').click();
@@ -1246,7 +1305,7 @@ test.describe('Builder', () => {
     await expect(page.locator('.ao-hint', { hasText: 'Regarde derrière le bureau' })).toHaveCount(1);
   });
 
-  test('câble débranché : le professeur le rebranche dans le builder, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
+  test('câble débranché : le professeur le rebranche en vue Essai, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
     await page.locator('#btn-wizard').click();
     await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
@@ -1259,7 +1318,9 @@ test.describe('Builder', () => {
       const f = EvalModule.getConfig().faults.find((x) => x.type === 'missing_cable'); return f.params || f; });
     const pts = await page.evaluate(() => EvalModule.getConfig().objectives.find((o) => o.check === 'cable_exists').points);
     const [pc, sw, box] = [await deviceId(page, fault.devA), await deviceId(page, fault.devB), await deviceId(page, 'Box')];
-    // Le professeur débranche le câble (comme la panne), puis le rebranche à l'outil Câble
+    // En Essai, la panne a débranché le câble : le professeur le rebranche à l'outil Câble
+    await page.locator('#btn-sim').click();
+    expect(await linkList(page)).not.toContainEqual(expect.objectContaining({ from: pc, to: sw }));
     await page.evaluate(([a, b]) => {
       Object.keys(S.links).forEach((k) => { const l = S.links[k];
         if ((l.from === a && l.to === b) || (l.from === b && l.to === a)) delete S.links[k]; });
@@ -1650,13 +1711,17 @@ test.describe('Souris sur le schéma', () => {
     expect(await devPos(page, pcB)).toEqual(start);
   });
 
-  test('élève : un seul comportement, quel que soit le bouton de mode (palette, câble, fiche, glisser, double-clic, Suppr)', async ({ page }, info) => {
+  test('élève : un seul comportement, bandeau du bas déplié ou replié (palette, câble, fiche, glisser, double-clic, Suppr)', async ({ page }, info) => {
     await openStudentExport(page, info, 'reseau-maison');
     const boxId = await deviceId(page, 'Box-WiFi');
     const laptop = await deviceId(page, 'Laptop');
 
-    for (const mode of ['#btn-cfg', '#btn-sim']) {
-      await page.locator(mode).click();
+    await expect(page.locator('#btn-cfg, #btn-sim')).toHaveCount(0);        // plus de boutons de mode
+    for (const mode of ['déplié', 'replié']) {
+      if (mode === 'replié') {
+        await page.locator('#bot-toggle').click();
+        await expect(page.locator('.bot')).toHaveClass(/closed/);
+      }
 
       // Palette active : déposer un PC fixe, le câbler à la box
       await expect(page.locator('#pi-pc-desktop'), mode).not.toHaveClass(/disabled/);
@@ -1670,9 +1735,8 @@ test.describe('Souris sur le schéma', () => {
       expect(await linkList(page), mode).toContainEqual(expect.objectContaining({ from: pc, to: boxId, type: 'cable' }));
       await page.keyboard.press('Escape');
 
-      // Clic : fiche modifiable, le terminal du bandeau suit l'appareil
+      // Clic : fiche modifiable, avec les applications de l'appareil
       await clickDev(page, laptop);
-      await expect(page.locator('#td-sel'), mode).toHaveValue(laptop);
       await expect(page.locator('#props-body input').first()).toHaveValue('Laptop');
       await expect(page.locator('#props-body input').first()).toBeEditable();
       await expect(page.locator('#props-body .desk-papps button', { hasText: 'Invite de commandes' })).toBeVisible();

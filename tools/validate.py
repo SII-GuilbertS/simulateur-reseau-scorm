@@ -68,6 +68,10 @@ def js_syntax_check(js_src, label):
 
 if builder_js:
     js_syntax_check(builder_js, 'builder')
+    # Le reste du script (EvalModule, GenModule, assistant) suit STUDENT_TEMPLATE : on vérifie le bloc entier.
+    script_end = html.rfind('\n</script>')
+    if script_end > student_start:
+        js_syntax_check(html[script_start + len('\n<script>\n') : script_end], 'builder, bloc complet')
 
 if tmpl:
     tmpl_scripts = re.findall(r'<script[^>]*>([\s\S]*?)</script>', tmpl)

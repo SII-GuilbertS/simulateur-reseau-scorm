@@ -103,6 +103,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .bt{padding:6px 14px;border:none;background:transparent;color:#a0aec0;cursor:pointer;font-size:.78em;font-weight:600;border-bottom:2px solid transparent;transition:all .2s}
 .bt:hover{color:#e2e8f0}.bt.active{color:#68d391;border-bottom-color:#68d391}
 .tp{display:none;flex:1;min-height:0}.tp.active{display:flex;flex-direction:column}
+.btabs .bot-tg{margin-left:auto;padding:6px 12px;border:none;background:transparent;color:#a0aec0;cursor:pointer;font-size:.74em;font-weight:600}
+.btabs .bot-tg:hover{color:#e2e8f0}
+.bot.closed{height:auto!important}
+.bot.closed .tp,.bot.closed .rsz-h{display:none!important}
 
 /* Terminal */
 .tterm{padding:4px 8px;display:flex;align-items:center;gap:7px;background:#2d3748;flex-shrink:0;font-size:.78em}
@@ -220,11 +224,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
     <input type="file" id="load-inp" accept=".json" style="display:none" onchange="loadTopology(event)"/>
   </div>
 
-  <div class="hdr-mode">
-    <button class="mbtn active" id="btn-cfg" onclick="setMode('config')">⚙️ Configuration</button>
-    <button class="mbtn"        id="btn-sim" onclick="setMode('simulation')">▶ Simulation</button>
-  </div>
-
   <div class="hdr-r">
     <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs">📊 Score : 0 / 100</div>
     <div id="score-details"></div>
@@ -312,44 +311,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 <div class="bot">
   <div class="rsz-h" id="rsz-bot"></div>
   <div class="btabs">
-    <button class="bt active" onclick="showTab('term')">📟 Terminal</button>
-    <button class="bt"        onclick="showTab('brow')">🌐 Navigateur</button>
-    <button class="bt"        onclick="showTab('log')">📋 Journal</button>
-    <button class="bt"        onclick="showTab('pkt')">🔍 Paquets</button>
-    <button class="bt" id="btn-activ-tab" style="display:none" onclick="showTab('activ')">📋 Activité</button>
-  </div>
-
-  <!-- Terminal -->
-  <div class="tp active" id="tp-term">
-    <div class="tterm">
-      <span style="color:#a0aec0;font-size:.85em">Appareil :</span>
-      <select id="td-sel" onchange="setTermDev(this.value)"><option value="">— Choisir —</option></select>
-      <span id="td-ip" style="color:#68d391;margin-left:2px;font-family:'Courier New',monospace"></span>
-      <button onclick="termClr()" style="margin-left:auto;background:#4a5568;color:#e2e8f0;border:none;padding:1px 7px;border-radius:4px;cursor:pointer;font-size:.76em">Effacer</button>
-    </div>
-    <div class="tout" id="tout"></div>
-    <div class="tin">
-      <span class="tprompt" id="tprompt">&gt;&nbsp;</span>
-      <input class="tinput" id="tinput" type="text"
-             placeholder="ping 192.168.1.20 | ping intranet.local | ipconfig | nslookup www.site.fr | traceroute | arp | help"
-             onkeydown="termKey(event)"/>
-    </div>
-  </div>
-
-  <!-- Browser -->
-  <div class="tp" id="tp-brow">
-    <div class="bbar">
-      <span style="color:#a0aec0">Depuis :</span>
-      <select id="bd-sel"><option value="">— Choisir un PC —</option></select>
-      <span style="color:#a0aec0">URL :</span>
-      <input id="burl" type="text" placeholder="http://www.monserveur.fr  ou  192.168.1.100"/>
-      <button onclick="browGo()">→ Aller</button>
-    </div>
-    <div class="bcont" id="bcont"><div class="bph">Entrez une URL puis cliquez "Aller"…</div></div>
+    <button class="bt active" data-tab="log" onclick="showTab('log')">📋 Journal</button>
+    <button class="bt" data-tab="pkt" onclick="showTab('pkt')">🔍 Paquets</button>
+    <button class="bt" data-tab="activ" id="btn-activ-tab" style="display:none" onclick="showTab('activ')">📋 Activité</button>
+    <button type="button" class="bot-tg" id="bot-toggle" onclick="toggleBot()" aria-expanded="true" title="Replier ou déplier le bandeau">▾ Replier</button>
   </div>
 
   <!-- Log -->
-  <div class="tp" id="tp-log">
+  <div class="tp active" id="tp-log">
     <div class="lout" id="lout"><div class="ll info">[ Journal réseau prêt ]</div></div>
   </div>
 

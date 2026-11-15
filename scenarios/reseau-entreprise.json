@@ -181,7 +181,7 @@
   "activity": {
     "title": "Réseau Entreprise — Serveur Web et DNS en panne",
     "level": "Terminale / BTS",
-    "instructions": "Le réseau de l'entreprise comporte un serveur web (www.mon-entreprise.fr) auquel les employés doivent accéder. Depuis ce matin, les PCs ne peuvent plus joindre le site, et PC-Bob n'a plus accès à Internet.\n\n🔍 Votre mission :\n1. En mode Simulation, testez la connectivité : ping, nslookup, et navigateur web.\n2. Identifiez les pannes (deux problèmes à trouver !).\n3. Corrigez la configuration en mode Configuration.\n4. Prouvez que tout fonctionne : résolution du nom, accès au site depuis PC-Alice et PC-Bob, accès Internet de PC-Bob.\n\n🌐 URL à tester : www.mon-entreprise.fr\n💡 Commandes utiles : ipconfig, ping <IP>, nslookup <domaine>",
+    "instructions": "Le réseau de l'entreprise comporte un serveur web (www.mon-entreprise.fr) auquel les employés doivent accéder. Depuis ce matin, les PCs ne peuvent plus joindre le site, et PC-Bob n'a plus accès à Internet.\n\n🔍 Votre mission :\n1. Double-cliquez sur un poste pour ouvrir son bureau et testez la connectivité : ping, nslookup, et navigateur web.\n2. Identifiez les pannes (deux problèmes à trouver !).\n3. Corrigez la configuration (fiche des appareils, bureau du serveur).\n4. Prouvez que tout fonctionne : résolution du nom, accès au site depuis PC-Alice et PC-Bob, accès Internet de PC-Bob.\n\n🌐 URL à tester : www.mon-entreprise.fr\n💡 Commandes utiles : ipconfig, ping <IP>, nslookup <domaine>",
     "masteryscore": 60,
     "displayMode": "full",
     "objectives": [
@@ -227,7 +227,7 @@
           "url": "www.mon-entreprise.fr"
         },
         "points": 15,
-        "hint": "Onglet Navigateur : choisissez PC-Alice et entrez www.mon-entreprise.fr"
+        "hint": "Double-clic sur PC-Alice, Navigateur : entrez www.mon-entreprise.fr"
       },
       {
         "id": 5,
@@ -238,7 +238,7 @@
           "url": "www.mon-entreprise.fr"
         },
         "points": 10,
-        "hint": "Onglet Navigateur : choisissez PC-Bob et entrez www.mon-entreprise.fr"
+        "hint": "Double-clic sur PC-Bob, Navigateur : entrez www.mon-entreprise.fr"
       },
       {
         "id": 6,

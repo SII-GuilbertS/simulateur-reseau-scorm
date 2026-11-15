@@ -19,7 +19,17 @@ function scheduleObjectiveCheck(){
   _objCheckT=setTimeout(function(){
     _objCheckT=null;
     if(typeof checkAllObjectives==='function')checkAllObjectives();
+    scheduleSave();
   },0);
+}
+/* Sauvegarde de l'élève : il n'y a plus de passage en simulation pour la déclencher. Toute
+   modification en programme une, SAVE_DELAY ms plus tard au plus ; les modifications faites entre-temps
+   partent avec elle, si bien que le LMS ne reçoit pas plus d'un enregistrement par période.
+   autoSave n'existe que chez l'élève : le builder n'enregistre rien ici. */
+var SAVE_DELAY=5000,_saveT=null;
+function scheduleSave(){
+  if(_saveT||typeof autoSave!=='function')return;
+  _saveT=setTimeout(function(){_saveT=null;autoSave();},SAVE_DELAY);
 }
 
 function toggleScoreDetails(){
@@ -143,31 +153,6 @@ function setPcKind(id,kind){
    STATE
 ───────────────────────────────────────────────────── */
 
-/* ── Historique terminal (flèches ↑ ↓) ── */
-var _termHistory=[];var _termHistIdx=-1;var _termDraft='';
-function termKey(e){
-  var inp=document.getElementById('tinput');
-  if(e.key==='Enter'){termExec();e.preventDefault();return;}
-  if(e.key==='ArrowUp'){
-    e.preventDefault();
-    if(!_termHistory.length)return;
-    if(_termHistIdx===-1)_termDraft=inp.value;
-    if(_termHistIdx<_termHistory.length-1){
-      _termHistIdx++;
-      inp.value=_termHistory[_termHistory.length-1-_termHistIdx];
-      setTimeout(function(){inp.selectionStart=inp.selectionEnd=inp.value.length;},0);
-    }
-    return;
-  }
-  if(e.key==='ArrowDown'){
-    e.preventDefault();
-    if(_termHistIdx===-1)return;
-    _termHistIdx--;
-    inp.value=_termHistIdx===-1?_termDraft:_termHistory[_termHistory.length-1-_termHistIdx];
-    setTimeout(function(){inp.selectionStart=inp.selectionEnd=inp.value.length;},0);
-    return;
-  }
-}
 
 /* ─────────────────────────────────────────────────────
    IP UTILS
@@ -274,7 +259,7 @@ function animPath(devIdPath){
 /* ─────────────────────────────────────────────────────
    SVG RENDERING
 ───────────────────────────────────────────────────── */
-function render(){renderFrames();renderLinks();renderDevs();renderTexts();renderHint();updSelects();scheduleObjectiveCheck();deskSync();}
+function render(){renderFrames();renderLinks();renderDevs();renderTexts();renderHint();scheduleObjectiveCheck();deskSync();}
 
 function renderLinks(){
   var h='';
@@ -450,7 +435,7 @@ function readOnly(){return deskView()==='depart';}
 function roNotice(){notif('👁️ Vue « Départ élève » en lecture seule : passez en « Essai » pour agir','info');}
 
 /* Appui sur un appareil. Outils Supprimer et Câble : l'action de l'outil. Sinon : sélection, fiche,
-   début d'un glisser ; le terminal du bandeau suit l'appareil ; un second appui rapproché ouvre son
+   début d'un glisser ; un second appui rapproché ouvre son
    bureau (deskDblCheck) et ne commence pas de glisser. */
 function devMD(e,id){
   e.stopPropagation();
@@ -461,7 +446,6 @@ function devMD(e,id){
     else{if(S.cableFrom!==id){addLink(S.cableFrom,id);}S.cableFrom=null;hidePrev();render();}
     return;
   }
-  if(d.type!=='switch')setTermDev(id);
   var pt=svgPt(e);
   S.sel=id;
   S.drag=ro?null:{id:id,ox:pt.x-d.x,oy:pt.y-d.y,sx:pt.x,sy:pt.y,moved:false};
@@ -565,17 +549,17 @@ document.addEventListener('keydown',function(e){
   if((e.key==='Delete'||e.key==='Backspace')&&!typing&&deleteSelection())e.preventDefault();
 });
 
-/* Les deux boutons de mode ne règlent plus que le bandeau du bas (terminal, navigateur, journal) :
-   le schéma se modifie et se teste dans les deux. */
-function setMode(m){
-  S.mode=m;
-  document.getElementById('btn-cfg').classList.toggle('active',m==='config');
-  document.getElementById('btn-sim').classList.toggle('active',m==='simulation');
-  var simMode=(m==='simulation');
-  // Afficher le panneau bas en simulation — ou toujours si une activité est configurée
-  var _keepBot=typeof ACTIVITY_CONFIG!=='undefined'&&ACTIVITY_CONFIG&&scoredObjectives(ACTIVITY_CONFIG).length;
-  document.querySelector('.bot').style.display=(simMode||_keepBot)?'flex':'none';
-  if(simMode)saveToSession(); // auto-save à chaque passage en simulation
+/* Bandeau du bas (Journal, Paquets, Activité chez l'élève) : repliable sur sa barre d'onglets.
+   Un clic sur un onglet le déplie (showTab). */
+function setBot(open){
+  var b=document.querySelector('.bot');if(!b)return;
+  b.classList.toggle('closed',!open);
+  var t=document.getElementById('bot-toggle');
+  if(t){t.textContent=open?'▾ Replier':'▴ Déplier';t.setAttribute('aria-expanded',open?'true':'false');}
+}
+function toggleBot(){
+  var b=document.querySelector('.bot');
+  if(b)setBot(b.classList.contains('closed'));
 }
 /* Palette et outils grisés quand le schéma ne se modifie pas (vue « Départ élève » du builder). */
 function palLock(on){
@@ -831,53 +815,20 @@ function insertFileRef(devId,filename){
 /* ─────────────────────────────────────────────────────
    TERMINAL
 ───────────────────────────────────────────────────── */
-function updSelects(){
-  var all=Object.values(S.devs).filter(function(d){return d.type!=='switch';});
-  var pcs=all.filter(function(d){return d.type==='pc'||d.type==='server';});
-  var ts=document.getElementById('td-sel'),cur=S.termDev;
-  ts.innerHTML='<option value="">— Choisir —</option>';
-  all.forEach(function(d){ts.innerHTML+='<option value="'+d.id+'"'+(d.id===cur?' selected':'')+'>'+esc(d.name)+'</option>';});
-  var bs=document.getElementById('bd-sel'),bc=bs.value;
-  bs.innerHTML='<option value="">— Choisir —</option>';
-  pcs.forEach(function(d){bs.innerHTML+='<option value="'+d.id+'"'+(d.id===bc?' selected':'')+'>'+esc(d.name)+'</option>';});
-  updPrompt();
-}
-
-function setTermDev(id){
-  S.termDev=id;document.getElementById('td-sel').value=id||'';updPrompt();
-  var fi=id&&S.devs[id]?mainIface(S.devs[id]):null;
-  document.getElementById('td-ip').textContent=fi&&fi.ip?'['+fi.ip+']':'';
-}
-
-function updPrompt(){
-  var d=S.termDev?S.devs[S.termDev]:null;
-  document.getElementById('tprompt').textContent=(d?d.name.toLowerCase().replace(/\s+/g,'-'):'guest')+'@réseau > ';
-}
-
-// Sortie du terminal : le bandeau du bas (#tout) ou, pendant une commande lancée
-// depuis le bureau d'un appareil, la sortie de cette fenêtre (voir deskTermRun).
+// Sortie du terminal : celle de la fenêtre du bureau d'où part la commande (voir deskOut).
+// Hors de toute fenêtre, il n'y a pas de terminal : rien n'est écrit.
 var _termOut=null;
 function tpr(txt,cls){
-  var o=_termOut||document.getElementById('tout');
+  var o=_termOut;if(!o)return;
   var div=document.createElement('div');div.className='tl '+(cls||'');div.textContent=txt;
   o.appendChild(div);o.scrollTop=o.scrollHeight;
 }
-function termClr(){(_termOut||document.getElementById('tout')).innerHTML='';}
-
-function termExec(){
-  var inp=document.getElementById('tinput');var raw=inp.value.trim();inp.value='';
-  _termHistIdx=-1;_termDraft='';
-  if(!raw)return;
-  if(!_termHistory.length||_termHistory[_termHistory.length-1]!==raw){
-    _termHistory.push(raw);if(_termHistory.length>50)_termHistory.shift();
-  }
-  termRun(raw,S.termDev);
-}
+function termClr(){if(_termOut)_termOut.innerHTML='';}
 
 // Exécute une commande sur un appareil ; la sortie va dans tpr().
 function termRun(raw,devId){
   tpr('> '+raw,'cmd');
-  if(!devId){tpr('⚠️  Aucun appareil sélectionné — choisissez-en un ci-dessus.','err');return;}
+  if(!devId){tpr('⚠️  Aucun appareil sélectionné.','err');return;}
   var d=S.devs[devId];if(!d){tpr('⚠️  Appareil introuvable','err');return;}
   var parts=raw.split(/\s+/),cmd=parts[0].toLowerCase();
   switch(cmd){
@@ -925,7 +876,7 @@ var DESK_APPS={
 function deskView(){return typeof BUILDER_VIEW!=='undefined'?BUILDER_VIEW:'essai';}
 function deskApps(d){
   var a=deskAppsAll(d);
-  if(deskView()!=='essai')a=a.filter(function(x){return x!=='term'&&x!=='brow';});
+  if(readOnly())a=a.filter(function(x){return x!=='term'&&x!=='brow';});
   return a;
 }
 function deskAppsAll(d){
@@ -978,6 +929,7 @@ function deskInit(){
     '.abody .bbar input{flex:1;min-width:0;border:1px solid #4a5568;border-radius:12px;padding:3px 10px;font-family:"Courier New",monospace;font-size:12px;background:#1a202c;color:#e2e8f0}'+
     '.abody .bbar button{border:none;border-radius:6px;background:#2b6cb0;color:#fff;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer}'+
     '.abody .bcont{user-select:text}'+
+    '.abody .dnote{flex-shrink:0;padding:4px 8px;background:#744210;color:#fefcbf;font-size:11px}'+
     '.desk-dock{position:fixed;display:flex;gap:6px;flex-wrap:wrap;z-index:899}'+
     '.desk-chip{background:#2d3748;color:#e2e8f0;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.25);font-family:inherit}'+
     '.desk-chip:hover{background:#2b6cb0}'+
@@ -1115,6 +1067,7 @@ function deskRender(id){
   var body=b.querySelector('.abody'),s=deskSess(id);
   if(app.form){body.classList.add('dform');DESK_FORMS[w.app](d,body);return;}
   if(w.app==='term'){
+    deskUncounted(body);
     body.appendChild(s.out);
     var tin=document.createElement('div');tin.className='tin';
     tin.innerHTML='<span class="tprompt"></span><input class="tinput dterm-in" type="text" autocomplete="off" spellcheck="false"'+
@@ -1131,6 +1084,7 @@ function deskRender(id){
     bar.innerHTML='<input class="dbrow-url" type="text" autocomplete="off" spellcheck="false" placeholder="http://www.monserveur.fr  ou  192.168.1.100" aria-label="Adresse"><button type="submit">→ Aller</button>';
     var u=bar.querySelector('input');u.value=s.url;
     bar.addEventListener('submit',function(e){e.preventDefault();s.url=u.value.trim();deskBrowse(id);});
+    deskUncounted(body);
     body.appendChild(bar);body.appendChild(s.bc);
     setTimeout(function(){u.focus();},0);
   }
@@ -1154,11 +1108,18 @@ function deskTermKey(e,id,inp){
     s.hi--;inp.value=s.hi===-1?s.draft:s.hist[s.hist.length-1-s.hi];
   }
 }
-function deskTermRun(id,raw){
-  var s=deskSess(id),prevOut=_termOut,prevDev=S.termDev;
-  _termOut=s.out;S.termDev=id;
-  try{termRun(raw,id);}
-  finally{_termOut=prevOut;S.termDev=prevDev;}
+function deskTermRun(id,raw){deskOut(id,function(){termRun(raw,id);});}
+// Exécute fn en envoyant ce qu'écrit le terminal (tpr) dans la session de l'appareil.
+function deskOut(id,fn){
+  var p=_termOut;_termOut=deskSess(id).out;
+  try{fn();}finally{_termOut=p;}
+}
+// Vue Corrigé du builder : le professeur vérifie que son réseau fonctionne, sans marquer de points.
+function deskUncounted(body){
+  if(deskView()!=='corrige')return;
+  var n=document.createElement('div');n.className='dnote';
+  n.textContent='Vue Corrigé : non comptabilisé dans le score. Pour jouer l\'élève, passez en vue Essai.';
+  body.appendChild(n);
 }
 function deskBrowse(id){
   var s=deskSess(id);
@@ -1275,7 +1236,7 @@ var DESK_FORMS={
       :'<button type="button" class="dbtn" data-act="save">Enregistrer</button>')+'<span class="dmsg"></span></div>';
     body.innerHTML=h;
     // Les messages de la demande DHCP vont dans le terminal de l'appareil.
-    function dhcpRun(fn){var s=deskSess(id),p=_termOut;_termOut=s.out;try{fn();}finally{_termOut=p;}}
+    function dhcpRun(fn){deskOut(id,fn);}
     var ck=body.querySelector('[data-f="dhcp"]');
     if(ck)ck.onchange=function(){
       var on=ck.checked;
@@ -1619,6 +1580,13 @@ function renderPackets(){
 ───────────────────────────────────────────────────── */
 
 function doDHCP(devId){
+  if(readOnly()){roNotice();return;}
+  // Demandée depuis la fiche : le détail s'écrit dans le terminal de l'appareil, le résultat en message.
+  if(!_termOut){
+    var r;deskOut(devId,function(){r=doDHCP(devId);});
+    if(r)notif(r.ok?'📡 Adresse reçue par DHCP : '+r.ip:'📡 DHCP : '+r.reason,r.ok?'ok':'err');
+    return r;
+  }
   var d=S.devs[devId];tpr('');
   tpr('Envoi requête DHCP Discover…','info');
   var res=simDHCP(devId);
@@ -1631,13 +1599,14 @@ function doDHCP(devId){
     tpr('Configuration IP appliquée automatiquement.','ok');
     addLog('DHCP '+d.name+' → '+res.ip+' (via '+res.server+')','ok');
     addPacket('DHCP','0.0.0.0',res.ip,'Adresse attribuée par '+res.server,true);
-    render();if(S.termDev)showProps(S.termDev);if(S.sel===devId)showProps(devId);
+    render();if(S.sel===devId)showProps(devId);
     checkDynamicObjective('dhcp_success',{from:d.name,fromId:devId,ip:res.ip});
   } else {
     tpr('DHCP Request échoué : '+res.reason,'err');
     addLog('DHCP '+d.name+' ÉCHEC : '+res.reason,'err');
     addPacket('DHCP','0.0.0.0','255.255.255.255',res.reason,false);
   }
+  return res;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1881,16 +1850,9 @@ function clearStarterAndGenerate(){
    TABS
 ───────────────────────────────────────────────────── */
 function showTab(id){
-  document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('active');});
-  document.querySelectorAll('.bt').forEach(function(b){b.classList.remove('active');});
-  var pane=document.getElementById('tp-'+id);if(pane)pane.classList.add('active');
-  var tabs=['term','brow','log','pkt','activ'];
-  var idx=tabs.indexOf(id);
-  var bts=document.querySelectorAll('.bt');if(bts[idx])bts[idx].classList.add('active');
-  if(id==='brow'&&S.termDev){
-    var bs=document.getElementById('bd-sel');
-    if(bs&&bs.querySelector('option[value="'+S.termDev+'"]'))bs.value=S.termDev;
-  }
+  document.querySelectorAll('.tp').forEach(function(p){p.classList.toggle('active',p.id==='tp-'+id);});
+  document.querySelectorAll('.bt').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===id);});
+  setBot(true);
 }
 
 /* ─────────────────────────────────────────────────────

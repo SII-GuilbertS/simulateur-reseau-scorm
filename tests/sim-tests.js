@@ -1591,17 +1591,9 @@ function objective(id, check, params, points) {
 
 function done(id) { return !!sandbox.ACTIVITY_RESULTS[id]; }
 
-function term(devId, command) {
-  S.termDev = devId;
-  sandbox.document.getElementById('tinput').value = command;
-  sandbox.termExec();
-}
+function term(devId, command) { sandbox.termRun(command, devId); }
 
-function browse(devId, url) {
-  sandbox.document.getElementById('bd-sel').value = devId;
-  sandbox.document.getElementById('burl').value = url;
-  sandbox.browGo();
-}
+function browse(devId, url) { sandbox.browGo(devId, url, sandbox.document.createElement('div')); }
 
 /* PC-Alice, un serveur DNS et un serveur web sur le même switch. */
 function makeLan() {
@@ -2396,7 +2388,7 @@ test('poste ajouté et nommé en minuscules : ping au terminal validé puis rev�
 suite('Suppr — effacer l\'élément sélectionné');
 
 test('appareil sélectionné : effacé avec ses câbles', function() {
-  resetNet(); S.mode = 'config';
+  resetNet();
   var pc = mkPC('192.168.1.10'), sw = mkSwitch(); link(pc, sw);
   S.sel = pc;
   ok(sandbox.deleteSelection());
@@ -2404,7 +2396,7 @@ test('appareil sélectionné : effacé avec ses câbles', function() {
 });
 
 test('câble sélectionné : seul le câble est effacé', function() {
-  resetNet(); S.mode = 'config';
+  resetNet();
   var pc = mkPC('192.168.1.10'), sw = mkSwitch(), l = link(pc, sw);
   S.sel = l;
   ok(sandbox.deleteSelection());
@@ -2412,7 +2404,7 @@ test('câble sélectionné : seul le câble est effacé', function() {
 });
 
 test('cadre et texte sélectionnés : effacés', function() {
-  resetNet(); S.mode = 'config';
+  resetNet();
   S.frames = { f9: { id:'f9', x:0, y:0, w:100, h:100, label:'Salle' } };
   S.texts  = { t9: { id:'t9', x:0, y:0, text:'Note' } };
   S.sel = 'f9'; ok(sandbox.deleteSelection()); notOk(S.frames.f9);
@@ -2428,10 +2420,6 @@ test('lecture seule (vue Départ élève du builder) ou rien de sélectionné : 
   finally { delete sandbox.BUILDER_VIEW; }
   S.sel = null;
   notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
-  // Plus de mode : la sélection s'efface, que l'ancien « mode » soit Configuration ou Simulation
-  S.sel = pc; S.mode = 'simulation';
-  try { ok(sandbox.deleteSelection()); notOk(S.devs[pc]); }
-  finally { S.mode = 'config'; }
 });
 
 /* ── SCORM ── */
@@ -3488,6 +3476,36 @@ test('LMS qui refuse suspend_data (trop long) : signalé, réseau gardé sur le 
   sandbox.localStorage = { getItem: function() { return null; }, setItem: function() { throw new Error('plein'); } };
   try { withLMS(api, function() { notOk(sandbox.saveToSession()); }); }
   finally { sandbox.localStorage = original; }
+});
+
+test('sauvegarde temporisée : une seule minuterie de 5 s, un envoi au LMS seulement si le réseau a changé', function() {
+  setupActivity([]);
+  var api = makeLMS({}), timers = [], original = sandbox.setTimeout;
+  sandbox.setTimeout = function(fn, ms) { timers.push({ fn: fn, ms: ms }); return timers.length; };
+  try {
+    withStorage(function(store) {
+      withLMS(api, function() {
+        var pc = mkPC('192.168.1.10');
+        // Plusieurs modifications de suite : une seule sauvegarde programmée
+        sandbox.scheduleSave(); sandbox.scheduleSave(); sandbox.scheduleSave();
+        eq(timers.length, 1); eq(timers[0].ms, 5000);
+        eq(api.commits, 0, 'rien n\'est envoyé avant le délai');
+        timers[0].fn();
+        eq(api.commits, 1);
+        ok(String(api.data['cmi.suspend_data']).indexOf('192.168.1.10') >= 0);
+        ok(store[sandbox.SESSION_KEY].indexOf('192.168.1.10') >= 0);
+        // Délai écoulé sans changement (un simple réaffichage) : rien n'est renvoyé
+        sandbox.scheduleSave(); eq(timers.length, 2);
+        timers[1].fn();
+        eq(api.commits, 1);
+        // Nouvelle modification : elle part à la sauvegarde suivante
+        S.devs[pc].ifaces[0].ip = '192.168.1.77';
+        sandbox.scheduleSave(); timers[2].fn();
+        eq(api.commits, 2);
+        ok(String(api.data['cmi.suspend_data']).indexOf('192.168.1.77') >= 0);
+      });
+    });
+  } finally { sandbox.setTimeout = original; sandbox._saveT = null; }
 });
 
 test('session abîmée : l\'élève repart du réseau de départ, pannes comprises', function() {

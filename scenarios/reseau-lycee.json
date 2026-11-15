@@ -163,7 +163,7 @@
   "activity": {
     "title": "Réseau Lycée — Diagnostic et réparation",
     "level": "Terminale NSI / BTS SIO",
-    "instructions": "Le réseau du lycée présente de nombreux dysfonctionnements ce matin : plus d'accès à Internet, les tablettes ne se connectent plus au WiFi, PC-Salle2 est injoignable et l'intranet ne répond plus. Une nouvelle salle doit aussi accueillir le poste PC-Salle3.\n\n🔍 Votre mission :\n1. En mode Simulation, testez la connectivité de chaque poste (ping, ipconfig, nslookup, navigateur).\n2. Trouvez et corrigez les pannes en mode Configuration (câbles, WiFi, services, adresses).\n3. Ajoutez le poste PC-Salle3 relié au Switch-Principal : adresse libre entre 192.168.1.20 et 192.168.1.49, passerelle et DNS du réseau.\n4. Déclarez-le dans le DNS sous le nom pc-salle3.lycee.local, puis vérifiez tout avec les commandes.\n\n🌐 Intranet : lycee.local\n📶 SSID attendu : WiFi-Lycee\n💡 Commandes : ipconfig, ping <IP>, nslookup <domaine>, dhcp",
+    "instructions": "Le réseau du lycée présente de nombreux dysfonctionnements ce matin : plus d'accès à Internet, les tablettes ne se connectent plus au WiFi, PC-Salle2 est injoignable et l'intranet ne répond plus. Une nouvelle salle doit aussi accueillir le poste PC-Salle3.\n\n🔍 Votre mission :\n1. Double-cliquez sur chaque poste pour ouvrir son bureau et testez sa connectivité (ping, ipconfig, nslookup, navigateur).\n2. Trouvez et corrigez les pannes (câbles, WiFi, services, adresses).\n3. Ajoutez le poste PC-Salle3 relié au Switch-Principal : adresse libre entre 192.168.1.20 et 192.168.1.49, passerelle et DNS du réseau.\n4. Déclarez-le dans le DNS sous le nom pc-salle3.lycee.local, puis vérifiez tout avec les commandes.\n\n🌐 Intranet : lycee.local\n📶 SSID attendu : WiFi-Lycee\n💡 Commandes : ipconfig, ping <IP>, nslookup <domaine>, dhcp",
     "masteryscore": 65,
     "displayMode": "full",
     "objectives": [
@@ -231,7 +231,7 @@
           "url": "lycee.local"
         },
         "points": 5,
-        "hint": "Onglet Navigateur : choisissez PC-Salle1 et entrez lycee.local"
+        "hint": "Double-clic sur PC-Salle1, Navigateur : entrez lycee.local"
       },
       {
         "id": 7,
@@ -296,7 +296,7 @@
           "url": "lycee.local"
         },
         "points": 5,
-        "hint": "Onglet Navigateur : choisissez la Tablette-Eleve et entrez lycee.local"
+        "hint": "Double-clic sur la Tablette-Eleve, Navigateur : entrez lycee.local"
       },
       {
         "id": 21,
@@ -376,7 +376,7 @@
           "url": "lycee.local"
         },
         "points": 5,
-        "hint": "Onglet Navigateur : choisissez PC-Salle3 et entrez lycee.local"
+        "hint": "Double-clic sur PC-Salle3, Navigateur : entrez lycee.local"
       },
       {
         "id": 19,

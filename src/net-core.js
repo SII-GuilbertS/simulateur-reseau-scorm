@@ -601,9 +601,8 @@ var VMASKS=['255.255.255.0','255.255.0.0','255.0.0.0',
 ───────────────────────────────────────────────────── */
 var S={
   devs:{},links:{},frames:{},texts:{},nid:1,
-  tool:'select',mode:'config',
+  tool:'select',
   sel:null,cableFrom:null,drag:null,
-  termDev:null,
   score:0,
   activeLinks:new Set(),  // câbles animés
   animPhase:null,         // 'fwd'|'ret'|null
@@ -698,7 +697,7 @@ function mkDev(type,x,y,kind){
 function delDev(id){
   Object.keys(S.links).forEach(function(lid){var l=S.links[lid];if(l.from===id||l.to===id)delete S.links[lid];});
   delete S.devs[id];
-  if(S.sel===id)S.sel=null;if(S.cableFrom===id)S.cableFrom=null;if(S.termDev===id)S.termDev=null;
+  if(S.sel===id)S.sel=null;if(S.cableFrom===id)S.cableFrom=null;
 }
 
 /* Règles de câblage entre a et b, sans rien modifier ni afficher :
