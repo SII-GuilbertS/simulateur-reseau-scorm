@@ -569,7 +569,7 @@ function setMode(m){
     var b=document.getElementById(id);if(b)b.classList.toggle('disabled',simMode);
   });
   // Afficher le panneau bas en simulation — ou toujours si une activité est configurée
-  var _keepBot=typeof ACTIVITY_CONFIG!=='undefined'&&ACTIVITY_CONFIG&&ACTIVITY_CONFIG.objectives&&ACTIVITY_CONFIG.objectives.length;
+  var _keepBot=typeof ACTIVITY_CONFIG!=='undefined'&&ACTIVITY_CONFIG&&scoredObjectives(ACTIVITY_CONFIG).length;
   document.querySelector('.bot').style.display=(simMode||_keepBot)?'flex':'none';
   if(!simMode)deskCloseAll();
   if(simMode){

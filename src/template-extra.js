@@ -1,6 +1,6 @@
 function checkAllObjectives(){
   if(!ACTIVITY_CONFIG)return;
-  var r=evaluateObjectives(ACTIVITY_CONFIG.objectives);
+  var r=evaluateObjectives(scoredObjectives(ACTIVITY_CONFIG));
   r.gained.forEach(function(obj){
     notif('✅ Objectif atteint : '+obj.label,'ok');
     addLog('✅ Objectif : '+obj.label,'ok');
@@ -14,7 +14,7 @@ function checkAllObjectives(){
 
 function checkDynamicObjective(type,context){
   if(!ACTIVITY_CONFIG)return;
-  var gained=recordDynamicEvent(ACTIVITY_CONFIG.objectives,type,context);
+  var gained=recordDynamicEvent(scoredObjectives(ACTIVITY_CONFIG),type,context);
   gained.forEach(function(obj){
     notif('✅ Objectif atteint : '+obj.label,'ok');
     addLog('✅ Objectif : '+obj.label,'ok');
@@ -26,9 +26,9 @@ function renderScoreDetails(){
   var panel=document.getElementById('score-details');
   if(!panel||!ACTIVITY_CONFIG)return;
   var cfg=ACTIVITY_CONFIG,total=0,earned=0;
-  cfg.objectives.forEach(function(obj){total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;});
+  scoredObjectives(cfg).forEach(function(obj){total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;});
   var h='<div class="sd-title">📊 Détail des objectifs</div>';
-  cfg.objectives.forEach(function(obj){
+  scoredObjectives(cfg).forEach(function(obj){
     var done=!!ACTIVITY_RESULTS[obj.id];
     h+='<div class="sd-obj"><span>'+(done?'✅':'⭕')+'</span>'+
       '<span class="sd-label">'+esc(obj.label)+'</span>'+
@@ -41,7 +41,7 @@ function renderScoreDetails(){
 function updateActivityScore(){
   if(!ACTIVITY_CONFIG)return;
   var total=0,earned=0;
-  ACTIVITY_CONFIG.objectives.forEach(function(obj){
+  scoredObjectives(ACTIVITY_CONFIG).forEach(function(obj){
     total+=obj.points||0;
     if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;
   });
@@ -59,7 +59,7 @@ function renderActivityTab(){
   }
   var cfg=ACTIVITY_CONFIG;var mode=cfg.displayMode||'full';
   var total=0,earned=0;
-  cfg.objectives.forEach(function(obj){total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;});
+  scoredObjectives(cfg).forEach(function(obj){total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;});
   var pct=total>0?Math.round(earned/total*100):0;
   var h='';
   if(cfg.faults&&cfg.faults.length){
@@ -73,7 +73,7 @@ function renderActivityTab(){
     if(cfg.level)h+='<div style="font-size:.75em;opacity:.7">'+esc(cfg.level)+'</div>';
     if(cfg.instructions)h+='<div class="activ-instr">'+esc(cfg.instructions).replace(/\n/g,'<br>')+'</div>';
     h+='</div>';
-    cfg.objectives.forEach(function(obj){
+    scoredObjectives(cfg).forEach(function(obj){
       var done=!!ACTIVITY_RESULTS[obj.id];
       h+='<div class="activ-obj'+(done?' done':'')+'">'+
         '<div class="ao-icon">'+(done?'✅':'⭕')+'</div>'+
@@ -536,7 +536,7 @@ function finishActivity(){
   var msg='🎉 Activité terminée !\n\nScore : '+S.score+' / 100\n\n';
   if(ACTIVITY_CONFIG){
     var total=0,earned=0;
-    ACTIVITY_CONFIG.objectives.forEach(function(obj){
+    scoredObjectives(ACTIVITY_CONFIG).forEach(function(obj){
       total+=obj.points||0;if(ACTIVITY_RESULTS[obj.id])earned+=obj.points||0;
       msg+=(ACTIVITY_RESULTS[obj.id]?'✅':'❌')+' '+obj.label+' ('+obj.points+' pts)\n';
     });
@@ -564,7 +564,7 @@ window.addEventListener('load',function(){
     
   }
   // Activité personnalisée : afficher l'onglet et vérifier les objectifs initiaux
-  if(ACTIVITY_CONFIG&&ACTIVITY_CONFIG.objectives&&ACTIVITY_CONFIG.objectives.length){
+  if(ACTIVITY_CONFIG&&scoredObjectives(ACTIVITY_CONFIG).length){
     var tabBtn=document.getElementById('btn-activ-tab');
     if(tabBtn)tabBtn.style.display='';
     showTab('activ'); // afficher directement l'onglet Activité

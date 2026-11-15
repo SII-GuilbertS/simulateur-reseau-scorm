@@ -52,6 +52,18 @@ clé `sim_reseau_v2_builder` du navigateur est effacée) : le travail se reprend
 (`hasUnsavedWork()` : empreinte `workFingerprint()` comparée à `SAVED_FP`, posée par `markSaved()` à l'ouverture
 d'un fichier et à l'export du scénario ; l'export SCORM, HTML ou énoncé ne compte pas comme enregistrement).
 
+**Pannes notées comme des objectifs** — une panne porte ses points (`points`), un libellé facultatif pour l'élève
+(`studentLabel`) et la condition de sa réparation (`goal` : check, params, label, hint), posée par
+`syncFaultGoals` (builder, appelé par `getConfig`, vue Corrigé seulement) d'après les valeurs du réseau corrigé
+(`repairSpec`). **Aucun objectif n'est ajouté à la liste** : le moteur (`scoredObjectives`, `faultGoal` dans
+`src/net-core.js`) tire de chaque panne notée un objectif « virtuel » (id `flt:<id>`) au moment d'évaluer et de noter,
+rangé à la place de la panne dans `evalOrder`. Builder et élève passent par `scoredObjectives(cfg)` pour la liste,
+le score, SCORM, l'énoncé et le contrôle de l'assistant ; `cfg.objectives` ne contient que les objectifs écrits par
+le professeur. Un objectif de réparation écrit à la main (`FAULT_REPAIR_CHECKS` : même type de contrôle, sur un
+appareil de la panne) fait foi et la panne n'est pas notée en plus (pas de double comptage) : c'est le cas des
+scénarios fournis et de l'assistant. Les tests de validation (ping…) restent manuels. Un scénario sans `points`
+sur ses pannes se comporte comme avant.
+
 **3 onglets dans l'UI du builder :**
 
 | Onglet | Rôle |
@@ -102,9 +114,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 396/396
+## Tests : `node tests/sim-tests.js` → doit afficher 399/399
 
-Suite de 396 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 399 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -140,7 +152,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 40 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 42 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -221,7 +233,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 396/396
+node tests/sim-tests.js    # → 399/399
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -269,6 +281,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 396 tests Node.js |
+| `tests/sim-tests.js` | Suite de 399 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

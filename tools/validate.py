@@ -91,7 +91,7 @@ required = {
     'builder': ['function cvMM(', 'function cwDrop(', 'function palDS(',
                 'function checkAllObjectives(', 'var ACTIVITY_RESULTS', '/* NET-CORE-END'],
     'template': ['function ipMatchesPattern(', 'function checkObjectiveStatic(',
-                 'ACTIVITY_CONFIG.objectives', '_ptoDev', '/* NET-CORE-END'],
+                 'scoredObjectives(ACTIVITY_CONFIG)', '_ptoDev', '/* NET-CORE-END'],
 }
 for where, fns in required.items():
     src = builder_js if where == 'builder' else tmpl

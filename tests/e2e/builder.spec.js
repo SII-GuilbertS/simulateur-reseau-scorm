@@ -925,9 +925,8 @@ test.describe('Builder', () => {
     await page.locator('#hdr-score').click();
     await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P1');
     await expect(page.locator('#score-details')).toContainText('masqué au départ élève par la panne P2');
-    // Les pannes sont listées dans le détail du score, avec leur numéro
-    await expect(page.locator('#score-details')).toContainText('Pannes injectées (2)');
-    await expect(page.locator('#score-details')).toContainText('P1 — Service désactivé · Serveur');
+    // Ici chaque panne est mesurée par un objectif de réparation : pas de section « pannes sans points »
+    await expect(page.locator('#score-details')).not.toContainText('Pannes sans points');
 
     // Onglet Évaluation : état par rapport au corrigé et au départ élève
     await page.locator('.bld-tab[data-tab="2"]').click();
@@ -938,11 +937,11 @@ test.describe('Builder', () => {
     // Sans aucun objectif, les pannes restent visibles (score et bandeau) et le bandeau prévient qu'elles ne rapportent rien
     await page.evaluate(() => { window.__objs = EvalModule.getConfig().objectives.splice(0); });
     await page.locator('.bld-tab[data-tab="1"]').click();
-    await expect(banner).toContainText('2 pannes sans objectif');
+    await expect(banner).toContainText('2 pannes sans points');
     await page.locator('#hdr-score').click();
-    await expect(page.locator('#score-details')).toContainText('Aucun objectif configuré');
+    await expect(page.locator('#score-details')).toContainText('le score se calcule à partir des objectifs');
     await expect(page.locator('#score-details')).toContainText('P2 — Passerelle incorrecte · PC-Bob');
-    await expect(page.locator('#score-details')).toContainText('aucun objectif ne mesure sa réparation');
+    await expect(page.locator('#score-details')).toContainText('ne rapporte aucun point');
     await page.locator('#hdr-score').click();
     await page.evaluate(() => { EvalModule.getConfig().objectives.push(...window.__objs); });
     await page.locator('.bld-tab[data-tab="2"]').click();
@@ -1059,6 +1058,94 @@ test.describe('Builder', () => {
     expect(await dnsOn()).toBe(true);
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
     await expect(page.locator('#view-bar')).toBeHidden();
+  });
+
+  test('une panne se note comme un objectif : points saisis sur la panne, gagnés quand l\'élève la répare', async ({ page }, info) => {
+    // Activité à deux pannes et aucun objectif (cas d'un professeur qui commence par les pannes)
+    const data = readScenario('reseau-entreprise');
+    data.activity.objectives = [];
+    delete data.activity.evalOrder;
+    const scenario = info.outputPath('pannes-seules.json');
+    fs.writeFileSync(scenario, JSON.stringify(data));
+    await page.goto(BUILDER_URL);
+    await importScenarioFile(page, scenario);
+    await expect(page.locator('#ctl-banner')).toContainText('2 pannes sans points');
+
+    // Points saisis directement sur chaque panne
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    const cards = page.locator('#ev-list .obj-card.fault');
+    await expect(cards).toHaveCount(2);
+    await cards.nth(0).locator('.obj-card-hdr').click();
+    await cards.nth(0).locator('.fault-repair input[type="number"]').fill('30');
+    await cards.nth(0).locator('.fault-repair input[type="number"]').press('Tab');
+    await cards.nth(1).locator('.obj-card-hdr').click();
+    await cards.nth(1).locator('.fault-repair input[type="number"]').fill('20');
+    await cards.nth(1).locator('.fault-repair input[type="number"]').press('Tab');
+
+    // Aucun objectif n'est créé : la liste reste vide, c'est la panne qui porte ses points et la condition de sa réparation
+    await expect(page.locator('#ev-list .obj-card:not(.fault)')).toHaveCount(0);
+    const cfg = await page.evaluate(() => { const c = EvalModule.getConfig(); return { order: c.evalOrder, objs: c.objectives, faults: c.faults }; });
+    expect(cfg.objs).toEqual([]);
+    expect(cfg.order).toEqual(['f:1', 'f:2']);
+    expect(cfg.faults.map((f) => [f.points, f.goal.check])).toEqual([[30, 'service_active'], [20, 'gateway_configured']]);
+    expect(cfg.faults[1].goal.params).toMatchObject({ dev: 'PC-Bob', gateway: '192.168.1.1' });
+
+    // Le bandeau ne signale plus rien ; l'élève part de 0 et gagne les points en réparant
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await expect(page.locator('#ctl-banner')).not.toContainText('sans points');
+    await expect(page.locator('#ctl-banner')).toContainText('Départ élève : 0 / 50');
+    await page.locator('#btn-sim').click();
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 30 / 50 pts');
+    await page.locator('#btn-cfg').click();
+
+    // Enregistré puis rouvert : points et conditions conservés, toujours aucun objectif
+    const saved = await exportFile(page, 'scenario', info.outputPath('pannes-notees.json'));
+    await importScenarioFile(page, saved);
+    const again = await page.evaluate(() => { const c = EvalModule.getConfig(); return { n: c.objectives.length, pts: c.faults.map((f) => f.points), goals: c.faults.map((f) => !!f.goal) }; });
+    expect(again).toEqual({ n: 0, pts: [30, 20], goals: [true, true] });
+
+    // Si un objectif de réparation existe déjà (scénarios fournis), il fait foi : pas de points sur la panne
+    await importScenarioFile(page, scenarioPath('reseau-entreprise'));
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('#ev-list .obj-card.fault').nth(0).locator('.obj-card-hdr').click();
+    await expect(page.locator('.fault-repair').nth(0)).toContainText('Réparation déjà mesurée par');
+    await expect(page.locator('.fault-repair').nth(0).locator('input[type="number"]')).toHaveCount(0);
+    expect(await page.evaluate(() => EvalModule.getConfig().faults.filter((f) => f.goal).length)).toBe(0);
+
+    // Chez l'élève, les pannes notées sont listées comme des objectifs, score de départ 0
+    await importScenarioFile(page, saved);
+    const html = await exportFile(page, 'html', info.outputPath('pannes-notees.html'));
+    await page.goto(pathToFileURL(html).href);
+    await studentScore(page, 0);
+    await expect(page.locator('.activ-obj')).toHaveCount(2);
+  });
+
+  test('carte de panne : « Service à activer », libellé proposé à l\'élève mis à jour dès le choix de l\'appareil', async ({ page }, info) => {
+    // Réseau de l'entreprise sans objectif ni panne : aucun objectif de réparation écrit à la main ne mesure la nouvelle panne
+    const data = readScenario('reseau-entreprise');
+    data.activity.objectives = [];
+    data.activity.faults = [];
+    delete data.activity.evalOrder;
+    const scenario = info.outputPath('sans-objectif.json');
+    fs.writeFileSync(scenario, JSON.stringify(data));
+    await page.goto(BUILDER_URL);
+    await importScenarioFile(page, scenario);
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.getByRole('button', { name: '+ Ajouter une panne' }).click();
+    const card = page.locator('#ev-list .obj-card.fault').last();
+    await card.locator('select').first().selectOption('service_down');
+    await expect(card).toContainText('Service à activer');
+    await expect(card).not.toContainText('Service à désactiver');
+
+    const goal = card.locator('.fault-repair input').nth(1);                    // libellé affiché à l'élève
+    await expect(goal).toHaveAttribute('placeholder', /choisissez d'abord l'appareil/);
+    await card.locator('.bld-row', { hasText: 'Appareil concerné' }).locator('select').selectOption('Serveur');
+    await card.locator('.bld-row', { hasText: 'Service à activer' }).locator('select').selectOption('http');
+    await expect(goal).toHaveAttribute('placeholder', 'Le service web de Serveur est actif');
+    await card.locator('.bld-row', { hasText: 'Service à activer' }).locator('select').selectOption('dns');
+    await expect(goal).toHaveAttribute('placeholder', 'Le service DNS de Serveur est actif');
   });
 
   test('l\'essai est conservé quand on change de vue ; remis à zéro si l\'activité change ou sur demande', async ({ page }) => {
