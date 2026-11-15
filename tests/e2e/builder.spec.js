@@ -69,9 +69,17 @@ const test = base.extend({
 
 /* ── Builder ─────────────────────────────────────────────────────────── */
 
+/* Importe un scénario et attend la fin réelle de l'import (lecture du fichier, puis retour à l'onglet 1) :
+   cliquer sur un autre onglet avant cette fin serait annulé par l'import. */
+async function importScenarioFile(page, file) {
+  await page.evaluate(() => document.querySelectorAll('.bld-notif').forEach((n) => n.remove()));
+  await page.locator('#gen-import-file').setInputFiles(file);
+  await expect(page.locator('.bld-notif', { hasText: 'importé' })).toBeVisible();
+}
+
 async function openBuilderWith(page, scenario) {
   await page.goto(BUILDER_URL);
-  await page.locator('#gen-import-file').setInputFiles(scenarioPath(scenario));
+  await importScenarioFile(page, scenarioPath(scenario));
   await expect(page.locator('.bld-tab[data-tab="1"]')).toHaveClass(/active/);
 }
 
@@ -290,6 +298,48 @@ test.describe('Vue élève (export HTML)', () => {
     await expect.poll(() => page.dialogs.at(-1)).toContain('RÉUSSI');
   });
 
+  test('l\'élève qui revient sur le même poste retrouve son réseau modifié (adresse, poste ajouté et câblé, service)', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    const file = await exportFile(page, 'html', info.outputPath('entreprise-reprise.html'));
+    await page.goto(pathToFileURL(file).href);
+    await studentScore(page, 0);
+
+    // Modifications de l'élève : adresse d'un poste, poste ajouté et câblé, service du serveur (bureau)
+    const charlie = await deviceId(page, 'PC-Charlie');
+    const added = await page.evaluate((cid) => {
+      setIface(cid, 0, 'ip', '192.168.1.77');
+      const id = mkDev('pc', 420, 420, 'desktop');
+      S.devs[id].name = 'PC-Ajoute';
+      const sw = Object.values(S.devs).find((d) => d.name === 'Switch-LAN');
+      addLink(id, sw.id);
+      render();
+      return id;
+    }, charlie);
+    await page.locator('#btn-sim').click();   // les services se règlent dans le bureau, en simulation
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+
+    const snapshot = () => page.evaluate(() => ({
+      ip: Object.values(S.devs).find((d) => d.name === 'PC-Charlie').ifaces[0].ip,
+      added: Object.values(S.devs).some((d) => d.name === 'PC-Ajoute'),
+      links: Object.keys(S.links).length,
+      dns: Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on,
+      score: S.score,
+    }));
+    const before = await snapshot();
+    expect(before).toMatchObject({ ip: '192.168.1.77', added: true, dns: true });   // le DNS était en panne : l'élève l'a démarré
+
+    // Même navigateur, même poste : l'élève ferme puis revient
+    await page.reload();
+    const after = await snapshot();
+    expect(after).toEqual(before);
+    expect(added).toBeTruthy();
+
+    // La reprise fonctionne encore après un deuxième aller-retour (rien n'est rejoué depuis le départ)
+    await page.reload();
+    expect(await snapshot()).toEqual(before);
+  });
+
   test('panne « service arrêté » : l\'élève redémarre le DNS dans le bureau du serveur, conservé après rechargement', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-entreprise');
     const file = await exportFile(page, 'html', info.outputPath('entreprise-dns.html'));
@@ -436,7 +486,7 @@ test.describe('Builder', () => {
       fs.writeFileSync(scenario, JSON.stringify(data));
 
       await page.goto(BUILDER_URL);
-      await page.locator('#gen-import-file').setInputFiles(scenario);
+      await importScenarioFile(page, scenario);
       const file = await exportFile(page, 'html', info.outputPath('trop-facile.html'));
 
       expect(page.dialogs.length).toBe(1);
@@ -462,7 +512,7 @@ test.describe('Builder', () => {
     const scenario = info.outputPath('trop-facile.json');
     fs.writeFileSync(scenario, JSON.stringify(data));
     await page.goto(BUILDER_URL);
-    await page.locator('#gen-import-file').setInputFiles(scenario);
+    await importScenarioFile(page, scenario);
     await page.locator('.bld-tab[data-tab="3"]').click();
 
     page.dialogAction = 'dismiss';
@@ -653,7 +703,7 @@ test.describe('Builder', () => {
     expect(exported.activity.evalOrder).toEqual(order);
     expect(String(exported.activity.objectives[0].id)).toBe(String(last.id));
     await page.goto(BUILDER_URL);
-    await page.locator('#gen-import-file').setInputFiles(file);
+    await importScenarioFile(page, file);
     await page.locator('.bld-tab[data-tab="2"]').click();
     expect(await keys()).toEqual(order);
 
@@ -910,7 +960,7 @@ test.describe('Builder', () => {
     expect(await warns()).toBe(false);                                       // vierge : rien à perdre
 
     // Ouvrir un scénario : le travail est celui du fichier, pas d'alerte
-    await page.locator('#gen-import-file').setInputFiles(scenarioPath('reseau-entreprise'));
+    await importScenarioFile(page, scenarioPath('reseau-entreprise'));
     await expect(page.locator('#ctl-act')).toContainText('Entreprise');
     await page.waitForTimeout(1200);
     expect(await warns()).toBe(false);
@@ -1194,7 +1244,7 @@ test.describe('Builder', () => {
     expect(exported.activity.faults.length).toBe(original.activity.faults.length);
 
     await page.goto(BUILDER_URL);
-    await page.locator('#gen-import-file').setInputFiles(file);
+    await importScenarioFile(page, file);
     // Comme chez l'élève : pannes appliquées et routes recalculées à l'import, rien n'est acquis.
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
   });
