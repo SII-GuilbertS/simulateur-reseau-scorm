@@ -888,12 +888,65 @@ test.describe('Builder', () => {
     await expect(banner).toContainText('⚠️ Départ élève : 40 / 100');
     await expect(page.locator('#layer-badges g')).toHaveCount(0);
 
-    // Réouverture : l'activité est signalée comme restaurée et l'état de départ est figé
-    await page.evaluate(() => { localStorage.setItem('sim_reseau_v2_builder', JSON.stringify({
-      devs: S.devs, links: S.links, nid: S.nid, frames: S.frames, texts: S.texts, activity: EvalModule.getConfig() })); });
-    await page.reload();
-    await expect(page.locator('#ctl-act')).toContainText('restaurée de votre dernière session');
+    // Le titre de l'activité ouverte est affiché dans la barre orange
+    await expect(page.locator('#ctl-act')).toContainText('Entreprise');
     expect(await page.evaluate(() => !!START_SNAP)).toBe(true);
+  });
+
+  test('le builder s\'ouvre vierge ; fermer sans enregistrer prévient, enregistrer ou ouvrir un fichier lève l\'alerte', async ({ page }, info) => {
+    // Une ancienne sauvegarde automatique du navigateur n'est plus reprise, et elle est effacée
+    await page.goto(BUILDER_URL);
+    await page.evaluate(() => localStorage.setItem('sim_reseau_v2_builder',
+      JSON.stringify({ devs: { d1: { id: 'd1', type: 'pc', name: 'Ancien', x: 10, y: 10, ifaces: [] } }, links: {}, nid: 2 })));
+    await page.reload();
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(0);
+    expect(await page.evaluate(() => localStorage.getItem('sim_reseau_v2_builder'))).toBeNull();
+
+    const warns = () => page.evaluate(() => {
+      const e = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(await warns()).toBe(false);                                       // vierge : rien à perdre
+
+    // Ouvrir un scénario : le travail est celui du fichier, pas d'alerte
+    await page.locator('#gen-import-file').setInputFiles(scenarioPath('reseau-entreprise'));
+    await expect(page.locator('#ctl-act')).toContainText('Entreprise');
+    await page.waitForTimeout(1200);
+    expect(await warns()).toBe(false);
+
+    // Changer de vue ou jouer un essai ne crée pas de travail à enregistrer
+    await page.locator('#btn-sim').click();
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    expect(await warns()).toBe(false);
+    await page.locator('#btn-cfg').click();
+    expect(await warns()).toBe(false);
+
+    // Une modification du corrigé : alerte
+    await page.evaluate(() => { Object.values(S.devs).find((d) => d.name === 'PC-Charlie').ifaces[0].ip = '192.168.1.77'; render(); });
+    expect(await warns()).toBe(true);
+    // Même si l'on est dans une autre vue au moment de fermer
+    await page.locator('#btn-sim').click();
+    expect(await warns()).toBe(true);
+
+    // Enregistrer le scénario lève l'alerte ; modifier l'activité (titre) la rétablit
+    await exportFile(page, 'scenario', info.outputPath('enregistre.json'));
+    await page.waitForTimeout(1200);
+    expect(await warns()).toBe(false);
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('#ev-title').fill('Autre titre');
+    expect(await warns()).toBe(true);
+
+    // Une activité créée par l'assistant n'est pas enregistrée : alerte
+    await page.locator('.bld-tab[data-tab="1"]').click();
+    await page.locator('#btn-open').click({ trial: true });                  // le bouton existe, visible dans la barre du haut
+    await page.locator('#btn-wizard').click();
+    await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+    await page.waitForTimeout(1200);
+    expect(await warns()).toBe(true);
   });
 
   test('vues Corrigé / Départ élève / Essai : copie jetable, lecture seule, corrigé intact et exports inchangés', async ({ page }, info) => {

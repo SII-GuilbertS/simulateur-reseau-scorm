@@ -4239,6 +4239,7 @@ function saveTopology(){
   var a=document.createElement('a');a.href=url;a.download='scenario-'+(new Date().toISOString().slice(0,10))+'.json';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  markSaved();
   notif('💾 Scénario enregistré ('+Object.keys(S.devs).length+' appareils)','ok');
 }
 
@@ -4281,7 +4282,7 @@ function finishActivity(){
    Le schéma montre le réseau CORRIGÉ (celui qui fonctionne) ; l'élève reçoit ce réseau avec les
    pannes de l'onglet 2. Ce bloc rend l'écart visible : pastilles de panne sur le schéma, bandeau
    « Départ élève », et état de chaque objectif (corrigé / départ élève / essai). Réservé au prof. */
-var TEACHER_CTL={states:null,start:null,startScore:null,restored:false,timer:null};
+var TEACHER_CTL={states:null,start:null,startScore:null,timer:null};
 
 function ctlCfg(){return (typeof EvalModule!=='undefined')?EvalModule.getConfig():null;}
 
@@ -4378,7 +4379,7 @@ function ctlRenderBanner(){
   var bn=document.getElementById('ctl-banner'),ac=document.getElementById('ctl-act');
   if(!bn)return;
   var cfg=ctlCfg();
-  if(ac)ac.textContent='📂 « '+((cfg&&cfg.title)||'Sans titre')+' »'+(TEACHER_CTL.restored?' · restaurée de votre dernière session':'');
+  if(ac)ac.textContent='📂 « '+((cfg&&cfg.title)||'Sans titre')+' »';
   var objs=(cfg&&cfg.objectives)||[];
   if(!objs.length){bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans l\'onglet 2</span>';bn.title='';return;}
   var au=ActivityWizard.audit({network:SimModule.getState(),activity:cfg});
@@ -4499,6 +4500,25 @@ function essaiKey(){
   return JSON.stringify([net.devs,net.links,cfg.objectives,cfg.faults],function(k,v){
     return (k==='x'||k==='y')&&typeof v==='number'?undefined:v;
   });
+}
+
+/* ── Travail non enregistré ──────────────────────────────────
+   Empreinte du travail (réseau corrigé tel que le moteur le charge, annotations, activité) comparée à
+   celle du dernier scénario ouvert ou enregistré. La reprise de l'état de repos après un changement
+   de réglage automatique (indices, routes) se fait 0,8 s après : l'empreinte de référence est alors stable. */
+var SAVED_FP=null,_fpTimer=null;
+function workFingerprint(){
+  var st=SimModule.getState();
+  return JSON.stringify([_normNet(JSON.stringify(st)),st.frames,st.texts,EvalModule.getConfig()]);
+}
+function markSaved(){
+  try{SAVED_FP=workFingerprint();}catch(e){SAVED_FP=null;}
+  clearTimeout(_fpTimer);
+  _fpTimer=setTimeout(function(){try{SAVED_FP=workFingerprint();}catch(e){}},800);
+}
+function hasUnsavedWork(){
+  if(SAVED_FP===null)return false;
+  try{return workFingerprint()!==SAVED_FP;}catch(e){return false;}
 }
 
 /* Revenir au corrigé avant tout ce qui lit ou remplace le réseau (exports, import, assistant). */
@@ -6070,6 +6090,7 @@ var GenModule = (function() {
     a.download = 'scenario-'+(new Date().toISOString().slice(0,10))+'.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    markSaved();
     bldNotif('💾 Scénario exporté','ok');
   }
 
@@ -6105,7 +6126,6 @@ var GenModule = (function() {
     computeRoutes(true);
     render();
     freezeStart(true);
-    TEACHER_CTL.restored = false;
     // Restaurer l'évaluation
     EvalModule.setConfig(sc.activity);
     // Restaurer le pwd
@@ -6118,13 +6138,14 @@ var GenModule = (function() {
 
   function importScenario(ev, prearsed) {
     // Appel direct depuis loadTopology avec objet déjà parsé
-    if(prearsed){ try{ _applyScenario(prearsed); }catch(ex){ bldNotif('❌ Import échoué : '+ex.message,'err'); } return; }
+    if(prearsed){ try{ _applyScenario(prearsed); markSaved(); }catch(ex){ bldNotif('❌ Import échoué : '+ex.message,'err'); } return; }
     var file = ev.target.files[0]; if(!file) return;
     var reader = new FileReader();
     reader.onload = function(e) {
       try {
         var sc = JSON.parse(e.target.result);
         _applyScenario(sc);
+        markSaved();   // le travail ouvert est celui du fichier
       } catch(ex) { bldNotif('❌ Import échoué : '+ex.message,'err'); }
     };
     reader.readAsText(file);
@@ -7532,25 +7553,12 @@ function showBuilderTab(n) {
 /* ── Init Builder ── */
 window.addEventListener('load', function() {
   // No SCORM in builder
-  // Load session for convenience (teacher resumes where left off)
-  var loaded = false;
-  try {
-    var json = localStorage.getItem('sim_reseau_v2_builder') || '';
-    if(json) {
-      var data = JSON.parse(json);
-      if(data.devs && data.links) {
-        applyNetworkData(data);
-        if(data.frames) S.frames=data.frames;
-        if(data.texts)  S.texts=data.texts;
-        if(data.activity) EvalModule.setConfig(data.activity);
-        loaded = true;
-      }
-    }
-  } catch(e){}
+  // Le builder s'ouvre toujours vierge : le travail se reprend en ouvrant un scénario enregistré (📂 Ouvrir).
+  // L'ancienne sauvegarde automatique du navigateur n'est plus utilisée : on l'efface.
+  try { localStorage.removeItem('sim_reseau_v2_builder'); } catch(e){}
 
   render();
   
-  if(loaded){ freezeStart(true); TEACHER_CTL.restored = true; }   // comme à l'import : point de retour et score de départ cohérents
   document.querySelector('.bot').style.display = 'none'; // masqué en config
 
   // Teacher bar always visible in builder (no password)
@@ -7578,13 +7586,12 @@ window.addEventListener('load', function() {
   // Set initial tab
   showBuilderTab(1);
 
-  // Auto-save network on change (builder session key)
-  setInterval(function(){
-    try{
-      var data=Object.assign({},SimModule.getState(),{activity:EvalModule.getConfig()});   // le corrigé, même pendant un essai
-      localStorage.setItem('sim_reseau_v2_builder', JSON.stringify(data));
-    }catch(e){}
-  }, 5000);
+  // Fermer ou recharger sans avoir enregistré le travail : le navigateur demande confirmation
+  window.addEventListener('beforeunload', function(e){
+    if(!hasUnsavedWork()) return;
+    e.preventDefault();
+    e.returnValue = '';   // texte imposé par le navigateur ; l'invite suffit
+  });
 
   // Keyboard shortcuts
   window.addEventListener('keydown', function(e){
@@ -7630,12 +7637,8 @@ window.addEventListener('load', function() {
   });
 
   tpr('🔧 SCORM Builder — Mode Constructeur','info');
-  tpr('Dessinez le réseau corrigé ici, ajoutez objectifs et pannes (Ctrl+2), puis générez (Ctrl+3).','info');
-  if(loaded){
-    tpr('↩️ Activité restaurée depuis votre dernière session builder.','ok');
-    var rt = (EvalModule.getConfig().title || '').trim();
-    notif('↩️ Activité '+(rt ? '« '+rt+' » ' : '')+'restaurée de votre dernière session','info');
-  }
+  tpr('Dessinez le réseau corrigé ici, ajoutez objectifs et pannes (Ctrl+2), puis générez (Ctrl+3). Pour reprendre un travail : 📂 Ouvrir.','info');
+  markSaved();   // builder vierge : rien à enregistrer tant que rien n'est fait
   ctlRefresh();
 });
 

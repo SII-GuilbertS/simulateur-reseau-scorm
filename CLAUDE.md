@@ -46,6 +46,12 @@ d'accroche (`deskOn`, `deskView` dans `src/sim-ui.js`), inertes chez l'élève. 
 le quitte et repris au retour tant que `essaiKey()` (réseau corrigé normalisé sans positions, objectifs et
 pannes) n'a pas changé ; sinon il repart de zéro avec un message, comme avec « Recommencer l'essai ».
 
+**Ouverture et fermeture** — le builder s'ouvre toujours vierge (plus de reprise automatique ; l'ancienne
+clé `sim_reseau_v2_builder` du navigateur est effacée) : le travail se reprend par « 📂 Ouvrir ». Un
+`beforeunload` prévient si le travail a changé depuis le dernier scénario ouvert ou enregistré
+(`hasUnsavedWork()` : empreinte `workFingerprint()` comparée à `SAVED_FP`, posée par `markSaved()` à l'ouverture
+d'un fichier et à l'export du scénario ; l'export SCORM, HTML ou énoncé ne compte pas comme enregistrement).
+
 **3 onglets dans l'UI du builder :**
 
 | Onglet | Rôle |
@@ -134,7 +140,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 38 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 39 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -143,7 +149,7 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs, réouverture signalée), un câble débranché puis rebranché par le professeur (compté seulement au switch indiqué), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic en mode simulation : terminal et
+le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs), le builder vierge à l'ouverture et l'alerte avant fermeture sans enregistrement, un câble débranché puis rebranché par le professeur (compté seulement au switch indiqué), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic en mode simulation : terminal et
 navigateur en fenêtre, une session par appareil, chez l'élève et dans le builder ; services réglés dans le
 bureau : Ctrl+Z, état laissé par le professeur reçu par l'élève, panne « service arrêté » réparée et conservée
 après rechargement), la connexion WiFi (SSID suivi dans le builder, mot de passe
