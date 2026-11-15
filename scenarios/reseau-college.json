@@ -48,7 +48,7 @@
   "activity": {
     "title": "Réseau du collège — Adressage par salle",
     "level": "Collège — Cycle 4",
-    "instructions": "Le réseau du collège utilise des adresses IP fixes, construites selon la position de chaque poste :\n• 1er nombre : 10 (le collège)\n• 2e nombre : le bâtiment (1 = bâtiment A, 2 = bâtiment B)\n• 3e nombre : le numéro de la salle\n• 4e nombre : le numéro du poste\nLe masque est 255.0.0.0 pour tous les postes.\n\nChaque poste est nommé d'après sa salle et son numéro : A101-P2 est le poste 2 de la salle 101 du bâtiment A.\n\n🔍 Votre mission :\n1. Un PC n'est plus connecté : retrouvez-le et rebranchez-le au switch de sa salle.\n2. Un PC a une adresse IP incorrecte : retrouvez-le et corrigez son adresse grâce à son nom et à sa salle.\n3. Ajoutez un poste dans la salle 210 du bâtiment B : nommez-le B210-P3, câblez-le au switch de la salle et donnez-lui la bonne adresse IP et le bon masque.\n\n💡 Pour vérifier : passez en mode Simulation et testez vos corrections avec ping.",
+    "instructions": "Le réseau du collège utilise des adresses IP fixes, construites selon la position de chaque poste :\n• 1er nombre : 10 (le collège)\n• 2e nombre : le bâtiment (1 = bâtiment A, 2 = bâtiment B)\n• 3e nombre : le numéro de la salle\n• 4e nombre : le numéro du poste\nLe masque est 255.0.0.0 pour tous les postes.\n\nChaque poste est nommé d'après sa salle et son numéro : A101-P2 est le poste 2 de la salle 101 du bâtiment A.\n\n🔍 Votre mission :\n1. Un PC n'est plus connecté : retrouvez-le et rebranchez-le au switch de sa salle.\n2. Un PC a une adresse IP incorrecte : retrouvez-le et corrigez son adresse grâce à son nom et à sa salle.\n3. Ajoutez un poste dans la salle 210 du bâtiment B : nommez-le B210-P3, câblez-le au switch de la salle et donnez-lui la bonne adresse IP et le bon masque.\n\n💡 Pour vérifier : double-cliquez sur un poste, ouvrez son invite de commandes et testez vos corrections avec ping.",
     "masteryscore": 60,
     "displayMode": "full",
     "objectives": [
@@ -72,7 +72,7 @@
           "to": "10.1.204.2"
         },
         "points": 10,
-        "hint": "En mode Simulation, terminal de A204-P1 : ping 10.1.204.2"
+        "hint": "Terminal de A204-P1 (double-clic sur le poste) : ping 10.1.204.2"
       },
       {
         "id": 3,

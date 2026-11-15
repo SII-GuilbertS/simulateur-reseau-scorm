@@ -99,13 +99,7 @@ async function exportFile(page, kind, file) {
   return download(page, () => page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click(), file);
 }
 
-async function runInTerminal(page, deviceName, command) {
-  const id = await deviceId(page, deviceName);
-  await page.locator(`#gd${id}`).click();
-  await expect(page.locator('#tprompt')).toContainText(deviceName.toLowerCase());
-  await page.locator('#tinput').fill(command);
-  await page.locator('#tinput').press('Enter');
-}
+const runInTerminal = (page, deviceName, command) => deskTerminal(page, deviceName, command);
 
 /* ── Vue élève ───────────────────────────────────────────────────────── */
 
@@ -121,23 +115,11 @@ async function setGateway(scope, deviceName, value) {
   await input.press('Tab');
 }
 
-/* Terminal côté élève : l'appareil se choisit dans la liste du terminal. */
-async function studentTerminal(scope, deviceName, command) {
-  await scope.locator('.bt', { hasText: 'Terminal' }).click();
-  await scope.locator('#td-sel').selectOption({ label: deviceName });
-  await scope.locator('#tinput').fill(command);
-  await scope.locator('#tinput').press('Enter');
-}
+/* Terminal et navigateur : ceux du bureau de l'appareil (le bandeau du bas n'en a plus). */
+const studentTerminal = (scope, deviceName, command) => deskTerminal(scope, deviceName, command);
+const studentBrowse = (scope, deviceName, url) => deskBrowse(scope, deviceName, url);
 
-/* Navigateur côté élève : appareil choisi dans la liste, puis l'adresse du site. */
-async function studentBrowse(scope, deviceName, url) {
-  await scope.locator('.bt', { hasText: 'Navigateur' }).click();
-  await scope.locator('#bd-sel').selectOption({ label: deviceName });
-  await scope.locator('#burl').fill(url);
-  await scope.locator('button[onclick="browGo()"]').click();
-}
-
-/* Bureau d'un appareil (mode simulation) : double-clic, puis l'icône de l'application.
+/* Bureau d'un appareil : double-clic, puis l'icône de l'application.
    Rend la fenêtre de l'appareil. */
 async function openDeskApp(scope, deviceName, appLabel) {
   const id = await deviceId(scope, deviceName);
@@ -315,7 +297,6 @@ test.describe('Vue élève (export HTML)', () => {
       render();
       return id;
     }, charlie);
-    await page.locator('#btn-sim').click();   // les services se règlent dans le bureau, en simulation
     const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
     await dns.locator('[data-act="toggle"]').click();
 
@@ -346,11 +327,11 @@ test.describe('Vue élève (export HTML)', () => {
     await page.goto(pathToFileURL(file).href);
     await studentScore(page, 0);
 
-    // En Configuration, la fiche du serveur ne règle plus les services : elle mène au bureau.
+    // La fiche du serveur ne règle pas les services : elle mène au bureau.
     const srv = await deviceId(page, 'Serveur');
     await page.locator(`#gd${srv}`).click();
     await expect(page.locator('#props-body')).not.toContainText('Activer le serveur DNS');
-    await page.locator('#props-body button', { hasText: 'Ouvrir le bureau en simulation' }).click();
+    await page.locator('#props-body button', { hasText: 'Ouvrir le bureau' }).click();
     await expect(page.locator(`#dwin-${srv}`)).toBeVisible();
 
     const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
@@ -370,7 +351,6 @@ test.describe('Vue élève (export HTML)', () => {
     await page.goto(pathToFileURL(file).href);
     await setGateway(page, 'PC-Bureau', '192.168.1.1');
     await studentScore(page, 35);
-    await page.locator('#btn-sim').click();
 
     await deskTerminal(page, 'Laptop', 'dhcp');
     await deskTerminal(page, 'Laptop', 'ping 8.8.8.8');
@@ -386,22 +366,69 @@ test.describe('Vue élève (export HTML)', () => {
     await openDeskApp(page, 'PC-Bureau', 'Invite de commandes');
     await expect(pc.locator('.dterm-out')).toContainText('> ping 192.168.1.1');
     await expect(pc.locator('.dterm-out')).not.toContainText('> dhcp');
-    await expect(page.locator('#tout')).not.toContainText('> ping 8.8.8.8');
 
-    // Fermer l'application garde la fenêtre ; × ferme le bureau ; le mode Conception ferme tout.
+    // Fermer l'application garde la fenêtre ; × ferme le bureau.
     await pc.locator('.aclose').click();
     await expect(pc.locator('.dico')).toHaveCount(3);
     await pc.locator('.dw-x').click();
     await expect(pc).toHaveCount(0);
     await expect(page.locator('.dwin')).toHaveCount(1);
-    await page.locator('#btn-cfg').click();
-    await expect(page.locator('.dwin')).toHaveCount(0);
+
+    // Plus de boutons de mode, plus de terminal ni de navigateur dans le bandeau du bas.
+    await expect(page.locator('#btn-cfg, #btn-sim')).toHaveCount(0);
+    await expect(page.locator('#tinput, #td-sel, #burl, #tout')).toHaveCount(0);
+    await expect(page.locator('.bot .bt')).toHaveText(['📋 Journal', '🔍 Paquets', '📋 Activité']);
+
+    // Le bandeau est ouvert sur l'activité ; il se replie sur ses onglets et se rouvre d'un clic sur un onglet.
+    await expect(page.locator('#activ-pane')).toBeVisible();
+    const canvasH = () => page.locator('#cw').evaluate((el) => el.getBoundingClientRect().height);
+    const open = await canvasH();
+    await page.locator('#bot-toggle').click();
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+    await expect(page.locator('#activ-pane')).toBeHidden();
+    await expect(page.locator('.bot .bt').first()).toBeVisible();
+    expect(await canvasH()).toBeGreaterThan(open + 100);                    // la place est rendue au schéma
+    await expect(page.locator('.dwin')).toHaveCount(1);                     // les bureaux ouverts restent
+    await page.locator('.bot .bt', { hasText: 'Journal' }).click();
+    await expect(page.locator('.bot')).not.toHaveClass(/closed/);
+    await expect(page.locator('#lout')).toContainText('PING');
+    await page.locator('.bot .bt', { hasText: 'Paquets' }).click();
+    await expect(page.locator('#pkt-body tr').first()).toBeVisible();
+  });
+
+  test('élève sans activité : bandeau replié à l\'ouverture ; le réseau se sauvegarde seul, quelques secondes après une modification', async ({ page }, info) => {
+    await page.goto(BUILDER_URL);
+    const file = await exportFile(page, 'html', info.outputPath('libre.html'));
+    await page.goto(pathToFileURL(file).href);
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+    await expect(page.locator('#btn-activ-tab')).toBeHidden();
+    await expect(page.locator('#lout')).toBeHidden();
+
+    // Un poste déposé depuis la palette : sauvegardé sans rien demander
+    const saved = () => page.evaluate(() => localStorage.getItem(SESSION_KEY) || '');
+    const spot = await freeSpot(page);
+    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+    expect(pc).not.toBeNull();
+    expect(await saved()).not.toContain(`"${pc}"`);                         // pas encore : la sauvegarde est temporisée
+    await expect.poll(saved, { timeout: 9000 }).toContain(`"${pc}"`);
+
+    // Une modification de la fiche aussi
+    await page.locator(`#gd${pc}`).click();
+    const ip = page.locator('#props-body .pr', { hasText: /^Adresse IP/ }).locator('input:not([type="checkbox"])').first();
+    await ip.fill('192.168.50.7');
+    await ip.press('Tab');
+    await expect.poll(saved, { timeout: 9000 }).toContain('192.168.50.7');
+
+    // Page fermée brutalement (sans l'enregistrement de fermeture) : le réseau est retrouvé
+    await page.evaluate(() => { window.addEventListener('beforeunload', (e) => e.stopImmediatePropagation(), true); });
+    await page.reload();
+    expect(await page.evaluate((id) => S.devs[id] && S.devs[id].ifaces[0].ip, pc)).toBe('192.168.50.7');
   });
 });
 
 test.describe('Builder', () => {
-  test('services réglés en simulation : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
-    // Vue Corrigé : le bureau s'ouvre sans simulation, et ce qui y est réglé fait partie du corrigé exporté
+  test('services réglés dans le bureau : Ctrl+Z annule, et l\'élève reçoit l\'état laissé par le professeur', async ({ page }, info) => {
+    // Vue Corrigé : ce qui est réglé dans le bureau fait partie du corrigé exporté
     await openBuilderWith(page, 'reseau-maison');
     const box = await openDeskApp(page, 'Box-WiFi', 'Administration');
     const dhcp = box.locator('.dpill');
@@ -415,7 +442,6 @@ test.describe('Builder', () => {
 
     const file = await exportFile(page, 'html', info.outputPath('maison-dhcp-off.html'));
     await page.goto(pathToFileURL(file).href);
-    await page.locator('#btn-sim').click();
     const sbox = await openDeskApp(page, 'Box-WiFi', 'Administration');
     await expect(sbox.locator('.dpill')).toHaveText('arrêté');
     const laptop = await deskTerminal(page, 'Laptop', 'dhcp');
@@ -438,7 +464,42 @@ test.describe('Builder', () => {
     const win = await deskTerminal(page, 'PC-Bureau', 'ipconfig');
     await expect(win.locator('.dterm-out')).toContainText('192.168.1.');
     await expect(win.locator('.dwin-ip')).toHaveText(/^192\.168\.1\.\d+$/);
+    await expect(win.locator('.dnote')).toHaveCount(0);                      // en Essai, tout compte
     await expect(builderScore(page)).toHaveText(before);
+    // Le bandeau du bas n'a plus que le journal et les paquets, dans toutes les vues
+    await expect(page.locator('.bot .bt')).toHaveText(['📋 Journal', '🔍 Paquets']);
+    await expect(page.locator('#tinput, #td-sel, #burl, #tout')).toHaveCount(0);
+  });
+
+  test('vue Corrigé : terminal et navigateur pour vérifier le réseau, non comptabilisés ; les mêmes gestes comptent en Essai', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+
+    // Le corrigé fonctionne : le professeur le constate sans quitter la vue
+    const pc = await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
+    await expect(pc.locator('.dnote')).toContainText('non comptabilisé');
+    await expect(pc.locator('.dterm-out')).toContainText('Réponse de 192.168.1.1');
+    await deskTerminal(page, 'PC-Bureau', 'ping 8.8.8.8');
+    const web = await deskBrowse(page, 'PC-Bureau', 'www.exemple.fr');
+    await expect(web.locator('.bpage h1')).toBeVisible();
+    await expect(web.locator('.dnote')).toContainText('non comptabilisé');
+    await page.locator('.bot .bt', { hasText: 'Journal' }).click();
+    await expect(page.locator('#lout')).toContainText('PING');
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);        // aucun point
+
+    // Casser puis rétablir la passerelle dans le corrigé ne rapporte rien non plus
+    await setGateway(page, 'PC-Bureau', '192.168.9.9');
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+    expect(await page.evaluate(() => Object.keys(ACTIVITY_PROOFS).length)).toBe(0);
+
+    // En Essai, la réparation et les mêmes commandes marquent leurs points
+    await page.locator('#btn-sim').click();
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await expect(builderScore(page)).toHaveText(/Score : 35 \/ 100/);
+    const before = await page.evaluate(() => S.score);
+    await deskTerminal(page, 'PC-Bureau', 'ping 192.168.1.1');
+    await expect.poll(() => page.evaluate(() => S.score)).toBeGreaterThan(before);
   });
 
   test('nslookup en majuscules ne valide l\'objectif que depuis le bon appareil', async ({ page }) => {
@@ -453,8 +514,8 @@ test.describe('Builder', () => {
     await dns.locator('[data-act="toggle"]').click();
     await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // « DNS actif »
 
-    await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
-    await expect(page.locator('#tout')).toContainText('192.168.1.100');
+    const bob = await runInTerminal(page, 'PC-Bob', 'nslookup WWW.MON-ENTREPRISE.FR');
+    await expect(bob.locator('.dterm-out')).toContainText('192.168.1.100');
     await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');   // pas depuis le bon poste
 
     await runInTerminal(page, 'PC-Alice', 'nslookup WWW.MON-ENTREPRISE.FR');
@@ -755,11 +816,8 @@ test.describe('Builder', () => {
       addLink(pc, sw);
       render();
     });
-    // Côté élève, l'appareil du terminal se choisit dans la liste du terminal.
-    await page.locator('.bt', { hasText: 'Terminal' }).click();
-    await page.locator('#td-sel').selectOption({ label: 'b210-p3' });
-    await page.locator('#tinput').fill('ping 10.2.210.1');
-    await page.locator('#tinput').press('Enter');
+    // Côté élève, la commande se tape dans le bureau du poste ajouté.
+    await deskTerminal(page, 'b210-p3', 'ping 10.2.210.1');
     await page.locator('#btn-activ-tab').click();
     await expect(page.locator('.activ-obj', { hasText: 'Ping depuis le nouveau poste' })).toHaveClass(/done/);
   });
@@ -826,7 +884,7 @@ test.describe('Builder', () => {
   test('Connexion WiFi : SSID suivi dans le builder, mot de passe faux puis corrigé chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
     // Builder : renommer le réseau de la box, les terminaux connectés suivent
-    // (le WiFi de la box se règle dans son application Administration, en mode simulation)
+    // (le WiFi de la box se règle dans son application Administration, ici sur la copie d'essai)
     await page.locator('#btn-sim').click();
     const admin = await openDeskApp(page, 'Box-WiFi', 'Administration');
     await admin.locator('[data-f="ssid"]').fill('WiFi-Famille');
@@ -1019,13 +1077,13 @@ test.describe('Builder', () => {
     const dnsOn = () => page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on);
     expect(await dnsOn()).toBe(true);                                      // corrigé : DNS démarré
 
-    // Corrigé : le bureau s'ouvre sans simulation, sans terminal ni navigateur
+    // Corrigé : le bureau s'ouvre, avec le terminal (non comptabilisé : voir le test de la vue Corrigé)
     const srv = await deviceId(page, 'Serveur');
     await page.locator(`#gd${srv}`).dblclick();
     const win = page.locator(`#dwin-${srv}`);
     await expect(win).toBeVisible();
     await expect(win.locator('.dico', { hasText: 'Serveur DNS' })).toBeVisible();
-    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(1);
     await win.locator('.dw-x').click();
 
     // Départ élève : la panne est appliquée, lecture seule
@@ -1166,7 +1224,8 @@ test.describe('Builder', () => {
     await page.locator('#btn-sim').click();
     await expect(builderScore(page)).toHaveText('📊 Score : 30 / 100 pts');
     expect(await dnsOn()).toBe(true);
-    await expect(page.locator('#tout')).toContainText('192.168.1.100');   // la sortie du terminal aussi
+    const alice = await openDeskApp(page, 'PC-Alice', 'Invite de commandes');
+    await expect(alice.locator('.dterm-out')).toContainText('192.168.1.100');   // la sortie du terminal aussi
 
     // Le corrigé change (adresse d'un poste) : l'essai ne correspond plus, il repart de zéro, avec un message
     await page.locator('#btn-cfg').click();
@@ -1246,7 +1305,7 @@ test.describe('Builder', () => {
     await expect(page.locator('.ao-hint', { hasText: 'Regarde derrière le bureau' })).toHaveCount(1);
   });
 
-  test('câble débranché : le professeur le rebranche dans le builder, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
+  test('câble débranché : le professeur le rebranche en vue Essai, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
     await page.locator('#btn-wizard').click();
     await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
@@ -1259,7 +1318,9 @@ test.describe('Builder', () => {
       const f = EvalModule.getConfig().faults.find((x) => x.type === 'missing_cable'); return f.params || f; });
     const pts = await page.evaluate(() => EvalModule.getConfig().objectives.find((o) => o.check === 'cable_exists').points);
     const [pc, sw, box] = [await deviceId(page, fault.devA), await deviceId(page, fault.devB), await deviceId(page, 'Box')];
-    // Le professeur débranche le câble (comme la panne), puis le rebranche à l'outil Câble
+    // En Essai, la panne a débranché le câble : le professeur le rebranche à l'outil Câble
+    await page.locator('#btn-sim').click();
+    expect(await linkList(page)).not.toContainEqual(expect.objectContaining({ from: pc, to: sw }));
     await page.evaluate(([a, b]) => {
       Object.keys(S.links).forEach((k) => { const l = S.links[k];
         if ((l.from === a && l.to === b) || (l.from === b && l.to === a)) delete S.links[k]; });
@@ -1350,6 +1411,535 @@ test.describe('Builder', () => {
     await importScenarioFile(page, file);
     // Comme chez l'élève : pannes appliquées et routes recalculées à l'import, rien n'est acquis.
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+  });
+});
+
+/* ── Souris sur le schéma : palette, déplacement, câblage, double-clic ──
+   Gestes réels (souris de Chrome), sans appeler les fonctions du moteur : ils verrouillent
+   ce que le passage au mode unique ne doit pas casser. */
+
+const DEV_W = 126, DEV_H = 112;   // DW, DH du moteur
+
+const canvasBox = (page) => page.locator('#canvas').boundingBox();
+
+/* Centre d'un appareil, en coordonnées de la page. */
+async function devCenter(page, id) {
+  const box = await canvasBox(page);
+  const d = await page.evaluate((i) => ({ x: S.devs[i].x, y: S.devs[i].y }), id);
+  return { x: box.x + d.x + DEV_W / 2, y: box.y + d.y + DEV_H / 2 };
+}
+
+const devPos = (page, id) => page.evaluate((i) => ({ x: S.devs[i].x, y: S.devs[i].y }), id);
+const linkList = (page) => page.evaluate(() =>
+  Object.values(S.links).map((l) => ({ id: l.id, from: l.from, to: l.to, type: l.type || 'cable' })));
+
+/* Point libre du schéma (coordonnées du canevas) : assez loin de tout appareil pour y déposer. */
+const freeSpot = (page) => page.evaluate(() => {
+  const r = document.getElementById('canvas').getBoundingClientRect();
+  const ds = Object.values(S.devs);
+  for (let y = DH; y < r.height - DH; y += 20) {
+    for (let x = DW; x < r.width - DW; x += 20) {
+      if (ds.every((d) => x + DW / 2 + 20 < d.x || x - DW / 2 - 20 > d.x + DW
+        || y + DH / 2 + 20 < d.y || y - DH / 2 - 20 > d.y + DH)) return { x, y };
+    }
+  }
+  throw new Error('aucune place libre sur le schéma');
+});
+
+/* Glisse un élément de la palette et le dépose sur le schéma ; rend l'id de l'appareil créé. */
+async function dropFromPalette(page, item, x, y) {
+  const before = await page.evaluate(() => Object.keys(S.devs));
+  await page.locator('#pi-' + item).dragTo(page.locator('#canvas'), { targetPosition: { x, y } });
+  return page.evaluate((b) => Object.keys(S.devs).find((k) => !b.includes(k)) || null, before);
+}
+
+async function clickDev(page, id, options) {
+  const c = await devCenter(page, id);
+  await page.mouse.click(c.x, c.y, options);
+}
+
+/* Glisser à la souris : appui sur l'appareil, déplacement, relâchement. */
+async function dragDev(page, id, dx, dy) {
+  const c = await devCenter(page, id);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  await page.mouse.move(c.x + dx, c.y + dy, { steps: 6 });
+  await page.mouse.up();
+}
+
+async function openStudentExport(page, info, scenario) {
+  await openBuilderWith(page, scenario);
+  const file = await exportFile(page, 'html', info.outputPath(scenario + '-souris.html'));
+  await page.goto(pathToFileURL(file).href);
+  await studentScore(page, 0);
+}
+
+test.describe('Souris sur le schéma', () => {
+  test('palette : un appareil glissé est créé à l\'endroit du dépôt, sélectionné, sa fiche ouverte (builder)', async ({ page }) => {
+    await page.goto(BUILDER_URL);
+    await expect(page.locator('#cv-hint')).toBeVisible();
+
+    const pc = await dropFromPalette(page, 'pc-desktop', 300, 200);
+    expect(pc).not.toBeNull();
+    const d = await page.evaluate((i) => S.devs[i], pc);
+    expect([d.type, d.kind]).toEqual(['pc', 'desktop']);
+    expect(Math.abs(d.x - (300 - DEV_W / 2))).toBeLessThanOrEqual(2);
+    expect(Math.abs(d.y - (200 - DEV_H / 2))).toBeLessThanOrEqual(2);
+    expect(await page.evaluate(() => S.sel)).toBe(pc);
+    await expect(page.locator('#props-body input').first()).toHaveValue(d.name);
+    await expect(page.locator(`#gd${pc}`)).toBeVisible();
+    await expect(page.locator('#cv-hint')).toBeHidden();
+
+    // Chaque type de la palette donne le bon appareil
+    for (const [item, type, kind] of [['pc-laptop', 'pc', 'laptop'], ['pc-phone', 'pc', 'phone'], ['server', 'server'],
+      ['switch', 'switch'], ['router', 'router'], ['wifi_router', 'wifi_router'], ['internet', 'internet']]) {
+      const spot = await freeSpot(page);
+      const id = await dropFromPalette(page, item, spot.x, spot.y);
+      const made = await page.evaluate((i) => ({ type: S.devs[i].type, kind: S.devs[i].kind }), id);
+      expect(made.type, item).toBe(type);
+      if (kind) expect(made.kind, item).toBe(kind);
+      expect(await page.evaluate(() => S.sel), item).toBe(id);
+    }
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(8);
+
+    // Annotations : cadre et texte
+    await page.locator('#pi-frame').dragTo(page.locator('#canvas'), { targetPosition: { x: 400, y: 300 } });
+    await page.locator('#pi-anntext').dragTo(page.locator('#canvas'), { targetPosition: { x: 500, y: 60 } });
+    expect(await page.evaluate(() => [Object.keys(S.frames).length, Object.keys(S.texts).length])).toEqual([1, 1]);
+
+    // Un dépôt hors du schéma ne crée rien
+    await page.locator('#pi-pc-desktop').dragTo(page.locator('#props-body'));
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(8);
+  });
+
+  test('déplacement : glisser un appareil le déplace avec ses câbles ; un clic ou l\'outil Câble ne le déplacent pas', async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const laptop = await deviceId(page, 'Laptop');
+    const start = await devPos(page, laptop);
+
+    // Clic simple : sélection, fiche, aucune position modifiée
+    await clickDev(page, laptop);
+    expect(await devPos(page, laptop)).toEqual(start);
+    expect(await page.evaluate(() => [S.sel, S.drag])).toEqual([laptop, null]);
+    await expect(page.locator('#props-body input').first()).toHaveValue('Laptop');
+
+    // Glisser : l'appareil suit la souris, ses liaisons aussi. (Pause : deux appuis rapprochés sur
+    // le même appareil comptent comme un double-clic, qui ouvrirait son bureau par-dessus le schéma.)
+    await page.waitForTimeout(600);
+    const c = await devCenter(page, laptop);
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 30, c.y + 20, { steps: 4 });
+    expect(await page.evaluate(() => S.drag && S.drag.id)).toBe(laptop);
+    await page.mouse.move(c.x + 70, c.y - 50, { steps: 4 });
+    await page.mouse.up();
+    const moved = await devPos(page, laptop);
+    expect(Math.abs(moved.x - (start.x + 70))).toBeLessThanOrEqual(1);
+    expect(Math.abs(moved.y - (start.y - 50))).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => S.drag)).toBeNull();
+    const ends = await page.evaluate((id) => {
+      const l = Object.values(S.links).find((k) => k.from === id || k.to === id);
+      const el = document.getElementById(l.id);
+      const p = l.from === id ? ['x1', 'y1'] : ['x2', 'y2'];
+      return [Number(el.getAttribute(p[0])), Number(el.getAttribute(p[1]))];
+    }, laptop);
+    expect(ends).toEqual([moved.x + DEV_W / 2, moved.y + DEV_H / 2]);
+
+    // Après le relâchement, la souris ne déplace plus rien
+    await page.mouse.move(c.x + 200, c.y + 100, { steps: 3 });
+    expect(await devPos(page, laptop)).toEqual(moved);
+
+    // Bord du schéma : l'appareil reste à l'intérieur (4 px), et sortir du schéma arrête le glisser
+    const box = await canvasBox(page);
+    const c2 = await devCenter(page, laptop);
+    await page.waitForTimeout(600);
+    await page.mouse.move(c2.x, c2.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 3, c2.y, { steps: 8 });
+    const edge = { x: 4, y: moved.y };
+    expect(await devPos(page, laptop)).toEqual(edge);
+    await page.mouse.move(box.x - 30, c2.y, { steps: 3 });   // sur la palette
+    expect(await page.evaluate(() => S.drag)).toBeNull();
+    await page.mouse.move(box.x + 400, c2.y + 100, { steps: 3 });
+    await page.mouse.up();
+    expect(await devPos(page, laptop)).toEqual(edge);
+    await expect(page.locator('.dwin')).toHaveCount(0);
+
+    // Outil Câble : glisser un appareil ne le déplace pas
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const pcStart = await devPos(page, pcB);
+    await page.locator('#pi-link').click();
+    await dragDev(page, pcB, 60, 40);
+    expect(await devPos(page, pcB)).toEqual(pcStart);
+    await page.keyboard.press('Escape');
+
+    // Le corrigé exporté garde les nouvelles positions ; l'élève déplace de la même façon
+    const file = await exportFile(page, 'html', info.outputPath('maison-deplace.html'));
+    await page.goto(pathToFileURL(file).href);
+    const sLaptop = await deviceId(page, 'Laptop');
+    expect(await devPos(page, sLaptop)).toEqual(edge);
+    await dragDev(page, sLaptop, 90, 60);
+    const sMoved = await devPos(page, sLaptop);
+    expect(Math.abs(sMoved.x - (edge.x + 90))).toBeLessThanOrEqual(1);
+    expect(Math.abs(sMoved.y - (edge.y + 60))).toBeLessThanOrEqual(1);
+    await studentScore(page, 0);   // déplacer ne rapporte rien
+  });
+
+  test('câblage à la souris : clic, aperçu, annulation, refus, WiFi, glisser, double-clic, sélection et suppression d\'un câble', async ({ page }) => {
+    await page.goto(BUILDER_URL);
+    const pc = await dropFromPalette(page, 'pc-desktop', 200, 150);
+    const sw = await dropFromPalette(page, 'switch', 480, 150);
+    const srv = await dropFromPalette(page, 'server', 760, 150);
+    const phone = await dropFromPalette(page, 'pc-phone', 200, 400);
+    const box = await dropFromPalette(page, 'wifi_router', 480, 400);
+    const cv = await canvasBox(page);
+    const prev = () => page.locator('#prev-line').evaluate((el) =>
+      ({ shown: el.getAttribute('display') !== 'none', x1: +el.getAttribute('x1'), y1: +el.getAttribute('y1'), x2: +el.getAttribute('x2'), y2: +el.getAttribute('y2') }));
+    const state = () => page.evaluate(() => ({ tool: S.tool, from: S.cableFrom, n: Object.keys(S.links).length }));
+
+    // Premier clic : départ du câble, l'aperçu suit la souris
+    await page.locator('#pi-link').click();
+    await clickDev(page, pc);
+    expect(await state()).toEqual({ tool: 'link', from: pc, n: 0 });
+    await page.mouse.move(cv.x + 340, cv.y + 260, { steps: 3 });
+    const p = await prev();
+    expect(p.shown).toBe(true);
+    expect([p.x1, p.y1]).toEqual([200, 150]);
+    expect(Math.abs(p.x2 - 340) + Math.abs(p.y2 - 260)).toBeLessThanOrEqual(2);
+
+    // Second clic : câble créé, aperçu effacé, l'outil Câble reste actif
+    await clickDev(page, sw);
+    expect(await state()).toEqual({ tool: 'link', from: null, n: 1 });
+    expect(await linkList(page)).toEqual([expect.objectContaining({ from: pc, to: sw, type: 'cable' })]);
+    expect((await prev()).shown).toBe(false);
+
+    // Annulations : second clic sur le même appareil, ou clic dans le vide
+    await clickDev(page, srv);
+    await clickDev(page, srv);
+    expect(await state()).toEqual({ tool: 'link', from: null, n: 1 });
+    await clickDev(page, srv);
+    await page.mouse.click(cv.x + 760, cv.y + 420);
+    expect(await state()).toEqual({ tool: 'link', from: null, n: 1 });
+    expect((await prev()).shown).toBe(false);
+
+    // Refus : doublon (sans message), second câble d'un poste, téléphone sur un switch
+    await clickDev(page, sw);
+    await clickDev(page, pc);
+    expect((await state()).n).toBe(1);
+    await clickDev(page, pc);
+    await clickDev(page, srv);
+    await expect(page.locator('.notif')).toContainText('a déjà un câble');
+    expect((await state()).n).toBe(1);
+    await clickDev(page, phone);
+    await clickDev(page, sw);
+    await expect(page.locator('.notif')).toContainText('ne se connecte qu\'en WiFi');
+    expect((await state()).n).toBe(1);
+
+    // Téléphone vers la box : liaison WiFi, réseau de la box choisi sur le téléphone
+    await clickDev(page, phone);
+    await clickDev(page, box);
+    expect((await linkList(page))[1]).toEqual(expect.objectContaining({ from: phone, to: box, type: 'wifi' }));
+    expect(await page.evaluate(([t, b]) => S.devs[t].wifi.ssid === S.devs[b].ssid, [phone, box])).toBe(true);
+
+    // Glisser d'un appareil à l'autre avec l'outil Câble : rien ne bouge, le câble reste en attente
+    // sur l'appareil de départ et se termine au clic suivant
+    const srvStart = await devPos(page, srv);
+    const cs = await devCenter(page, srv), cw = await devCenter(page, sw);
+    await page.mouse.move(cs.x, cs.y);
+    await page.mouse.down();
+    await page.mouse.move(cw.x, cw.y, { steps: 6 });
+    await page.mouse.up();
+    expect(await devPos(page, srv)).toEqual(srvStart);
+    expect(await state()).toEqual({ tool: 'link', from: srv, n: 2 });
+    await clickDev(page, sw);
+    expect(await state()).toEqual({ tool: 'link', from: null, n: 3 });
+
+    // Double-clic avec l'outil Câble : ni bureau, ni câble, rien en attente
+    await clickDev(page, box, { clickCount: 2 });
+    expect(await state()).toEqual({ tool: 'link', from: null, n: 3 });
+    await expect(page.locator('.dwin')).toHaveCount(0);
+
+    // Outil Sélection : un clic sur le câble le sélectionne (fiche « Câble réseau »), un clic dans le vide désélectionne
+    await page.locator('#pi-sel').click();
+    const cable = (await linkList(page))[0];
+    const mid = { x: cv.x + (200 + 480) / 2, y: cv.y + 150 - 20 };   // sur le câble, hors de la pastille centrale
+    const onCable = { x: cv.x + 300, y: cv.y + 150 };
+    await page.mouse.click(onCable.x, onCable.y);
+    expect(await page.evaluate(() => S.sel)).toBe(cable.id);
+    await expect(page.locator('#props-body')).toContainText('Câble réseau');
+    await expect(page.locator('#' + cable.id)).toHaveClass(/cable-sel/);
+    await page.mouse.click(mid.x, mid.y - 60);
+    expect(await page.evaluate(() => S.sel)).toBeNull();
+
+    // Clic droit : sélectionne l'appareil ou le câble, ne supprime rien
+    await clickDev(page, sw, { button: 'right' });
+    expect(await page.evaluate(() => S.sel)).toBe(sw);
+    await page.mouse.click(onCable.x, onCable.y, { button: 'right' });
+    expect(await page.evaluate(() => S.sel)).toBe(cable.id);
+    expect((await state()).n).toBe(3);
+
+    // Outil Supprimer : un clic sur un câble l'efface ; sur un appareil, l'efface avec ses liaisons
+    await page.locator('#pi-del').click();
+    await page.mouse.click(onCable.x, onCable.y);
+    expect((await linkList(page)).map((l) => l.id)).not.toContain(cable.id);
+    await clickDev(page, box);
+    expect(await page.evaluate((id) => !!S.devs[id], box)).toBe(false);
+    expect(await linkList(page)).toEqual([expect.objectContaining({ from: srv, to: sw })]);
+    expect(await page.evaluate(() => S.tool)).toBe('delete');
+  });
+
+  test('double-clic sur un appareil (builder, vue Corrigé) : ouvre son bureau sans le déplacer ; deux clics lents ne l\'ouvrent pas', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const start = await devPos(page, pcB);
+    const c = await devCenter(page, pcB);
+
+    await page.mouse.click(c.x, c.y);
+    await page.waitForTimeout(600);
+    await page.mouse.click(c.x, c.y);
+    await expect(page.locator('.dwin')).toHaveCount(0);
+
+    await page.waitForTimeout(600);
+    await page.mouse.dblclick(c.x, c.y);
+    await expect(page.locator(`#dwin-${pcB}`)).toBeVisible();
+    expect(await devPos(page, pcB)).toEqual(start);
+    expect(await page.evaluate(() => [S.sel, S.drag])).toEqual([pcB, null]);
+
+    // La fenêtre ouverte, la souris qui passe sur le schéma ne déplace pas l'appareil
+    const cv = await canvasBox(page);
+    await page.mouse.move(cv.x + 40, cv.y + 40, { steps: 4 });
+    expect(await devPos(page, pcB)).toEqual(start);
+  });
+
+  test('élève : un seul comportement, bandeau du bas déplié ou replié (palette, câble, fiche, glisser, double-clic, Suppr)', async ({ page }, info) => {
+    await openStudentExport(page, info, 'reseau-maison');
+    const boxId = await deviceId(page, 'Box-WiFi');
+    const laptop = await deviceId(page, 'Laptop');
+
+    await expect(page.locator('#btn-cfg, #btn-sim')).toHaveCount(0);        // plus de boutons de mode
+    for (const mode of ['déplié', 'replié']) {
+      if (mode === 'replié') {
+        await page.locator('#bot-toggle').click();
+        await expect(page.locator('.bot')).toHaveClass(/closed/);
+      }
+
+      // Palette active : déposer un PC fixe, le câbler à la box
+      await expect(page.locator('#pi-pc-desktop'), mode).not.toHaveClass(/disabled/);
+      const spot = await freeSpot(page);
+      const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+      expect(pc, mode).not.toBeNull();
+      expect(await page.evaluate(() => S.sel)).toBe(pc);
+      await page.locator('#pi-link').click();
+      await clickDev(page, pc);
+      await clickDev(page, boxId);
+      expect(await linkList(page), mode).toContainEqual(expect.objectContaining({ from: pc, to: boxId, type: 'cable' }));
+      await page.keyboard.press('Escape');
+
+      // Clic : fiche modifiable, avec les applications de l'appareil
+      await clickDev(page, laptop);
+      await expect(page.locator('#props-body input').first()).toHaveValue('Laptop');
+      await expect(page.locator('#props-body input').first()).toBeEditable();
+      await expect(page.locator('#props-body .desk-papps button', { hasText: 'Invite de commandes' })).toBeVisible();
+
+      // Glisser : l'appareil se déplace
+      await page.waitForTimeout(600);
+      const start = await devPos(page, laptop);
+      await dragDev(page, laptop, 40, 30);
+      const moved = await devPos(page, laptop);
+      expect(Math.abs(moved.x - start.x - 40) + Math.abs(moved.y - start.y - 30), mode).toBeLessThanOrEqual(2);
+      await expect(page.locator('.dwin')).toHaveCount(0);
+
+      // Double-clic, juste après le glisser : le bureau s'ouvre, l'appareil ne bouge pas
+      await clickDev(page, laptop, { clickCount: 2 });
+      await expect(page.locator(`#dwin-${laptop}`), mode).toBeVisible();
+      expect(await devPos(page, laptop)).toEqual(moved);
+      await page.locator(`#dwin-${laptop} .dw-x`).click();
+
+      // Suppr : l'appareil sélectionné est effacé, avec son câble
+      await clickDev(page, pc);
+      await page.keyboard.press('Delete');
+      expect(await page.evaluate((id) => !!S.devs[id], pc), mode).toBe(false);
+      expect((await linkList(page)).some((l) => l.from === pc || l.to === pc)).toBe(false);
+    }
+    await studentScore(page, 0);
+  });
+
+  test('élève : Ctrl+Z rend un appareil supprimé par erreur, annule un déplacement, un câble et une adresse ; Ctrl+Y rétablit', async ({ page }, info) => {
+    await openStudentExport(page, info, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const box = await deviceId(page, 'Box-WiFi');
+    const undo = page.locator('#btn-undo'), redo = page.locator('#btn-redo');
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+    const links0 = await linkList(page);
+
+    // Réparation, puis suppression par erreur : Ctrl+Z rend l'appareil, ses câbles, son réglage et ses points
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await studentScore(page, 35);
+    await clickDev(page, pcB);
+    await page.keyboard.press('Delete');
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(false);
+    await studentScore(page, 0);
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+    expect(await linkList(page)).toEqual(links0);
+    await studentScore(page, 35);
+    await expect(redo).toBeEnabled();
+
+    // Ctrl+Y rétablit la suppression, le bouton ↩ l'annule de nouveau
+    await page.keyboard.press('Control+y');
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(false);
+    await undo.click();
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(true);
+
+    // Un déplacement s'annule en un pas
+    const start = await devPos(page, pcB);
+    await page.waitForTimeout(600);
+    await dragDev(page, pcB, 70, 40);
+    expect(await devPos(page, pcB)).not.toEqual(start);
+    await page.locator('#cw').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('Control+z');
+    expect(await devPos(page, pcB)).toEqual(start);
+
+    // Un poste ajouté et câblé : deux pas (le câble, puis le poste)
+    const spot = await freeSpot(page);
+    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+    await page.locator('#pi-link').click();
+    await clickDev(page, pc);
+    await clickDev(page, box);
+    await page.keyboard.press('Escape');
+    expect(await linkList(page)).toHaveLength(links0.length + 1);
+    await page.keyboard.press('Control+z');
+    expect(await linkList(page)).toEqual(links0);
+    expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(true);
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => !!S.devs[id], pc)).toBe(false);
+
+    // Pendant une saisie, Ctrl+Z reste celui du champ : le réseau ne recule pas
+    await clickDev(page, pcB);
+    const name = page.locator('#props-body input').first();
+    await name.focus();
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate((id) => !!S.devs[id], pcB)).toBe(true);
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+
+    // L'historique ne survit pas au rechargement ; le réseau, si
+    await page.reload();
+    await expect(page.locator('#btn-undo')).toBeDisabled();
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+  });
+
+  test('builder : Ctrl+Z annule aussi une adresse, un câble posé et un appareil ajouté ; rien ne s\'annule en vue Départ élève', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const box = await deviceId(page, 'Box-WiFi');
+    const links0 = await linkList(page);
+    const n0 = await page.evaluate(() => Object.keys(S.devs).length);
+
+    await setGateway(page, 'PC-Bureau', '192.168.1.254');
+    const spot = await freeSpot(page);
+    const pc = await dropFromPalette(page, 'pc-desktop', spot.x, spot.y);
+    await page.locator('#pi-link').click();
+    await clickDev(page, pc);
+    await clickDev(page, box);
+    await page.keyboard.press('Escape');
+    await page.locator('#cw').click({ position: { x: 5, y: 5 } });
+
+    // Départ élève : lecture seule, l'historique du corrigé n'y est pas rejoué
+    await page.locator('#btn-depart').click();
+    await page.keyboard.press('Control+z');
+    await page.locator('#btn-cfg').click();
+    expect(await linkList(page)).toHaveLength(links0.length + 1);
+
+    await page.keyboard.press('Control+z');                                  // le câble
+    expect(await linkList(page)).toEqual(links0);
+    await page.keyboard.press('Control+z');                                  // le poste
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBe(n0);
+    await page.keyboard.press('Control+z');                                  // la passerelle
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.1');
+    await page.keyboard.press('Control+y');
+    expect(await page.evaluate((id) => S.devs[id].ifaces[0].gateway, pcB)).toBe('192.168.1.254');
+  });
+
+  test('un glisser suivi d\'un clic n\'ouvre pas le bureau ; un double-clic qui tremble ne déplace pas l\'appareil', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+
+    // Clic moins de 450 ms après l'appui qui a commencé le glisser : ce n'est pas un double-clic
+    await dragDev(page, pcB, 50, 30);
+    await clickDev(page, pcB);
+    await expect(page.locator('.dwin')).toHaveCount(0);
+
+    // Double-clic avec deux pixels de tremblement : le bureau s'ouvre, l'appareil reste en place
+    await page.waitForTimeout(600);
+    const start = await devPos(page, pcB);
+    const c = await devCenter(page, pcB);
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 2, c.y + 1);
+    await page.mouse.up();
+    await page.mouse.down();
+    await page.mouse.move(c.x + 1, c.y + 2);
+    await page.mouse.up();
+    await expect(page.locator(`#dwin-${pcB}`)).toBeVisible();
+    expect(await devPos(page, pcB)).toEqual(start);
+    expect(await page.evaluate(() => S.drag)).toBeNull();
+  });
+
+  test('vue Départ élève : lecture seule à la souris, au clavier et dans la fiche ; vue Essai : tout se règle, le corrigé reste intact', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const pcB = await deviceId(page, 'PC-Bureau');
+    const start = await devPos(page, pcB);
+    const n = await page.evaluate(() => [Object.keys(S.devs).length, Object.keys(S.links).length]);
+    const counts = () => page.evaluate(() => [Object.keys(S.devs).length, Object.keys(S.links).length]);
+
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#pi-pc-desktop')).toHaveClass(/disabled/);
+    await expect(page.locator('#pi-link')).toHaveClass(/disabled/);
+
+    // Glisser : rien ne bouge ; la fiche s'affiche, champs figés, sans bouton d'action
+    await dragDev(page, pcB, 60, 40);
+    expect(await devPos(page, pcB)).toEqual(start);
+    await expect(page.locator('#props-body input').first()).toHaveValue('PC-Bureau');
+    await expect(page.locator('#props-body input').first()).toBeDisabled();
+    await expect(page.locator('.pr', { hasText: 'Passerelle' }).locator('input').first()).toBeDisabled();
+    await expect(page.locator('#props-body button', { hasText: 'Supprimer' })).toBeHidden();
+    await expect(page.locator('#props-body button', { hasText: 'Dupliquer' })).toBeHidden();
+
+    // Suppr sur l'appareil puis sur un câble : rien n'est effacé
+    await page.keyboard.press('Delete');
+    const lid = await page.evaluate(() => Object.keys(S.links)[0]);
+    await page.evaluate((id) => selLink(id), lid);
+    await expect(page.locator('#props-body')).toContainText('Câble réseau');
+    await expect(page.locator('#props-body button', { hasText: 'Supprimer' })).toBeHidden();
+    await page.keyboard.press('Delete');
+    expect(await counts()).toEqual(n);
+
+    // Le bureau s'ouvre quand même (lecture seule), sans terminal
+    await page.waitForTimeout(600);
+    await clickDev(page, pcB, { clickCount: 2 });
+    const win = page.locator(`#dwin-${pcB}`);
+    await expect(win).toBeVisible();
+    await expect(win.locator('.dico', { hasText: 'Invite de commandes' })).toHaveCount(0);
+
+    // Essai : palette active, la fiche répare la panne, l'appareil se déplace
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#pi-pc-desktop')).not.toHaveClass(/disabled/);
+    await expect(builderScore(page)).toHaveText(/Score : 0 \/ 100/);
+    await setGateway(page, 'PC-Bureau', '192.168.1.1');
+    await expect(builderScore(page)).toHaveText(/Score : 35 \/ 100/);
+    await page.waitForTimeout(600);
+    await dragDev(page, pcB, 60, 40);
+    const moved = await devPos(page, pcB);
+    expect(Math.abs(moved.x - start.x - 60) + Math.abs(moved.y - start.y - 40)).toBeLessThanOrEqual(2);
+    const spot = await freeSpot(page);
+    expect(await dropFromPalette(page, 'pc-desktop', spot.x, spot.y)).not.toBeNull();
+
+    // Retour au corrigé : ni le poste ajouté, ni le déplacement de l'essai
+    await page.locator('#btn-cfg').click();
+    expect(await counts()).toEqual(n);
+    expect(await devPos(page, pcB)).toEqual(start);
+    await expect(page.locator('#props-body input')).toHaveCount(0);
   });
 });
 

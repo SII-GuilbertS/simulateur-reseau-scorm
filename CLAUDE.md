@@ -25,7 +25,7 @@ de simulation embarqué pour l'élève. Il combine quatre parties :
    `template-skeleton.html` reçoit `net-core.js` + `sim-ui.js` + `template-extra.js`).
 3. **JS du builder lui-même** — `EvalModule` (objectifs pédagogiques, score, pannes) et
    `GenModule` (export SCORM .zip / HTML standalone, génération d'énoncé imprimable et de son corrigé,
-   import/export de scénarios JSON), plus les surcharges builder (undo/redo, copier/coller,
+   import/export de scénarios JSON), plus les surcharges builder (copier/coller,
    drag & drop de la topologie, etc.).
 4. **Bloc WIZARD** (`WIZARD-START` … `WIZARD-END`, dans le JS du builder, maintenu à la main) —
    `ActivityWizard` : modèles de l'assistant « ✨ Nouvelle activité » (type × thème × niveau),
@@ -35,14 +35,17 @@ de simulation embarqué pour l'élève. Il combine quatre parties :
    Un modèle ajouté doit respecter les règles des scénarios (voir plus bas) : les tests le vérifient.
 
 **Trois vues du schéma (barre d'en-tête du builder)** — `BUILDER_VIEW` : **Corrigé** (réseau qui
-fonctionne, seul modifiable ; le bureau d'un appareil s'y ouvre par double-clic, sans terminal ni
-navigateur), **Départ élève** (copie du corrigé + pannes, lecture seule, pastilles de panne P1, P2…) et
+fonctionne ; le professeur y règle tout et peut y tester, terminal et navigateur compris, mais rien ne s'y
+gagne), **Départ élève** (copie du corrigé + pannes, lecture seule, pastilles de panne P1, P2…) et
 **Essai** (même copie, le professeur joue l'élève : terminal, réparations, score réel, règles de l'élève).
 `setBuilderView` met le corrigé de côté dans `VIEW_SNAP` et le rétablit au retour ; `SimModule.getState()`
 renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les onglets 2 et 3, l'import,
-l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a que deux points
-d'accroche (`deskOn`, `deskView` dans `src/sim-ui.js`), inertes chez l'élève. Le score « corrigé »
-(`BUILDER_TOUCHED`) ne s'applique qu'à la vue Corrigé. L'essai est mis de côté dans `ESSAI_SNAP` quand on
+l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a qu'un point
+d'accroche (`deskView` dans `src/sim-ui.js`, qui lit `BUILDER_VIEW` ; chez l'élève il vaut toujours « essai »).
+`readOnly()` en découle (vue Départ élève) : ni glisser, ni dépôt, ni suppression, fiche aux champs figés
+(`propsLock`), palette grisée (`palLock`). En vue Corrigé, le score affiché est celui de l'élève à
+l'ouverture (`studentStartResults`), et `checkDynamicObjective` n'enregistre rien : les fenêtres du terminal
+et du navigateur y portent la mention « non comptabilisé » (`deskUncounted`). L'essai est mis de côté dans `ESSAI_SNAP` quand on
 le quitte et repris au retour tant que `essaiKey()` (réseau corrigé normalisé sans positions, objectifs et
 pannes) n'a pas changé ; sinon il repart de zéro avec un message, comme avec « Recommencer l'essai ».
 
@@ -114,9 +117,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 399/399
+## Tests : `node tests/sim-tests.js` → doit afficher 402/402
 
-Suite de 399 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 402 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -130,7 +133,7 @@ contrainte affichée à l'élève), connexion WiFi (SSID et mot de passe du
 terminal, `wifiLinkUp`, `wifiProblem`), mode panne (`applyFaults` : 8 types, formats plat
 et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SCORM avec un LMS simulé,
 sauvegarde et reprise, fichier ou session abîmés refusés avant de remplacer le réseau (`networkDataProblem`),
-sauvegarde refusée par le LMS signalée, cœur réseau exécuté seul sans navigateur (`linkCheck`, scénarios chargés, évalués et mis en panne), et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
+sauvegarde refusée par le LMS signalée, sauvegarde temporisée (une minuterie, un envoi seulement si le réseau a changé), annuler et rétablir (appareil supprimé retrouvé, pas groupés, pas sans effet sautés, lecture seule), cœur réseau exécuté seul sans navigateur (`linkCheck`, scénarios chargés, évalués et mis en panne), et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
 de 100 une fois le réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Les mêmes règles sont vérifiées sur chaque
 modèle de l'assistant « Nouvelle activité » (27 combinaisons, 3 tirages) et sur chaque variante des
 4 scénarios. Non couverts : rendu de l'interface et `EvalModule`/`GenModule` du builder (exports).
@@ -140,19 +143,19 @@ Les règles d'évaluation sont dans `src/net-core.js`, partagées par le builder
 tant que sa condition reste vraie : les objectifs dynamiques gardent la commande qui les a validés
 (`ACTIVITY_PROOFS`) et la rejouent à chaque modification du réseau. `checkAllObjectives` et
 `checkDynamicObjective` restent définis deux fois, dans `src/template-extra.js` et dans le JS du
-builder, mais ne font qu'appeler ces fonctions puis afficher le résultat. Le réseau du builder est le
-corrigé : son `checkAllObjectives` ne compte un objectif statique que s'il est vrai pannes appliquées
-(`studentStartResults(net, cfg, true)`) ou si le professeur l'a cassé puis rétabli dans le builder
-(`BUILDER_TOUCHED`, remis à zéro à l'import, par « Figer » et par 🔄), si bien que le score affiché à
-l'import est celui de l'élève à l'ouverture (0) ; les commandes de test et les réparations du
-professeur y ajoutent des points.
+builder, mais ne font qu'appeler ces fonctions puis afficher le résultat. Dans le builder, la vue
+Corrigé ne marque aucun point : son `checkAllObjectives` affiche le score de l'élève à l'ouverture
+(`studentStartResults(net, cfg, true)` : objectifs statiques vrais une fois les pannes appliquées, 0 pour
+une activité bien construite) et son `checkDynamicObjective` ignore les commandes. Les points se gagnent
+en vue Essai, avec les règles de l'élève. L'ancien mécanisme `BUILDER_TOUCHED` (réparation faite par le
+professeur dans le corrigé) n'existe plus.
 
 Le hook local `.git/hooks/pre-commit` (non versionné) exige le nombre exact de tests : si ce nombre
 change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 42 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 53 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -161,15 +164,19 @@ l'éditeur d'adresse et de contrainte d'un objectif jusqu'à l'affichage chez l'
 d'un ping désignée par un appareil et l'alerte quand elle vise une adresse au choix, le plan
 d'adressage de l'énoncé et du corrigé enseignant, l'ordre de la liste des objectifs et des pannes
 (flèches, glisser-déposer, export, élève), un ping depuis un poste que l'élève doit ajouter,
-le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs), le builder vierge à l'ouverture et l'alerte avant fermeture sans enregistrement, un câble débranché puis rebranché par le professeur (compté seulement au switch indiqué), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic ; terminal et
+le pointeur câble et les touches Échap et Suppr, le contrôle du départ élève (bandeau, pastilles de panne P1/P2 sur le schéma, état des objectifs), le builder vierge à l'ouverture et l'alerte avant fermeture sans enregistrement, un câble débranché puis rebranché par le professeur en vue Essai (compté seulement au switch indiqué), la vue Corrigé où terminal et navigateur ne marquent aucun point, le bandeau du bas (Journal, Paquets, Activité ; replié, déplié, sans boutons de mode), la sauvegarde automatique de l'élève quelques secondes après une modification, Ctrl+Z et Ctrl+Y chez l'élève et dans le builder (suppression, déplacement, câble, poste ajouté, adresse), l'indice d'un objectif (proposé selon l'objectif et sa panne, modifiable, affiché à l'élève), le DHCP depuis la fiche d'un poste, le bureau d'un appareil (double-clic ; terminal et
 navigateur en fenêtre, une session par appareil, chez l'élève et dans le builder ; services réglés dans le
 bureau : Ctrl+Z, état laissé par le professeur reçu par l'élève, panne « service arrêté » réparée et conservée
 après rechargement), la connexion WiFi (SSID suivi dans le builder, mot de passe
 faux puis corrigé chez l'élève), l'assistant
-« Nouvelle activité » et la fenêtre Variante jusqu'à l'élève (choix de pannes combinés), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
+« Nouvelle activité » et la fenêtre Variante jusqu'à l'élève (choix de pannes combinés), la souris sur le schéma
+(suite « Souris sur le schéma » : appareil glissé depuis la palette, déplacement d'un appareil avec ses câbles,
+câblage au clic avec aperçu, annulations et refus, liaison WiFi, sélection et suppression d'un câble, double-clic
+qui ouvre le bureau sans déplacer l'appareil, glisser suivi d'un clic qui ne l'ouvre pas, même comportement chez
+l'élève quel que soit le bouton de mode, lecture seule de la vue Départ élève), contenu du ZIP, note, statut et reprise avec un LMS simulé. Toute erreur JavaScript fait
 échouer le test en cours. Elle lit `scorm-builder.html` : rebuild d'abord.
 
-Non couverts : vrai Moodle, drag & drop et câblage, le reste de l'énoncé imprimable (seul son plan
+Non couverts : vrai Moodle, déplacement et redimensionnement des cadres et des textes, le reste de l'énoncé imprimable (seul son plan
 d'adressage est vérifié), Firefox. Elle n'est pas dans le
 hook pre-commit. Si le barème ou les pannes d'un scénario changent, mettre à jour `SCENARIOS` dans
 `builder.spec.js`. À lancer avant chaque push qui touche au builder, aux exports ou aux scénarios.
@@ -181,11 +188,45 @@ Un double-clic sur un appareil ouvre son bureau : une fenêtre flottante avec le
 relié à une box, Serveur web, Serveur DNS et Serveur DHCP sur un serveur, Administration (WiFi et DHCP) et
 Routage sur la box, Routage sur un routeur.
 
-**Où il s'ouvre** (`deskOn`, `deskView` dans `src/sim-ui.js`) : chez l'élève, en mode simulation (et pas en mode
-configuration) ; dans le builder, en vue **Corrigé** (sans terminal ni navigateur : `deskApps` les retire hors
-vue Essai), **Départ élève** (lecture seule : `deskApply` et `doDHCP` refusent) et **Essai** (tout).
+**Où il s'ouvre** : partout, par double-clic (`deskDblCheck` dans `devMD` : deux appuis à moins de 450 ms sur le
+même appareil ; un appui qui bouge de moins de 3 px ne déplace rien, et un glisser terminé ne compte pas comme
+premier clic). Chez l'élève, toutes les applications ; dans le builder (`deskView`), vue **Corrigé** complète
+mais non comptabilisée (voir « Trois vues »), **Départ élève** en lecture seule, sans terminal ni navigateur
+(`deskApps` les retire, `deskApply` et `doDHCP` refusent) et **Essai** complet.
 
-**Les services (web, DNS, DHCP, WiFi de la box) ne se règlent que dans le bureau** : la fiche Configuration affiche
+**Un seul mode** : il n'y a plus de mode Configuration ni Simulation (`S.mode`, `setMode` et les boutons
+`#btn-cfg` / `#btn-sim` de l'élève sont supprimés ; dans le builder, ces deux identifiants sont les boutons des
+vues Corrigé et Essai). `devMD` sélectionne, affiche la fiche et commence un glisser. La fiche est `showProps`,
+dans `src/sim-ui.js`, la même pour le builder et l'élève (bouton « Dupliquer » si `copyDev` existe, donc dans
+le builder seulement).
+
+**Terminal et navigateur : dans le bureau seulement.** Le bandeau du bas n'en a plus ; `tpr` écrit dans
+`_termOut`, que `deskOut(id, fn)` fait pointer vers la session de l'appareil, et n'écrit rien en dehors. Une
+demande DHCP faite depuis la fiche s'écrit dans le terminal de l'appareil et s'annonce par un message (`doDHCP`,
+qui n'est plus surchargé par le builder, pas plus que `showTab`).
+
+**Bandeau du bas** (`.bot`) : Journal, Paquets et, chez l'élève, Activité. Il se replie sur sa barre d'onglets
+(`setBot`, `toggleBot`, bouton `#bot-toggle`, classe `closed`) ; un clic sur un onglet le déplie (`showTab`, qui
+repère les onglets par `data-tab`). Élève : déplié sur Activité s'il y a une activité, replié sinon. Builder :
+replié à l'ouverture, présent dans les trois vues.
+
+**Annuler / Rétablir** (Ctrl+Z, Ctrl+Y, boutons `#btn-undo` / `#btn-redo`) : dans `src/sim-ui.js`, pour le
+builder et pour l'élève. `snapHistory()` s'appelle juste avant une modification (suppression, ajout, câble,
+adresse, WiFi, DHCP, déplacement, cadres et textes, fichier chargé) ; `histBatch(fn)` regroupe plusieurs réglages
+en un pas (`deskApply`) ; `undo` / `redo` sautent un pas qui n'a rien changé et refusent en lecture seule.
+40 pas au plus, non sauvegardés : l'historique repart de zéro au rechargement, et `histReset()` le vide quand
+l'élève recommence depuis le réseau de départ. Les objectifs sont réévalués après chaque pas. Les surcharges
+builder de `snapHistory`, `showFrameProps` et `showTextProps` n'existent plus.
+
+**Sauvegarde de l'élève** : `scheduleSave` (appelé au bout de `scheduleObjectiveCheck`, donc après chaque
+`render`) arme une seule minuterie de `SAVE_DELAY` (5 s) ; `autoSave` (`src/template-extra.js`) n'envoie rien si
+`sessionJson()` n'a pas changé depuis le dernier enregistrement (`_lastSaved`). S'y ajoutent, comme avant,
+l'enregistrement à la fermeture, après un réglage du bureau (`deskApply`) et au bouton 💾. Le builder n'a pas
+d'`autoSave` : rien n'y est programmé. Limite connue : la sauvegarde complète d'un scénario fourni fait de
+4 100 à 7 500 caractères en fin d'activité, au-delà des 4 096 de `cmi.suspend_data` en SCORM 1.2 ; un LMS strict
+la refuse (l'élève est prévenu une fois, le réseau reste sur le poste), Moodle l'accepte.
+
+**Les services (web, DNS, DHCP, WiFi de la box) ne se règlent que dans le bureau** : la fiche affiche
 seulement leur état (`deskConfigNote`) et un bouton vers le bureau. Ce que le professeur règle en vue Corrigé part à
 l'export, puis les pannes s'appliquent ; ce qu'il règle en Essai reste sur la copie d'essai. Les applications à
 formulaire (`DESK_FORMS`) passent par `deskApply` : `snapHistory` (Ctrl+Z), mêmes setters que les fiches
@@ -194,25 +235,26 @@ L'adresse IP d'un poste reste réglable dans la fiche. Le code est dans `src/sim
 APPAREILS`, fonctions `desk*`), partagé par le builder et l'élève ; son CSS est injecté au premier affichage.
 Chaque appareil garde sa session (historique, sortie, page). Une commande lancée depuis une fenêtre passe par
 `termRun(raw, devId)`, avec `_termOut` pointant vers la sortie de la fenêtre ; le navigateur appelle
-`browGo(devId, url, conteneur)`. Le bandeau du bas (Terminal, Navigateur, Journal, Paquets, Activité) est conservé
-pour l'instant.
+`browGo(devId, url, conteneur)`.
 
-**Évolution décidée, pas encore faite** : supprimer le mode Simulation (un seul mode, simulation permanente) ;
-plan détaillé en trois étapes dans `TODO.md` (« Mode unique »).
+**Mode unique : chantier terminé** sur la branche `claude/mode-unique-suppression-c92fa5` (clic et fiche uniques,
+boutons de mode supprimés, bandeau repliable, sauvegarde temporisée, vue Corrigé non comptabilisée, Ctrl+Z chez
+l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison dans `TODO.md`, « Mode unique »).
+Le tag local `avant-mode-unique` marque l'état d'avant.
 
 ## Pour reprendre le travail
 
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
   HTML et énoncé ne comptent pas comme un enregistrement (alerte à la fermeture, voir plus haut).
 - **Hook de commit partagé** : `.git/hooks/pre-commit` (un seul pour tous les dossiers de travail) exige
-  exactement 399/399 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
+  exactement 402/402 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic sur l'onglet Générer avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
 - **Documentation non régénérée** : `docs/*.pdf`, `README.md` et `site/` datent de la v1.9.4 et ne décrivent
   ni les vues du builder, ni les pannes notées, ni le builder vierge. À refaire à la prochaine release
   (voir la règle plus bas).
-- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master`.
+- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master` ; 402 et 53 sur la branche du mode unique (le hook commun exige 402 : `master` y sera refusé au commit tant que la branche n'est pas fusionnée).
 
 ## Scénarios
 
@@ -253,7 +295,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 399/399
+node tests/sim-tests.js    # → 402/402
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -299,8 +341,8 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `src/template-skeleton.html` | Squelette HTML du template élève (sans JS, placeholder `/* __JS__ */`) |
 | `tools/build.py` | Pipeline de build : régénère `scorm-builder.html` depuis les sources (`--rebuild`), audite/répare (`--fix`), régénère les docs (`--docs`) |
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
-| `tools/validate.py` | Check pré-commit : syntaxe JS, résidus, fonctions critiques présentes |
+| `tools/validate.py` | Check pré-commit : syntaxe JS (tout le script du builder, modules après `STUDENT_TEMPLATE` compris), résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 399 tests Node.js |
+| `tests/sim-tests.js` | Suite de 402 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

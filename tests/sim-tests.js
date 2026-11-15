@@ -1591,17 +1591,9 @@ function objective(id, check, params, points) {
 
 function done(id) { return !!sandbox.ACTIVITY_RESULTS[id]; }
 
-function term(devId, command) {
-  S.termDev = devId;
-  sandbox.document.getElementById('tinput').value = command;
-  sandbox.termExec();
-}
+function term(devId, command) { sandbox.termRun(command, devId); }
 
-function browse(devId, url) {
-  sandbox.document.getElementById('bd-sel').value = devId;
-  sandbox.document.getElementById('burl').value = url;
-  sandbox.browGo();
-}
+function browse(devId, url) { sandbox.browGo(devId, url, sandbox.document.createElement('div')); }
 
 /* PC-Alice, un serveur DNS et un serveur web sur le même switch. */
 function makeLan() {
@@ -2392,11 +2384,60 @@ test('poste ajouté et nommé en minuscules : ping au terminal validé puis rev�
   ok(done(1), 'toujours valide après revérification');
 });
 
+/* ── Annuler / Rétablir : même mécanisme pour le builder et l'élève ── */
+suite('Annuler / Rétablir (Ctrl+Z, Ctrl+Y)');
+
+test('appareil supprimé par erreur : retrouvé avec ses câbles et ses réglages ; rétablir le supprime de nouveau', function() {
+  resetNet(); sandbox.histReset();
+  var pc = mkPC('192.168.1.10', '255.255.255.0', '192.168.1.1'), sw = mkSwitch(); link(pc, sw);
+  S.sel = pc;
+  ok(sandbox.deleteSelection());
+  notOk(S.devs[pc]); eq(Object.keys(S.links).length, 0);
+  sandbox.undo();
+  ok(S.devs[pc]); eq(S.devs[pc].ifaces[0].gateway, '192.168.1.1'); eq(Object.keys(S.links).length, 1);
+  sandbox.redo();
+  notOk(S.devs[pc]); eq(Object.keys(S.links).length, 0);
+  sandbox.undo();
+  ok(S.devs[pc]);
+  // Rien de plus à annuler : sans effet
+  sandbox.undo(); sandbox.undo();
+  ok(S.devs[pc]); eq(Object.keys(S.links).length, 1);
+});
+
+test('adresse, câble, réglages groupés : un pas chacun ; un pas sans changement est sauté ; lecture seule refusée', function() {
+  resetNet(); sandbox.histReset();
+  var pc = mkPC('192.168.1.10'), sw = mkSwitch();
+  // Adresse changée dans la fiche, puis câble posé : deux pas
+  sandbox.setIface(pc, 0, 'ip', '192.168.1.50');
+  var l = sandbox.addLink(pc, sw); ok(l);
+  sandbox.undo(); notOk(S.links[l]); eq(S.devs[pc].ifaces[0].ip, '192.168.1.50');
+  sandbox.undo(); eq(S.devs[pc].ifaces[0].ip, '192.168.1.10');
+  sandbox.redo(); sandbox.redo();
+  ok(S.links[l]); eq(S.devs[pc].ifaces[0].ip, '192.168.1.50');
+  // Adresse refusée : rien n'est mis de côté
+  var n = sandbox._undoStack.length;
+  sandbox.setIface(pc, 0, 'ip', '999.1.1.1');
+  eq(sandbox._undoStack.length, n);
+  // Plusieurs réglages validés ensemble (formulaire du bureau) : un seul pas
+  sandbox.histBatch(function() {
+    sandbox.setIface(pc, 0, 'ip', '10.0.0.5'); sandbox.setIface(pc, 0, 'mask', '255.0.0.0'); sandbox.setIface(pc, 0, 'gateway', '10.0.0.1');
+  });
+  eq(sandbox._undoStack.length, n + 1);
+  // Même valeur revalidée : le pas existe mais ne change rien, l'annulation le saute
+  sandbox.setIface(pc, 0, 'ip', '10.0.0.5');
+  sandbox.undo();
+  eq(S.devs[pc].ifaces[0].ip, '192.168.1.50'); eq(S.devs[pc].ifaces[0].mask, '255.255.255.0');
+  // Vue Départ élève du builder : rien ne s'annule
+  sandbox.BUILDER_VIEW = 'depart';
+  try { sandbox.undo(); eq(S.devs[pc].ifaces[0].ip, '192.168.1.50'); ok(S.links[l]); }
+  finally { delete sandbox.BUILDER_VIEW; sandbox.histReset(); }
+});
+
 /* ── Touche Suppr : effacer la sélection ── */
 suite('Suppr — effacer l\'élément sélectionné');
 
 test('appareil sélectionné : effacé avec ses câbles', function() {
-  resetNet(); S.mode = 'config';
+  resetNet();
   var pc = mkPC('192.168.1.10'), sw = mkSwitch(); link(pc, sw);
   S.sel = pc;
   ok(sandbox.deleteSelection());
@@ -2404,7 +2445,7 @@ test('appareil sélectionné : effacé avec ses câbles', function() {
 });
 
 test('câble sélectionné : seul le câble est effacé', function() {
-  resetNet(); S.mode = 'config';
+  resetNet();
   var pc = mkPC('192.168.1.10'), sw = mkSwitch(), l = link(pc, sw);
   S.sel = l;
   ok(sandbox.deleteSelection());
@@ -2412,7 +2453,7 @@ test('câble sélectionné : seul le câble est effacé', function() {
 });
 
 test('cadre et texte sélectionnés : effacés', function() {
-  resetNet(); S.mode = 'config';
+  resetNet();
   S.frames = { f9: { id:'f9', x:0, y:0, w:100, h:100, label:'Salle' } };
   S.texts  = { t9: { id:'t9', x:0, y:0, text:'Note' } };
   S.sel = 'f9'; ok(sandbox.deleteSelection()); notOk(S.frames.f9);
@@ -2420,12 +2461,13 @@ test('cadre et texte sélectionnés : effacés', function() {
   S.frames = {}; S.texts = {};
 });
 
-test('mode Simulation ou rien de sélectionné : rien n\'est effacé', function() {
+test('lecture seule (vue Départ élève du builder) ou rien de sélectionné : rien n\'est effacé', function() {
   resetNet();
   var pc = mkPC('192.168.1.10');
-  S.sel = pc; S.mode = 'simulation';
-  notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
-  S.mode = 'config'; S.sel = null;
+  S.sel = pc; sandbox.BUILDER_VIEW = 'depart';
+  try { notOk(sandbox.deleteSelection()); ok(S.devs[pc]); }
+  finally { delete sandbox.BUILDER_VIEW; }
+  S.sel = null;
   notOk(sandbox.deleteSelection()); ok(S.devs[pc]);
 });
 
@@ -3483,6 +3525,36 @@ test('LMS qui refuse suspend_data (trop long) : signalé, réseau gardé sur le 
   sandbox.localStorage = { getItem: function() { return null; }, setItem: function() { throw new Error('plein'); } };
   try { withLMS(api, function() { notOk(sandbox.saveToSession()); }); }
   finally { sandbox.localStorage = original; }
+});
+
+test('sauvegarde temporisée : une seule minuterie de 5 s, un envoi au LMS seulement si le réseau a changé', function() {
+  setupActivity([]);
+  var api = makeLMS({}), timers = [], original = sandbox.setTimeout;
+  sandbox.setTimeout = function(fn, ms) { timers.push({ fn: fn, ms: ms }); return timers.length; };
+  try {
+    withStorage(function(store) {
+      withLMS(api, function() {
+        var pc = mkPC('192.168.1.10');
+        // Plusieurs modifications de suite : une seule sauvegarde programmée
+        sandbox.scheduleSave(); sandbox.scheduleSave(); sandbox.scheduleSave();
+        eq(timers.length, 1); eq(timers[0].ms, 5000);
+        eq(api.commits, 0, 'rien n\'est envoyé avant le délai');
+        timers[0].fn();
+        eq(api.commits, 1);
+        ok(String(api.data['cmi.suspend_data']).indexOf('192.168.1.10') >= 0);
+        ok(store[sandbox.SESSION_KEY].indexOf('192.168.1.10') >= 0);
+        // Délai écoulé sans changement (un simple réaffichage) : rien n'est renvoyé
+        sandbox.scheduleSave(); eq(timers.length, 2);
+        timers[1].fn();
+        eq(api.commits, 1);
+        // Nouvelle modification : elle part à la sauvegarde suivante
+        S.devs[pc].ifaces[0].ip = '192.168.1.77';
+        sandbox.scheduleSave(); timers[2].fn();
+        eq(api.commits, 2);
+        ok(String(api.data['cmi.suspend_data']).indexOf('192.168.1.77') >= 0);
+      });
+    });
+  } finally { sandbox.setTimeout = original; sandbox._saveT = null; }
 });
 
 test('session abîmée : l\'élève repart du réseau de départ, pannes comprises', function() {
