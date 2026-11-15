@@ -1131,6 +1131,43 @@ test.describe('Builder', () => {
     await expect.poll(() => page.evaluate(() => !!ACTIVITY_RESULTS.obj_add)).toBe(true);
   });
 
+  test('vue Corrigé : panne sans effet signalée ; panne d\'adresse sur un poste en DHCP mesurée sur le réseau', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(builderScore(page)).toHaveText('✅ Corrigé complet');
+
+    // La valeur de panne est celle du corrigé : la panne ne casse rien
+    await page.evaluate(() => {
+      const f = EvalModule.getConfig().faults.find((x) => x.type === 'bad_gateway');
+      (f.params || f).badValue = '192.168.1.1';
+      render(); checkAllObjectives();
+    });
+    await expect(builderScore(page)).toHaveText('⚠️ Corrigé : 1 panne à revoir');
+    await builderScore(page).click();
+    const panel = page.locator('#score-details');
+    await expect(panel).toContainText('Pannes à revoir (1)');
+    await expect(panel.locator('[data-rvf]')).toContainText('P2 — sans effet : la valeur de panne est déjà la passerelle du corrigé');
+    await expect(panel.locator('tr', { hasText: 'La passerelle de PC-Bob' }).locator('td').nth(2)).toContainText('déjà acquis');
+    await builderScore(page).click();
+    await page.evaluate(() => {
+      const f = EvalModule.getConfig().faults.find((x) => x.type === 'bad_gateway');
+      (f.params || f).badValue = '192.168.1.99';
+      render(); checkAllObjectives();
+    });
+    await expect(builderScore(page)).toHaveText('✅ Corrigé complet');
+
+    // Panne d'adresse notée : adresse exacte sur un poste fixe, réseau seulement sur un poste en DHCP
+    const goalIp = () => page.evaluate(() => EvalModule.getConfig().faults.find((x) => x.id === 'flt_dhcp').goal.params.ip);
+    await page.evaluate(() => {
+      EvalModule.getConfig().faults.push({ id: 'flt_dhcp', type: 'bad_ip', label: '', points: 10,
+        params: { dev: 'PC-Charlie', badValue: '10.9.9.9' } });
+    });
+    expect(await goalIp()).toBe('192.168.1.12');
+    await page.evaluate(() => { Object.values(S.devs).find((d) => d.name === 'PC-Charlie').ifaces[0].dhcpMode = true; });
+    expect(await goalIp()).toBe('192.168.1.*');
+    expect(await page.evaluate(() => EvalModule.getConfig().faults.find((x) => x.id === 'flt_dhcp').goal.label))
+      .toBe('L\'adresse IP de PC-Charlie est de nouveau dans son réseau (192.168.1.*)');
+  });
+
   test('le builder s\'ouvre vierge ; fermer sans enregistrer prévient, enregistrer ou ouvrir un fichier lève l\'alerte', async ({ page }, info) => {
     // Une ancienne sauvegarde automatique du navigateur n'est plus reprise, et elle est effacée
     await page.goto(BUILDER_URL);

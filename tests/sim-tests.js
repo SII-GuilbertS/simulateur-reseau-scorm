@@ -3438,6 +3438,68 @@ test('poste laissé dans le réseau de départ : l\'objectif est acquis d\'avanc
   ok(devByName('PC-Charlie'), 'sans la case, le poste est donné à l\'élève');
 });
 
+suite('Contrôle du corrigé : pannes sans effet, rejeu du DHCP');
+
+test('panne sans effet : même valeur, service déjà arrêté, câble absent, appareil inconnu ou à ajouter', function() {
+  function problemOf(change) {
+    var data = readScenario('reseau-entreprise.json');
+    change(data, function(n) { return Object.values(data.network.devs).filter(function(d) { return d.name === n; })[0]; });
+    var rv = AW.review(data), au = AW.audit(data);
+    return {rv: rv, pb: rv.faults.map(function(f) { return f.problem; }), audit: au.problems.join(' ; ')};
+  }
+  var okCase = problemOf(function() {});
+  eq(okCase.pb.join('|'), '|'); eq(okCase.rv.faultKo, 0);
+  eq(okCase.rv.faults.map(function(f) { return f.num; }).join(','), 'P1,P2');
+
+  var same = problemOf(function(d) { d.activity.faults[1].badValue = '192.168.1.1'; });      // la passerelle du corrigé
+  eq(same.pb[1], 'sans effet : la valeur de panne est déjà la passerelle du corrigé');
+  notOk(same.rv.ok); eq(same.rv.faultKo, 1);
+  ok(/panne P2 sans effet/.test(same.audit), same.audit);
+
+  var off = problemOf(function(d, dev) { dev('Serveur').dns.on = false; });
+  eq(off.pb[0], 'sans effet : ce service est déjà arrêté dans le corrigé');
+
+  var cable = problemOf(function(d) { d.activity.faults.push({id: 9, type: 'missing_cable', devA: 'PC-Alice', devB: 'Serveur'}); });
+  eq(cable.pb[2], 'sans effet : ces deux appareils ne sont pas reliés dans le corrigé');
+
+  var ghost = problemOf(function(d) { d.activity.faults[1].dev = 'PC-Fantome'; });
+  eq(ghost.pb[1], '« PC-Fantome » n\'est pas dans le corrigé');
+
+  // Appareil à ajouter par l'élève : la panne ne s'applique à rien et n'est citée comme cause d'aucun échec
+  var add = problemOf(function(d, dev) { dev('PC-Bob').toAdd = true; });
+  eq(add.pb[1], 'sans effet : PC-Bob est à ajouter par l\'élève');
+  var gw = reviewRow(add.rv, 'gateway_configured');
+  eq(gw.blockers.length, 0); eq(gw.startText, 'à faire (PC-Bob à ajouter)');
+});
+
+test('objectif sur un appareil absent du corrigé : la ligne le dit', function() {
+  var data = readScenario('reseau-entreprise.json');
+  data.activity.objectives.push({id: 30, label: 'IP du fantôme', check: 'ip_configured', points: 5, params: {dev: 'PC-Fantome', ip: '192.168.1.9'}});
+  var row = AW.review(data).rows.filter(function(r) { return r.id === 30; })[0];
+  eq(row.corrige, 'ko');
+  eq(row.corrigeText, 'non réalisé dans le corrigé : « PC-Fantome » n\'y est pas');
+});
+
+test('DHCP : un poste garde son bail en redemandant une adresse ; le rejeu ne fausse pas les autres lignes', function() {
+  resetNet();
+  var srv = mkServer('192.168.1.1'), a = mkPC('192.168.1.100'), b = mkPC(''), sw = mkSwitch();
+  [srv, a, b].forEach(function(id) { sandbox.addLink(id, sw); });
+  S.devs[srv].dhcp = {on: true, start: '192.168.1.100', end: '192.168.1.110', mask: '255.255.255.0', gateway: '', dns: ''};
+  eq(sandbox.simDHCP(a).ip, '192.168.1.100');               // renouvellement : même adresse
+  eq(sandbox.simDHCP(b).ip, '192.168.1.101');               // première demande : première adresse libre
+  S.devs[b].ifaces[0].ip = '192.168.1.100';                 // adresse prise par un autre : le bail change
+  eq(sandbox.simDHCP(a).ip, '192.168.1.101');
+
+  // Contrôle du corrigé : objectif DHCP et adresse exacte sur le même poste, hors plage
+  var net = JSON.parse(JSON.stringify({devs: S.devs, links: S.links, nid: S.nid}));
+  net.devs[a].name = 'Poste'; net.devs[a].ifaces[0].ip = '192.168.1.50';
+  net.devs[b].ifaces[0].ip = '192.168.1.60';
+  var rv = AW.review({network: net, activity: {masteryscore: 50, faults: [], objectives: [
+    {id: 1, label: 'DHCP', check: 'dhcp_success', points: 50, params: {from: 'Poste'}},
+    {id: 2, label: 'Adresse', check: 'ip_configured', points: 50, params: {dev: 'Poste', ip: '192.168.1.50'}}]}});
+  eq(rv.rows[0].corrige, 'ok'); eq(rv.rows[1].corrige, 'ok'); ok(rv.ok);
+});
+
 suite('Variantes d\'une activité');
 
 const VARIANTS = [

@@ -1053,11 +1053,13 @@ function simDHCP(srcId){
   if(start<0)return{ok:false,reason:'IP de départ DHCP invalide dans '+dhcpSrv.name};
   if(end<0)return{ok:false,reason:'IP de fin DHCP invalide dans '+dhcpSrv.name};
   if(end<start)return{ok:false,reason:'IP de fin inférieure à l\'IP de départ dans '+dhcpSrv.name};
-  var used=new Set(Object.values(S.devs).map(function(d){
+  var used=new Set(Object.values(S.devs).filter(function(d){return d.id!==srcId;}).map(function(d){
     return d.ifaces&&d.ifaces[0]?ip2n(d.ifaces[0].ip||''):-1;
   }));
-  var assigned=-1;
-  for(var cand=start;cand<=end;cand++){if(!used.has(cand>>>0)){assigned=cand>>>0;break;}}
+  // Renouvellement : le poste garde son adresse si elle est dans la plage et que personne d'autre ne l'a
+  var own=ip2n(src.ifaces[0].ip||''),assigned=-1;
+  if(own>=start&&own<=end&&!used.has(own>>>0))assigned=own>>>0;
+  for(var cand=start;assigned<0&&cand<=end;cand++){if(!used.has(cand>>>0)){assigned=cand>>>0;break;}}
   if(assigned<0)return{ok:false,reason:'Plage DHCP épuisée ('+dhcpSrv.dhcp.start+' → '+dhcpSrv.dhcp.end+')'};
   var aIP=[(assigned>>>24)&255,(assigned>>>16)&255,(assigned>>>8)&255,assigned&255].join('.');
   src.ifaces[0].ip=aIP;
