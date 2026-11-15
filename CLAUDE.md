@@ -237,7 +237,7 @@ Chaque appareil garde sa session (historique, sortie, page). Une commande lancé
 `termRun(raw, devId)`, avec `_termOut` pointant vers la sortie de la fenêtre ; le navigateur appelle
 `browGo(devId, url, conteneur)`.
 
-**Mode unique : chantier terminé** sur la branche `claude/mode-unique-suppression-c92fa5` (clic et fiche uniques,
+**Mode unique : chantier terminé**, fusionné dans `master` le 15 novembre 2026 (clic et fiche uniques,
 boutons de mode supprimés, bandeau repliable, sauvegarde temporisée, vue Corrigé non comptabilisée, Ctrl+Z chez
 l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison dans `TODO.md`, « Mode unique »).
 Le tag local `avant-mode-unique` marque l'état d'avant.
@@ -254,7 +254,7 @@ Le tag local `avant-mode-unique` marque l'état d'avant.
 - **Documentation non régénérée** : `docs/*.pdf`, `README.md` et `site/` datent de la v1.9.4 et ne décrivent
   ni les vues du builder, ni les pannes notées, ni le builder vierge. À refaire à la prochaine release
   (voir la règle plus bas).
-- **Résultat de la dernière session** : 399 tests unitaires et 42 tests navigateur passent sur `master` ; 402 et 53 sur la branche du mode unique (le hook commun exige 402 : `master` y sera refusé au commit tant que la branche n'est pas fusionnée).
+- **Résultat de la dernière session** : 402 tests unitaires et 53 tests navigateur passent sur `master`, mode unique fusionné (non poussé par Claude : l'envoi est fait par l'utilisateur).
 
 ## Scénarios
 

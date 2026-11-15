@@ -75,7 +75,7 @@
 
 ## 🔧 Technique et robustesse
 
-- [ ] **Tests navigateur à compléter** — `tests/e2e/` couvre import, exports, SCORM, assistant, variantes, vues du builder et reprise de l'élève. Restent : glisser-déposer d'appareils, câblage à la souris (à traiter avant l'étape 1 du mode unique, qui mélange clic, glisser et double-clic), énoncé imprimable hors plan d'adressage, Firefox.
+- [ ] **Tests navigateur à compléter** — `tests/e2e/` couvre import, exports, SCORM, assistant, variantes, vues du builder et reprise de l'élève. La souris sur le schéma (palette, déplacement, câblage, double-clic), le bandeau du bas, la sauvegarde automatique et Ctrl+Z sont couverts depuis le mode unique. Restent : déplacement et redimensionnement des cadres et des textes, annulation de leurs réglages et d'un fichier chargé, redimensionnement du bandeau, énoncé imprimable hors plan d'adressage, Firefox, vrai Moodle.
 
 - [ ] **Validation des scénarios JSON** — schéma complet (champs manquants, types incorrects, identifiants en double) avec des messages clairs à l'import, et vérifié par `tools/validate.py`.
 
