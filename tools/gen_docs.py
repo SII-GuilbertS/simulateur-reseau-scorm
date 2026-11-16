@@ -211,7 +211,7 @@ def build_prof(out_path):
             '<b>Serveur</b>, <b>Switch</b>, <b>Routeur</b>, <b>Box WiFi</b> (routeur WiFi avec DHCP intégré), '
             '<b>Internet</b>, et en tête l\'outil <b>Câble</b>. Chaque appareil apparaît sous forme de carte '
             'illustrée. Faites glisser les appareils sur le canevas, puis configurez '
-            'leurs propriétés (IP, masque, passerelle, DNS, services HTTP/DNS/DHCP, SSID WiFi) '
+            'leurs propriétés (nom, adresse IP, masque, passerelle, DNS) '
             'dans le panneau de droite.',
             BODY),
         callout("<b>Ce réseau est le corrigé : le réseau qui fonctionne.</b> L'élève le reçoit avec les pannes de "
@@ -335,6 +335,7 @@ def build_prof(out_path):
     story.append(Spacer(1, 10))
 
     story += [
+        CondPageBreak(75*mm),
         Paragraph('2.2.1 Adresses : niveau d\'exigence', H2),
         Paragraph(
             'Devant chaque champ d\'adresse d\'un objectif, un menu fixe ce qui est accepté. '
@@ -397,6 +398,7 @@ def build_prof(out_path):
     story.append(Spacer(1, 6))
 
     story += [
+        CondPageBreak(55*mm),
         Paragraph('2.3 Onglet 3 — Générer le package', H2),
         Paragraph(
             'Définissez le <b>mot de passe professeur</b> (déverrouille le mode enseignant côté élève), '
@@ -413,7 +415,7 @@ def build_prof(out_path):
                   'l\'onglet le retire.', BODY_L),
         Paragraph('■ <b>Corrigé enseignant</b> — Le même document, plan d\'adressage rempli avec les adresses du '
                   'réseau du builder, vérifiées avec les règles d\'évaluation. À ne pas distribuer.', BODY_L),
-        Paragraph('■ <b>Aperçu élève</b> — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder.', BODY_L),
+        Paragraph('■ <b>Tester comme élève</b> (bouton en haut du builder) — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder.', BODY_L),
         Spacer(1, 4),
     ]
 
@@ -446,6 +448,7 @@ def build_prof(out_path):
         callout('La vérification contrôle trois points : <b>0 point à l\'ouverture</b>, seuil impossible à atteindre '
                 'sans rien réparer ni construire, et chaque objectif atteignable une fois le travail fait. En dépannage, '
                 '<b>Autres appareils</b> tire d\'autres postes en panne.', TIP, '💡'),
+        CondPageBreak(40*mm),
         Paragraph(
             'Le bouton <b>Variante</b> décline l\'activité en cours (scénario fourni, importé ou créé par '
             'l\'assistant) sans toucher au réseau :',
@@ -500,13 +503,13 @@ def build_prof(out_path):
     ]
 
     # 4. Workflow
-    story += [CondPageBreak(70*mm), Paragraph('4. Workflow complet', H1), hr()]
+    story += [CondPageBreak(105*mm), Paragraph('4. Workflow complet', H1), hr()]
     wf_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
         ['1', 'Ouvrir le Builder',        'Double-cliquez sur scorm-builder.html dans Chrome ou Firefox.'],
         ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP — ou Nouvelle activité pour partir d\'un modèle.'],
         ['3', 'Configurer l\'évaluation', 'Onglet 2 : objectifs, pannes, score de maîtrise.'],
-        ['4', 'Générer',                  'Onglet 3 : SCORM, HTML, énoncé imprimable et son corrigé.'],
-        ['5', 'Tester',                   "Contrôle du corrigé, puis vue Essai pour jouer l'élève, ou bouton « Aperçu élève »."],
+        ['4', 'Tester',                   "Contrôle du corrigé, puis vue Essai pour jouer l'élève, ou bouton « Tester comme élève »."],
+        ['5', 'Générer',                  'Onglet 3 : SCORM, HTML, énoncé imprimable et son corrigé.'],
         ['6', 'Déployer sur Moodle',      'Importez le .zip SCORM dans votre cours.'],
         ['7', 'Enregistrer le scénario',  'Bouton Enregistrer (fichier .json), à rouvrir avec Ouvrir.'],
     ]]
@@ -610,8 +613,9 @@ def build_eleve(out_path):
         Paragraph("• Pour <b>ajouter</b> un appareil, faites-le glisser depuis la palette de gauche. Pour <b>câbler</b>, "
                   "choisissez l'outil Câble puis cliquez sur les deux appareils. <b>Suppr</b> efface l'élément "
                   "sélectionné.", BODY_L),
-        callout("Une erreur ? <b>Ctrl+Z</b> annule votre dernière action, <b>Ctrl+Y</b> la rétablit (boutons ↶ ↷ en "
-                "haut). Le bouton de retour au réseau de départ fait tout recommencer.", TIP, '💡'),
+        callout("Une erreur ? <b>Ctrl+Z</b> annule votre dernière action, <b>Ctrl+Y</b> la rétablit (boutons Annuler et "
+                "Rétablir, en haut). Le bouton « Recharger le réseau de départ », dans la même barre, fait tout "
+                "recommencer.", TIP, '💡'),
         Spacer(1, 6),
     ]
 
@@ -630,7 +634,7 @@ def build_eleve(out_path):
         ['nslookup',   'Résout un nom de domaine en IP.',            'nslookup web.ecole.fr'],
         ['dhcp',       'Demande une IP automatique.',                'dhcp'],
         ['traceroute', 'Affiche le chemin réseau.',                  'traceroute 8.8.8.8'],
-        ['ifconfig',   'Affiche la configuration IP.',              'ifconfig'],
+        ['ipconfig',   'Affiche la configuration IP.',              'ipconfig'],
         ['route',      'Affiche la table de routage.',              'route'],
         ['arp',        'Affiche la table ARP (IP ↔ MAC).',         'arp'],
         ['clear',      'Efface le terminal.',                        'clear'],
@@ -648,6 +652,7 @@ def build_eleve(out_path):
 
     # 3. Configurer les IP
     story += [
+        CondPageBreak(75*mm),
         Paragraph('3. Configurer les adresses IP', H1), hr(),
         Paragraph(
             'Cliquez sur un appareil pour afficher sa fiche dans le panneau de droite :',
@@ -682,12 +687,12 @@ def build_eleve(out_path):
     story += [
         Paragraph('4. Les objectifs et le score', H1), hr(),
         Paragraph(
-            "L'onglet <b>📋 Activité</b>, dans le bandeau du bas, liste vos tâches. Le bandeau se replie et se "
+            "L'onglet <b>Activité</b>, dans le bandeau du bas, liste vos tâches. Le bandeau se replie et se "
             "déplie d'un clic sur un onglet. Chaque objectif validé ajoute des points à votre score.",
             BODY),
-        Paragraph('• ✅ <b>Objectif validé</b> — condition remplie, points attribués.', BODY_L),
-        Paragraph('• ⭕ <b>Non validé</b> — vérifiez câblage et configuration IP.', BODY_L),
-        Paragraph('• 📐 Sous certains objectifs, une <b>contrainte</b> précise ce qui est attendu, par exemple '
+        Paragraph('• <b>Objectif validé</b> (coche verte) — condition remplie, points attribués.', BODY_L),
+        Paragraph('• <b>Non validé</b> (cercle) — vérifiez câblage et configuration IP.', BODY_L),
+        Paragraph('• Sous certains objectifs, une <b>contrainte</b> précise ce qui est attendu, par exemple '
                   'une adresse à choisir dans une plage.', BODY_L),
         Paragraph('• Un <b>indice</b> peut vous mettre sur la piste ; il disparaît une fois l\'objectif validé.', BODY_L),
         callout('Un objectif reste validé tant que le réseau le permet : si vous modifiez ensuite '
@@ -703,6 +708,7 @@ def build_eleve(out_path):
 
     # 5. Exemple guidé
     story += [
+        CondPageBreak(85*mm),
         Paragraph('5. Exemple guidé : configurer un réseau simple', H1), hr(),
     ]
     ex_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
@@ -711,10 +717,10 @@ def build_eleve(out_path):
         ['Étape 3', 'Configurer le PC',     'Clic sur le PC. IP : 192.168.1.10 / Masque : 255.255.255.0'],
         ['Étape 4', 'Ouvrir le terminal',   'Double-clic sur le PC, puis Invite de commandes.'],
         ['Étape 5', 'Tester',               'Tapez : ping 192.168.1.1'],
-        ['Étape 6', 'Vérifier',             "✅ apparaît dans l'onglet Activité si le ping réussit."],
+        ['Étape 6', 'Vérifier',             "L'objectif est coché dans l'onglet Activité si le ping réussit."],
     ]]
     story.append(workflow_table(ex_p))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 2))
 
     # 6. Dépannage
     story += [CondPageBreak(70*mm), Paragraph('6. En cas de problème', H1), hr()]
@@ -725,7 +731,7 @@ def build_eleve(out_path):
          'adresses des routeurs et la commande route). <b>La réponse ne revient pas</b> : l\'aller arrive, mais '
          'l\'appareil visé ne sait pas répondre (sa passerelle, ou une route manquante au retour). Sinon, vérifiez '
          'que les deux appareils sont dans le même sous-réseau, ou qu\'une passerelle est configurée pour sortir '
-         'du réseau local. La commande traceroute montre le chemin suivi.'),
+         'du réseau local.'),
         ('DNS ne résout pas',
          'Vérifiez que l\'adresse DNS du PC pointe vers un Serveur ayant le service DNS activé '
          'et que l\'enregistrement du domaine est configuré.'),
@@ -734,23 +740,21 @@ def build_eleve(out_path):
         ('WiFi non connecté',
          'Le message « Non connecté au WiFi » dit pourquoi : <b>mot de passe incorrect</b> (comparez-le avec celui '
          'de la fiche de la box), <b>SSID inconnu</b> (le nom du réseau choisi dans la fiche de l\'appareil doit être '
-         'celui de la box) ou aucun réseau choisi. Vérifiez aussi qu\'une liaison WiFi relie l\'appareil à la box.'),
+         'celui de la box) ou aucun réseau choisi.'),
         ('« La plateforme a refusé la sauvegarde »',
          'Votre réseau n\'a pas pu être enregistré sur Moodle : il n\'est gardé que sur ce poste. '
          'Continuez à travailler et terminez l\'activité sur le même poste, avec le même navigateur, '
          'puis prévenez votre professeur.'),
         ('« Chargement impossible »',
-         'Le fichier choisi est abîmé ou n\'est pas un réseau du simulateur. Rien n\'est perdu : '
-         'le réseau en cours est conservé.'),
+         'Le fichier choisi est abîmé ou n\'est pas un réseau du simulateur. Le réseau en cours est conservé.'),
         ('L\'objectif ne se valide pas',
-         'Relisez l\'intitulé et vérifiez chaque paramètre (IP, masque, passerelle, DNS). '
-         'Pour les objectifs à commande, lancez-la dans le terminal du bon poste (ping, nslookup, dhcp) '
-         'ou ouvrez le site dans le Navigateur de son bureau.'),
+         'Relisez l\'intitulé et vérifiez chaque paramètre (IP, masque, passerelle, DNS). Pour un objectif à '
+         'commande, lancez-la depuis le bon poste : terminal ou Navigateur de son bureau.'),
     ]:
         p = story[-1] if False else Paragraph(f'<font color="#2b6cb0"><b>■ {title}</b></font>', H2)
         story.append(p)
         story.append(Paragraph(desc, BODY))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 1))
     story.append(Paragraph(
         'Ce guide est sous licence CC BY-NC-SA 4.0 et le simulateur sous licence PolyForm Noncommercial 1.0.0.',
         BODY))

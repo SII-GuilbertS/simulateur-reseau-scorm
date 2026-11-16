@@ -277,7 +277,10 @@ Le tag local `avant-mode-unique` marque l'état d'avant.
   `site/index.html` et les deux captures de `site/assets/` décrivent le mode unique, le bureau des appareils,
   les trois vues, le contrôle du corrigé, l'appareil « à ajouter par l'élève » et les pannes notées. Les captures
   se refont avec Playwright (1440×900 : builder avec `reseau-lycee`, élève avec la démo `reseau-maison`).
-  Le rendu des PDF n'a pas été relu page par page.
+  Les PDF ont été relus page par page le 16 novembre 2026 (coupures de tableaux, symboles non rendus et
+  libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
+  (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
+  ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
 - **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans la barre orange (panne sans objectif de réparation).
 
