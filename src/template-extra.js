@@ -305,9 +305,6 @@ function finishActivity(){
 
 window.addEventListener('load',function(){
   scormInit();
-  // Charger la source HTML pour la génération SCORM prof
-  _htmlSource='';
-  fetch('./index.html').then(function(r){return r.text();}).then(function(t){_htmlSource=t;}).catch(function(){});
   // Restaurer la session ou charger le réseau de départ
   var loaded=loadFromSession();
   if(loaded===true){

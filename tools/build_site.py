@@ -57,21 +57,17 @@ def build_demo(template, name):
     starter = js_literal({'devs': net['devs'], 'links': net['links'], 'nid': net['nid'],
                           'frames': net.get('frames', {}), 'texts': net.get('texts', {})})
     activity = js_literal(normalize(data['activity']))
-    pwd = data.get('teacherPwd', 'prof').replace("'", "\\'")
     key = f'sim_reseau_demo_{name}'
 
     html = substitute(template, r'var STARTER_NETWORK = null; /\* __STARTER__ \*/',
                       f'var STARTER_NETWORK = {starter}; /* __STARTER__ */')
     html = substitute(html, r'var ACTIVITY_CONFIG = null; /\* __ACTIVITY__ \*/',
                       f'var ACTIVITY_CONFIG = {activity}; /* __ACTIVITY__ */')
-    html = substitute(html, r"var TEACHER_PWD = '[^']*'; /\* __TEACHER_PWD__ \*/",
-                      f"var TEACHER_PWD = '{pwd}'; /* __TEACHER_PWD__ */")
     html = substitute(html, r"SESSION_KEY='sim_reseau_v2'", f"SESSION_KEY='{key}'")
 
     inject = ('\n<script id="sim-builder-inject">\n'
               f'STARTER_NETWORK = {starter};\n'
               f'ACTIVITY_CONFIG = {activity};\n'
-              f"TEACHER_PWD = '{pwd}';\n"
               f"SESSION_KEY = '{key}';\n"
               '</script>\n')
     return substitute(html, r'</body>', inject + '</body>')

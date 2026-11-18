@@ -173,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 71 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 72 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -290,6 +290,8 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 **Étape 4 faite** : les vues s'appellent **Conception** (ex-Corrigé), **Départ élève** et **Test** (ex-Essai) ; les identifiants et valeurs internes restent `btn-cfg` / `btn-depart` / `btn-sim` et `'corrige'` / `'depart'` / `'essai'`. « Recommencer l'essai » devient « ↺ Repartir de zéro » dans la barre verte (`restartEssai` : réseau remis au départ de l'élève et score à 0, confirmation seulement si des points seraient perdus). Le bouton « Retour au corrigé » des barres de vue est supprimé (les onglets de vue suffisent), la barre bleue garde « Passer au test ». Le schéma est cadré aux couleurs de la vue (`body[data-view]`, contour bleu ou vert sur `.cw`). La pastille de l'en-tête dit toujours « Corrigé » (c'est l'état du réseau corrigé). Correction au passage : `ActivityWizard.review` / `withNetwork` ne désélectionnent plus l'appareil du schéma (`sel` dans `STATE_KEYS`).
 
 **Vocabulaire « Liaison »** : l'outil de la palette et du bandeau élève s'appelle « Liaison » (et non plus « Câble ») : il crée un câble ou une liaison WiFi selon les appareils (`linkCheck` choisit le type), donc un seul bouton. La fiche d'une liaison dit « Liaison WiFi » ou « Câble réseau » selon son type ; les décomptes (« N liaisons ») et les indices proposés (« Outil Liaison : reliez… ») suivent. « Câble » reste employé là où la liaison est forcément filaire (« a déjà un câble », « Câble débranché », « Câble posé », PC fixe « câble uniquement »). Les identifiants (`link`, `cable_exists`, `missing_cable`) ne changent pas.
+
+**Étape 5 faite** : en-tête élève sur le modèle de la vue Test du builder : menu « ☰ Menu » (`#stu-menu-btn`, `stuMenuToggle` / `stuMenuRun` dans `src/template-extra.js` ; entrées « ↺ Repartir de zéro » `#t-clear`, 💾 `#t-save`, 📤 `#t-export`, 📂 `#t-import`, « Masquer / Afficher le panneau Propriétés » `#t-toggleprops`, ⤢ `#btn-fs`), ↩ ↪, pastille de score, 🏁 Terminer. Les outils 🖱 🔗 🗑 de l'en-tête sont supprimés (la palette a `#pi-sel`, `#pi-link`, `#pi-del`). **Mode professeur supprimé de la page élève** (commit séparé) : plus de bouton 🎓, de barre orange, de mot de passe (`TEACHER_PWD`), de `toggleTeacherMode`, `generateScorm`, `clearStarterAndGenerate`, ni de bibliothèque JSZip dans le template (il fonctionne hors ligne). Le builder n'a plus de champ « Mot de passe professeur » (Options d'export) et n'écrit plus `teacherPwd` dans ses scénarios ; les anciens fichiers qui le contiennent s'importent toujours (clé ignorée). `tools/build_site.py` n'injecte plus de mot de passe. `README.md` et `docs/` en parlent encore : à mettre à jour à la prochaine version stable.
 
 ## Pour reprendre le travail
 

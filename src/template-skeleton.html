@@ -7,7 +7,6 @@ Licence : PolyForm Noncommercial 1.0.0 — https://polyformproject.org/licenses/
 Required Notice: Copyright (c) 2026 Sylvain Guilbert (https://github.com/SII-GuilbertS/simulateur-reseau-scorm)
 -->
 <title>Simulateur Réseau IPv4 — Filius JS</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
@@ -194,13 +193,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 /* ─── Color pickers dans props ─── */
 .pr input[type=color]{width:48px;height:28px;padding:1px;cursor:pointer;border-radius:4px}
 
-/* ─── Barre Professeur ─── */
-.tbar{background:linear-gradient(135deg,#744210,#c05621);color:#fff;padding:5px 14px;display:none;align-items:center;gap:10px;flex-shrink:0;font-size:.79em;flex-wrap:wrap}
-.tbar-title{font-weight:700;white-space:nowrap}
-.tbar-hint{color:rgba(255,255,255,.7);font-style:italic;margin-left:auto;font-size:.92em}
-.tbar .wbtn{background:rgba(255,255,255,.2);font-size:.85em;padding:3px 10px}
-.tbar .wbtn:hover{background:rgba(255,255,255,.35)}
-.tbar-sep{width:1px;height:18px;background:rgba(255,255,255,.3)}
 
 /* Notifications */
 .notif{position:fixed;top:16px;right:16px;padding:10px 15px;border-radius:9px;font-weight:700;font-size:.84em;color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.35);z-index:9999;animation:sIn .3s ease;max-width:280px;line-height:1.4;pointer-events:none}
@@ -244,19 +236,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
     <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs">📊 Score : 0 / 100</div>
     <div id="score-details"></div>
     <button class="fbtn" onclick="finishActivity()">🏁 Terminer</button>
-    <button class="wbtn" onclick="toggleTeacherMode()" title="Mode Professeur" style="background:rgba(192,86,33,.5);border-color:rgba(192,86,33,.8)">🎓</button>
   </div>
-</div>
-
-<!-- ══ BARRE PROFESSEUR ════════════════════════════════ -->
-<div class="tbar" id="teacher-bar">
-  <span class="tbar-title">🎓 Mode Professeur</span>
-  <span class="tbar-sep"></span>
-  <span style="color:rgba(255,255,255,.85)">Construisez le réseau de départ, puis générez le SCORM :</span>
-  <button class="wbtn" onclick="generateScorm()">📦 Générer le SCORM pour les élèves</button>
-  <button class="wbtn" onclick="changeTeacherPwd()">🔑 Changer le mot de passe</button>
-  <button class="wbtn" onclick="clearStarterAndGenerate()">🗑️ Générer sans réseau de départ</button>
-  <span class="tbar-hint">Le réseau actuel sera intégré dans le fichier SCORM</span>
 </div>
 
 <!-- ══ WORKSPACE ══════════════════════════════════════ -->

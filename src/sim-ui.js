@@ -48,8 +48,6 @@ function _updUndoUI(){
   if(r)r.disabled=!_redoStack.length;
 }
 
-/* Mot de passe du mode professeur : la ligne suivante est remplacée lors de la génération */
-var TEACHER_PWD = 'prof'; /* __TEACHER_PWD__ */
 
 /* ─────────────────────────────────────────────────────
    MOTEUR D'ACTIVITÉ
@@ -1819,94 +1817,6 @@ function showTextProps(id){
   h+='<div class="psection"></div>';
   h+='<button class="pb pb-red" onclick="snapHistory();delete S.texts[\''+id+'\'];S.sel=null;renderTexts();noSel()">🗑️ Supprimer ce texte</button>';
   document.getElementById('props-body').innerHTML=h;
-}
-
-/* ─────────────────────────────────────────────────────
-   MODE PROFESSEUR & GÉNÉRATION SCORM
-───────────────────────────────────────────────────── */
-var _teacherMode=false;
-var _htmlSource='';
-
-var MANIFEST_XML='<?xml version="1.0" encoding="UTF-8"?>\n'+
-'<manifest identifier="simulateur-reseau-filius-js-v2"\n'+
-'          version="2.0"\n'+
-'          xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"\n'+
-'          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"\n'+
-'          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n'+
-'          xsi:schemaLocation="\n'+
-'            http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd\n'+
-'            http://www.imsglobal.org/xsd/imsmd_rootv1p2p1 imsmd_rootv1p2p1.xsd\n'+
-'            http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">\n'+
-'  <metadata><schema>ADL SCORM</schema><schemaversion>1.2</schemaversion></metadata>\n'+
-'  <organizations default="org-filius">\n'+
-'    <organization identifier="org-filius">\n'+
-'      <title>Simulateur Réseau IPv4 — Style Filius (4ème / SNT)</title>\n'+
-'      <item identifier="item-sim" identifierref="res-index">\n'+
-'        <title>Simulateur réseau interactif : configuration et simulation IPv4</title>\n'+
-'        <adlcp:masteryscore>75</adlcp:masteryscore>\n'+
-'      </item>\n'+
-'    </organization>\n'+
-'  </organizations>\n'+
-'  <resources>\n'+
-'    <resource identifier="res-index" type="webcontent" adlcp:scormtype="sco" href="index.html">\n'+
-'      <file href="index.html"/>\n'+
-'    </resource>\n'+
-'  </resources>\n'+
-'</manifest>';
-
-function toggleTeacherMode(){
-  if(!_teacherMode){
-    var pwd=prompt('Mot de passe professeur :');
-    if(pwd===null)return;
-    if(pwd!==TEACHER_PWD){notif('❌ Mot de passe incorrect','err');return;}
-  }
-  _teacherMode=!_teacherMode;
-  document.getElementById('teacher-bar').style.display=_teacherMode?'flex':'none';
-  if(_teacherMode)notif('🎓 Mode Professeur activé — construisez le réseau de départ puis générez le SCORM','ok');
-}
-
-function changeTeacherPwd(){
-  var n=prompt('Nouveau mot de passe professeur (actuel : "'+TEACHER_PWD+'") :');
-  if(!n||!n.trim())return;
-  TEACHER_PWD=n.trim();
-  notif('🔑 Mot de passe mis à jour — il sera intégré dans le prochain SCORM généré','ok');
-}
-
-function _doGenerateScorm(networkData){
-  if(typeof JSZip==='undefined'){notif('❌ JSZip non chargé (connexion internet requise pour la première utilisation)','err');return;}
-  if(!_htmlSource){notif('❌ Source HTML non disponible — réessayez dans quelques secondes','err');return;}
-
-  var starterJson=networkData?JSON.stringify(networkData):'null';
-  // Remplacer le réseau de départ et le mot de passe dans le source
-  var newHtml=_htmlSource
-    .replace(/var STARTER_NETWORK = null; \/\* __STARTER__ \*\//,
-             'var STARTER_NETWORK = '+starterJson+'; /* __STARTER__ */')
-    .replace(/var TEACHER_PWD = '[^']*'; \/\* __TEACHER_PWD__ \*\//,
-             'var TEACHER_PWD = \''+TEACHER_PWD.replace(/'/g,"\\'")+'\''+'; /* __TEACHER_PWD__ */');
-
-  var zip=new JSZip();
-  zip.file('index.html',newHtml);
-  zip.file('imsmanifest.xml',MANIFEST_XML);
-  zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}}).then(function(blob){
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');a.href=url;
-    a.download='activite-reseau-'+(new Date().toISOString().slice(0,10))+'.zip';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    notif('📦 SCORM généré avec succès — importez-le dans Moodle','ok');
-  }).catch(function(e){notif('❌ Erreur génération : '+e.message,'err');});
-}
-
-function generateScorm(){
-  var nd={devs:S.devs,links:S.links,nid:S.nid,frames:S.frames,texts:S.texts};
-  var nb=Object.keys(S.devs).length;
-  if(nb===0&&!confirm('Le canvas est vide. Générer un SCORM sans réseau de départ ?'))return;
-  _doGenerateScorm(nb>0?nd:null);
-}
-
-function clearStarterAndGenerate(){
-  if(!confirm('Générer un SCORM sans réseau de départ ?\n(Les élèves partiront d\'un canvas vide)'))return;
-  _doGenerateScorm(null);
 }
 
 /* ─────────────────────────────────────────────────────

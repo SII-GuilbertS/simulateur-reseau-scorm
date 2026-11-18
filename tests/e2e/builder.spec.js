@@ -2206,12 +2206,12 @@ test.describe('Barre du haut et menu ☰', () => {
     await expect(page.locator('#menu-btn')).toHaveAttribute('aria-expanded', 'false');
   });
 
-  test('Options d\'export : résumé, mot de passe, plan ; se ferme avec Échap, la croix ou le fond', async ({ page }) => {
+  test('Options d\'export : résumé, plan ; se ferme avec Échap, la croix ou le fond', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
     await menu(page, 'mi-options');
     const dlg = page.locator('#bld-overlay-gen');
     await expect(dlg).toHaveClass(/open/);
-    await expect(page.locator('#gen-pwd')).toBeVisible();
+    await expect(page.locator('#gen-pwd')).toHaveCount(0);       // le mot de passe professeur n'existe plus
     await expect(page.locator('#gen-plan')).toBeChecked();
     await expect(page.locator('#gen-status')).toContainText('Template élève prêt');
     await page.locator('#bld-overlay-gen .wz-x').click();
@@ -2387,8 +2387,8 @@ test.describe('Bandeau Évaluation', () => {
 test.describe('Contrôle du corrigé dans le bandeau', () => {
   test("plus de barre orange : l'état est la pastille de l'en-tête, le détail est l'onglet « ✔ Contrôle »", async ({ page }) => {
     await openBuilderWith(page, 'reseau-entreprise');
-    await expect(page.locator('#teacher-bar')).toBeHidden();
-    await expect(page.locator('.tbar:visible')).toHaveCount(0);
+    await expect(page.locator('#teacher-bar')).toHaveCount(0);
+    await expect(page.locator('.tbar')).toHaveCount(0);
     await expect(page.locator('#bt-ctl')).toBeVisible();
     await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
 
@@ -2497,6 +2497,9 @@ test.describe('En-tête élève', () => {
     await expect(page.locator('.hdr .fbtn')).toBeVisible();
     // Les outils de la palette ne sont plus répétés dans l'en-tête
     for (const id of ['#t-select', '#t-link', '#t-delete']) await expect(page.locator(id)).toHaveCount(0);
+    // Plus de mode professeur chez l'élève : ni bouton, ni barre, ni mot de passe, ni JSZip
+    await expect(page.locator('#teacher-bar')).toHaveCount(0);
+    expect(await page.evaluate(() => [typeof toggleTeacherMode, typeof generateScorm, typeof TEACHER_PWD, typeof JSZip])).toEqual(['undefined', 'undefined', 'undefined', 'undefined']);
     for (const id of ['#pi-sel', '#pi-link', '#pi-del']) await expect(page.locator(id)).toBeVisible();
     // Le menu contient les actions rares et se ferme avec Échap
     await expect(page.locator('#stu-menu')).toBeHidden();
