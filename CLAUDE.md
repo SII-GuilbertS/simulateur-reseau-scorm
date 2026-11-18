@@ -261,7 +261,7 @@ Chaque appareil garde sa session (historique, sortie, page). Une commande lancé
 boutons de mode supprimés, bandeau repliable, sauvegarde temporisée, vue Corrigé non comptabilisée, Ctrl+Z chez
 l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison dans `TODO.md`, « Mode unique »).
 
-## Refonte de l'interface (chantier terminé, branche `claude/network-simulator-ui-redesign-a9ca90`, à fusionner dans `master` sur accord)
+## Refonte de l'interface (chantier terminé et fusionné dans `master`, publié en version 2.1)
 
 Plan en 6 étapes, un commit chacune : (1) barre unique et menu ☰, (2) évaluation intégrée au Corrigé (bandeau du bas),
 (3) contrôle du corrigé intégré (fin de la barre orange, score de l’essai dans la barre de vue), (4) vues Départ élève / Test et « Repartir de zéro »,
@@ -293,9 +293,9 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Vocabulaire « Liaison »** : l'outil de la palette et du bandeau élève s'appelle « Liaison » (et non plus « Câble ») : il crée un câble ou une liaison WiFi selon les appareils (`linkCheck` choisit le type), donc un seul bouton. La fiche d'une liaison dit « Liaison WiFi » ou « Câble réseau » selon son type ; les décomptes (« N liaisons ») et les indices proposés (« Outil Liaison : reliez… ») suivent. « Câble » reste employé là où la liaison est forcément filaire (« a déjà un câble », « Câble débranché », « Câble posé », PC fixe « câble uniquement »). Les identifiants (`link`, `cable_exists`, `missing_cable`) ne changent pas.
 
-**Étape 5 faite** : en-tête élève sur le modèle de la vue Test du builder : menu « ☰ Menu » (`#stu-menu-btn`, `stuMenuToggle` / `stuMenuRun` dans `src/template-extra.js` ; entrées « ↺ Repartir de zéro » `#t-clear`, 💾 `#t-save`, 📤 `#t-export`, 📂 `#t-import`, « Masquer / Afficher le panneau Propriétés » `#t-toggleprops`, ⤢ `#btn-fs`), ↩ ↪, pastille de score, 🏁 Terminer. Les outils 🖱 🔗 🗑 de l'en-tête sont supprimés (la palette a `#pi-sel`, `#pi-link`, `#pi-del`). **Mode professeur supprimé de la page élève** (commit séparé) : plus de bouton 🎓, de barre orange, de mot de passe (`TEACHER_PWD`), de `toggleTeacherMode`, `generateScorm`, `clearStarterAndGenerate`, ni de bibliothèque JSZip dans le template (il fonctionne hors ligne). Le builder n'a plus de champ « Mot de passe professeur » (Options d'export) et n'écrit plus `teacherPwd` dans ses scénarios ; les anciens fichiers qui le contiennent s'importent toujours (clé ignorée). `tools/build_site.py` n'injecte plus de mot de passe. `README.md` et `docs/` en parlent encore : à mettre à jour à la prochaine version stable.
+**Étape 5 faite** : en-tête élève sur le modèle de la vue Test du builder : menu « ☰ Menu » (`#stu-menu-btn`, `stuMenuToggle` / `stuMenuRun` dans `src/template-extra.js` ; entrées « ↺ Repartir de zéro » `#t-clear`, 💾 `#t-save`, 📤 `#t-export`, 📂 `#t-import`, « Masquer / Afficher le panneau Propriétés » `#t-toggleprops`, ⤢ `#btn-fs`), ↩ ↪, pastille de score, 🏁 Terminer. Les outils 🖱 🔗 🗑 de l'en-tête sont supprimés (la palette a `#pi-sel`, `#pi-link`, `#pi-del`). **Mode professeur supprimé de la page élève** (commit séparé) : plus de bouton 🎓, de barre orange, de mot de passe (`TEACHER_PWD`), de `toggleTeacherMode`, `generateScorm`, `clearStarterAndGenerate`, ni de bibliothèque JSZip dans le template (il fonctionne hors ligne). Le builder n'a plus de champ « Mot de passe professeur » (Options d'export) et n'écrit plus `teacherPwd` dans ses scénarios ; les anciens fichiers qui le contiennent s'importent toujours (clé ignorée). `tools/build_site.py` n'injecte plus de mot de passe.
 
-**Étape 6 faite** : nettoyage. Retirés du builder : 33 règles CSS sans usage (restes de l'ancienne page Générer et d'anciennes fenêtres) et leurs `@media`, la fonction `ctlScoreNote` ; du squelette élève : les styles `.hdr-mode` / `.mbtn` ; du moteur : les identifiants `t-link` / `t-delete` des outils d'en-tête (`setTool`, `palLock`). Vocabulaire des messages harmonisé (« votre test », « vue Test », « bandeau Évaluation » à la place de « onglet 2 »). Reste volontairement : `#teacher-bar` n'existe plus nulle part ; `TEACHER_CTL.startScore` est calculé mais n'est plus affiché. État final : 422 tests unitaires, 72 tests navigateur. La documentation (`docs/`, `README.md`, `site/`) n'a pas été régénérée : elle décrit encore l'ancienne interface (onglets, barre orange, mode professeur, « Essai ») et sera refaite à la prochaine version stable.
+**Étape 6 faite** : nettoyage. Retirés du builder : 33 règles CSS sans usage (restes de l'ancienne page Générer et d'anciennes fenêtres) et leurs `@media`, la fonction `ctlScoreNote` ; du squelette élève : les styles `.hdr-mode` / `.mbtn` ; du moteur : les identifiants `t-link` / `t-delete` des outils d'en-tête (`setTool`, `palLock`). Vocabulaire des messages harmonisé (« votre test », « vue Test », « bandeau Évaluation » à la place de « onglet 2 »). Reste volontairement : `#teacher-bar` n'existe plus nulle part ; `TEACHER_CTL.startScore` est calculé mais n'est plus affiché. État final : 412 tests unitaires, 72 tests navigateur. La documentation a été refaite pour la version 2.1.
 
 **Pastille du corrigé** (`ctlPill`) : « ✅ Corrigé complet » seulement si tous les objectifs sont vérifiés dans le corrigé ; sinon elle compte « N vérifiés · M à vérifier en Test » (🧪, quand l'élève doit encore construire), « ⚠️ Corrigé non conforme · K non atteignables · N vérifiés… » si des objectifs échouent dans le corrigé, ou « ⚠️ Corrigé : N pannes à revoir ».
 
@@ -339,15 +339,16 @@ sur la route du corrigé ; `FAULT_REPAIR_CHECKS`, `FAULT_FIXES`), l'assistant au
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic dans le menu ☰ avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
-- **Documentation à jour en v2.0** (15 novembre 2026) : `docs/*.pdf` (via `tools/gen_docs.py`), `README.md`,
+- **Documentation à jour en v2.1** (18 novembre 2026) : `docs/*.pdf` (via `tools/gen_docs.py`), `README.md`,
   `site/index.html` et les deux captures de `site/assets/` décrivent le mode unique, le bureau des appareils,
-  les trois vues, le contrôle du corrigé, l'appareil « à ajouter par l'élève » et les pannes notées. Les captures
+  les trois vues, le contrôle du corrigé, l'appareil « à ajouter par l'élève », les pannes notées, la difficulté 1-3,
+  le type « Réseau Internet » et le routage statique. Les captures
   se refont avec Playwright (1440×900 : builder avec `reseau-lycee`, élève avec la démo `reseau-maison`).
   Les PDF ont été relus page par page le 16 novembre 2026 (coupures de tableaux, symboles non rendus et
   libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
-- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74 ; après le routage (étape 3) : 428 et 76 ; après le type Réseau Internet (étape 4) : 453 et 77.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Version 2.1 (tag `v2.1`) : 453 et 77, documentation, README et site refaits. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74 ; après le routage (étape 3) : 428 et 76 ; après le type Réseau Internet (étape 4) : 453 et 77.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios

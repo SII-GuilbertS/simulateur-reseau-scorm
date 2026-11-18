@@ -164,7 +164,7 @@ def page_template(canvas, doc):
     canvas.restoreState()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC PROF  v2.0
+#  DOC PROF  v2.1
 # ══════════════════════════════════════════════════════════════════════════════
 def build_prof(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -173,7 +173,7 @@ def build_prof(out_path):
     doc._badge       = 'Mode Constructeur'
     doc._title       = 'Guide Enseignant'
     doc._tagline     = 'Créer et déployer des activités réseau sur Moodle'
-    doc._subtitle    = 'Documentation v2.0'
+    doc._subtitle    = 'Documentation v2.1'
     doc._subnote     = 'Outil pédagogique pour l\'enseignement des réseaux informatiques'
     doc._headertitle = 'Guide Enseignant'
     doc._hdr_color   = NAVY
@@ -193,37 +193,44 @@ def build_prof(out_path):
             BODY),
         callout('Ouvrez simplement scorm-builder.html dans Chrome ou Firefox. '
                 'Aucune dépendance externe n\'est requise pour construire le réseau et configurer l\'évaluation.'),
-        Paragraph("Le builder s'ouvre toujours <b>vierge</b>. Un travail se reprend avec <b>Ouvrir</b> (fichier "
-                  "scénario .json) et se garde avec <b>Enregistrer</b>, en haut de la fenêtre. Si vous fermez l'onglet "
-                  "sans avoir enregistré vos dernières modifications, le navigateur vous prévient. Les exports SCORM, "
-                  "HTML et énoncé ne remplacent pas cet enregistrement.", BODY),
         Spacer(1, 8),
     ]
 
-    # 2. Les trois onglets
-    story += [Paragraph('2. Les trois onglets du Builder', H1), hr()]
+    # 2. L'interface
+    story += [Paragraph('2. L\'interface du Builder', H1), hr()]
 
     story += [
-        Paragraph('2.1 Onglet 1 — Construire le réseau', H2),
+        Paragraph(
+            'Le builder (« Atelier Réseau ») tient dans une seule fenêtre : une <b>barre</b> en haut, le <b>schéma</b> '
+            'au centre, la <b>fiche</b> de l\'appareil sélectionné à droite et un <b>bandeau</b> en bas.',
+            BODY),
+        Paragraph('• La barre porte le bouton <b>Menu</b> (Nouvelle activité, Nouveau, Ouvrir, Enregistrer, Variante, les exports, '
+                  'les options d\'export, Tester comme élève, plein écran), les boutons <b>Annuler</b> et <b>Rétablir</b>, '
+                  'les trois <b>vues</b> du schéma (Conception, Départ élève, Test) et une <b>pastille d\'état</b>.', BODY_L),
+        Paragraph('• Le bandeau du bas se replie d\'un clic. En vue Conception, il a quatre onglets : <b>Évaluation</b> '
+                  '(l\'activité, les objectifs et les pannes), <b>Contrôle</b> (le contrôle du corrigé), <b>Journal</b> et '
+                  '<b>Paquets</b>.', BODY_L),
+        Paragraph('2.1 Construire le réseau (vue Conception)', H2),
         Paragraph(
             'La palette propose quatre modèles de terminaux — <b>PC fixe</b> (câble), <b>PC portable</b> '
             '(câble et WiFi), <b>Téléphone</b> et <b>Tablette</b> (WiFi uniquement) — ainsi que '
             '<b>Serveur</b>, <b>Switch</b>, <b>Routeur</b>, <b>Box WiFi</b> (routeur WiFi avec DHCP intégré), '
-            '<b>Internet</b>, et en tête l\'outil <b>Câble</b>. Chaque appareil apparaît sous forme de carte '
-            'illustrée. Faites glisser les appareils sur le canevas, puis configurez '
+            '<b>Internet</b>, et en tête l\'outil <b>Liaison</b>. Chaque appareil apparaît sous forme de carte '
+            'illustrée. Faites glisser les appareils sur le schéma, puis configurez '
             'leurs propriétés (nom, adresse IP, masque, passerelle, DNS) '
-            'dans le panneau de droite.',
+            'dans la fiche, à droite.',
             BODY),
-        callout("<b>Ce réseau est le corrigé : le réseau qui fonctionne.</b> L'élève le reçoit avec les pannes de "
-                "l'onglet 2, et sans les appareils que vous marquez « à ajouter par l'élève ».", INFO, '■'),
+        callout("<b>Ce réseau est le corrigé : le réseau qui fonctionne.</b> L'élève le reçoit avec les pannes du "
+                "bandeau Évaluation, et sans les appareils que vous marquez « à ajouter par l'élève ».", INFO, '■'),
         Paragraph("• <b>Clic</b> sur un appareil : sa fiche s'ouvre à droite (nom, adresse IP, masque, passerelle, DNS). "
                   "<b>Double-clic</b> : son <b>bureau</b> s'ouvre dans une fenêtre, avec ses applications : Invite de "
                   "commandes, Navigateur, Paramètres réseau, WiFi, et selon l'appareil Serveur web, Serveur DNS, "
                   "Serveur DHCP, Administration de la box, Routage. Les services (web, DNS, DHCP, WiFi de la box) se "
                   "règlent dans le bureau ; la fiche en affiche seulement l'état.", BODY_L),
-        Paragraph('• Outil <b>Câble</b> : cliquez sur deux appareils pour les relier (le pointeur prend la forme '
-                  'du câble). <b>Échap</b> revient à l\'outil Sélection depuis n\'importe quel outil ; <b>Suppr</b> '
-                  'efface l\'appareil, le câble, le cadre ou le texte sélectionné.', BODY_L),
+        Paragraph('• Outil <b>Liaison</b> : cliquez sur deux appareils pour les relier ; l\'outil crée un câble ou une '
+                  'liaison WiFi selon les appareils (le pointeur prend la forme du câble). <b>Échap</b> revient à l\'outil '
+                  'Sélection depuis n\'importe quel outil ; <b>Suppr</b> efface l\'appareil, la liaison, le cadre ou le texte '
+                  'sélectionné.', BODY_L),
         Paragraph('• Liaison WiFi : utilisez la <b>Box WiFi</b> et reliez-la aux PC. Comme une vraie box, elle relie '
                   'ses clients WiFi et les postes câblés de son côté LAN (switch compris) ; son port WAN reste séparé.', BODY_L),
         Paragraph('• <b>Connexion WiFi</b> : la fiche d\'un terminal relié en WiFi a une section « Connexion WiFi » '
@@ -239,25 +246,29 @@ def build_prof(out_path):
                   "l'ajouter lui-même. L'appareil reste dans votre corrigé, avec ses câbles et ses réglages (pastille "
                   "verte « + » sur le schéma), mais il est retiré du réseau que reçoit l'élève et de son énoncé.", BODY_L),
         Paragraph('• <b>Routage</b> : le ping suit les tables de routage à l\'aller et au retour, comme sur un vrai '
-                  'réseau. Les routes RIP sont recalculées automatiquement (y compris une route par défaut vers '
-                  'Internet) ; un routeur dont le routage automatique est décoché n\'apprend aucune route et ne '
-                  'communique qu\'avec ses réseaux directs. Une adresse privée que personne ne porte est inconnue.', BODY_L),
+                  'réseau. Voir le paragraphe 2.5 sur les routes RIP et les routes statiques. Une adresse privée que '
+                  'personne ne porte est inconnue.', BODY_L),
         Paragraph('• <b>Fichiers vérifiés</b> : un scénario abîmé ou incomplet est refusé à l\'import, avec la '
                   'raison ; le réseau en cours est conservé. Côté élève, si la plateforme refuse d\'enregistrer '
                   'le réseau, un message l\'en avertit et le travail reste gardé sur le poste.', BODY_L),
+        Paragraph('• <b>Ouverture et fermeture</b> : le builder s\'ouvre toujours <b>vierge</b>. Un travail se reprend avec '
+                  '<b>Ouvrir</b> (fichier scénario .json) et se garde avec <b>Enregistrer</b>, dans le bouton Menu. Si vous fermez '
+                  'l\'onglet sans avoir enregistré vos dernières modifications, le navigateur vous prévient. Les exports '
+                  'SCORM, HTML et énoncé ne remplacent pas cet enregistrement.', BODY_L),
         Paragraph('2.1.1 Trois vues du schéma', H2),
-        Paragraph("Trois boutons, en haut du schéma, montrent le même réseau sous trois angles. Les exports partent "
+        Paragraph("Trois boutons, dans la barre, montrent le même réseau sous trois angles. Les exports partent "
                   "toujours du corrigé, quelle que soit la vue affichée.", BODY),
     ]
     view_rows = [
         ['Vue', 'Ce que vous voyez', 'Ce que vous y faites'],
-        ['Corrigé', 'Le réseau qui fonctionne.',
+        ['Conception', 'Le réseau qui fonctionne (le corrigé).',
          "Tout se règle ici. Le terminal et le navigateur servent à vérifier le réseau ; aucun point ne s'y gagne."],
         ['Départ élève', "Ce que l'élève trouve à l'ouverture : le corrigé avec les pannes (pastilles rouges P1, P2…), "
          "sans les appareils à ajouter.", 'Lecture seule : vous contrôlez le point de départ.'],
-        ['Essai', 'La même copie de départ.',
-         "Vous jouez l'élève : diagnostic, réparations, tests. Le score est celui qu'il obtiendrait. L'essai est "
-         "conservé quand vous changez de vue, tant que l'activité n'a pas changé."],
+        ['Test', 'La même copie de départ.',
+         "Vous jouez l'élève : diagnostic, réparations, tests. Le score (barre verte) est celui qu'il obtiendrait ; "
+         "« Repartir de zéro » remet le réseau et le score au départ. Le test est conservé quand vous changez de vue, "
+         "tant que l'activité n'a pas changé."],
     ]
     story.append(table_obj([[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B if i == 0 else CELL),
                              Paragraph(r[2], CELL_B if i == 0 else CELL)] for i, r in enumerate(view_rows)],
@@ -265,9 +276,10 @@ def build_prof(out_path):
     story += [
         Spacer(1, 6),
         Paragraph('2.1.2 Contrôle du corrigé', H2),
-        Paragraph("En vue Corrigé, l'en-tête n'affiche pas de score mais l'état de votre corrigé : "
-                  "<b>Corrigé complet</b>, <b>N objectifs non réalisés</b> ou <b>N pannes à revoir</b>. Un clic ouvre "
-                  "le tableau de contrôle, une ligne par objectif :", BODY),
+        Paragraph("En vue Conception, la pastille de la barre n'affiche pas de score mais l'état de votre corrigé : "
+                  "<b>Corrigé complet</b> (tous les objectifs sont vérifiés), <b>N vérifiés · M à vérifier en Test</b> "
+                  "(ce que l'élève doit encore construire), <b>N non atteignables</b> ou <b>N pannes à revoir</b>. Un clic "
+                  "ouvre l'onglet <b>Contrôle</b> du bandeau, une ligne par objectif :", BODY),
         Paragraph("• <b>Dans le corrigé</b> : l'objectif est-il réalisé dans votre réseau ? Les objectifs à commande "
                   "(ping, nslookup, page web, DHCP) sont rejoués automatiquement ; en cas d'échec, la raison est "
                   "indiquée. Le bouton « Voir dans le terminal » rejoue la commande dans le bureau du poste.", BODY_L),
@@ -276,17 +288,19 @@ def build_prof(out_path):
                   "commande qui passe sans réparation.", BODY_L),
         Paragraph("• <b>Pannes à revoir</b> : une panne qui ne change rien (valeur identique au corrigé, service "
                   "déjà arrêté, câble absent, appareil inconnu ou à ajouter par l'élève) est signalée.", BODY_L),
-        callout("La barre orange résume le départ de l'élève : points acquis à l'ouverture (0 pour une activité bien "
+        callout("Le contrôle résume le départ de l'élève : points acquis à l'ouverture (0 pour une activité bien "
                 "construite), objectifs atteignables, seuil qui ne doit pas être atteint sans rien réparer.", TIP, '💡'),
         Spacer(1, 6),
     ]
 
     story += [
-        Paragraph('2.2 Onglet 2 — Configurer l\'évaluation', H2),
+        Paragraph('2.2 Configurer l\'évaluation (bandeau Évaluation)', H2),
         Paragraph(
-            'Définissez le titre, le niveau scolaire, le score de maîtrise et le mode d\'affichage. '
+            'L\'onglet <b>Évaluation</b> du bandeau (vue Conception, raccourci <b>Ctrl+2</b>) définit le titre, la '
+            'description du public visé, le score de maîtrise et le mode d\'affichage. '
             'Ajoutez des <b>objectifs</b> (chacun associé à un type de vérification et un nombre de '
-            'points) et des <b>pannes</b> à injecter silencieusement dans le réseau de départ.',
+            'points) et des <b>pannes</b> à injecter silencieusement dans le réseau de départ. '
+            'La colonne « Activité » se redimensionne à la souris.',
             BODY),
         Paragraph('• Objectifs (pastille <b>bleue</b> numérotée) et pannes (pastille <b>rouge</b> P1, P2…) '
                   'forment <b>une seule liste</b>, avec les deux boutons d\'ajout en haut. Réordonnez-la '
@@ -294,7 +308,7 @@ def build_prof(out_path):
                   'dans cet ordre. La description d\'une panne est pré-remplie (type et appareil visé) et modifiable.', BODY_L),
         Paragraph('• <b>Indice</b> : chaque objectif a un indice, affiché à l\'élève sous l\'objectif tant qu\'il n\'est '
                   'pas atteint. Il est proposé selon le type d\'objectif, ses appareils et la panne qu\'il répare '
-                  '(« Outil Câble : reliez PC-Bureau à Switch-Salon », ou « ipconfig est bon mais rien ne passe ? '
+                  '(« Outil Liaison : reliez PC-Bureau à Switch-Salon », ou « ipconfig est bon mais rien ne passe ? '
                   'Regardez les câbles de PC-Bureau » quand une panne débranche ce câble). Il suit l\'objectif et les '
                   'pannes tant que vous ne le réécrivez pas ; le bouton à droite du champ revient à la proposition, un champ vide supprime l\'indice.', BODY_L),
         Paragraph('• Sous chaque objectif, un <b>aperçu</b> indique s\'il est atteint sur le réseau actuel et '
@@ -303,10 +317,11 @@ def build_prof(out_path):
                   'Si l\'élève casse sa configuration, il perd les points ; un ping, une résolution DNS ou une page '
                   'web réussis sont revérifiés à chaque modification. La note transmise à Moodle est donc '
                   'celle du réseau final.', BODY_L),
-        Paragraph("• <b>Postes à ajouter par l'élève</b> : posez le poste dans le corrigé, cochez « À ajouter par "
-                  "l'élève » sur sa fiche, puis créez l'objectif « Poste ajouté » à son nom. Les objectifs placés en "
-                  "dessous peuvent s'appuyer sur lui (ping depuis ce poste, câble, adresse…), et le contrôle du "
-                  "corrigé les vérifie. Sans la case, le poste est donné à l'élève : le contrôle le signale.", BODY_L),
+        Paragraph("• <b>Postes à ajouter par l'élève</b> : le bouton « + Appareil à ajouter » pose un poste marqué à "
+                  "ajouter (annulable) et crée l'objectif « Poste ajouté » à son nom. Vous pouvez aussi cocher « À ajouter "
+                  "par l'élève » sur la fiche d'un appareil existant. Les objectifs placés en dessous peuvent s'appuyer sur "
+                  "lui (ping depuis ce poste, câble, adresse…), et le contrôle du corrigé les vérifie. Sans la case, le "
+                  "poste est donné à l'élève : le contrôle le signale.", BODY_L),
         Paragraph('<b>14 types d\'objectifs disponibles :</b>', H2),
     ]
 
@@ -324,7 +339,7 @@ def build_prof(out_path):
         ['service_active',     'Service actif',       'Vérifie qu\'un service HTTP/DNS/DHCP est activé.'],
         ['device_added',       'Poste ajouté',        'Vérifie qu\'un appareil est présent ou a été ajouté, et sa configuration.'],
         ['ssid_configured',    'SSID WiFi',           'Vérifie que la Box WiFi diffuse le bon SSID.'],
-        ['route_exists',       'Route existante',     'Vérifie une entrée dans la table de routage.'],
+        ['route_exists',       'Route existante',     'Vérifie une entrée dans la table de routage d\'un routeur, et son routeur suivant si demandé.'],
         ['dns_record',         'Enregistrement DNS',  'Vérifie qu\'un nom pointe vers une IP, ou vers l\'adresse d\'un serveur.'],
     ]
     cw = [44*mm, 36*mm, CONTENT_W-80*mm]
@@ -390,6 +405,9 @@ def build_prof(out_path):
         ['missing_cable','Câble débranché',    'appareil A + appareil B'],
         ['ssid_wrong',   'SSID incorrect',     'Box WiFi + valeur incorrecte (ses terminaux se déconnectent)'],
         ['wifi_pass_wrong','Mot de passe WiFi faux','terminal WiFi + valeur incorrecte'],
+        ['route_missing','Route manquante',   'routeur + réseau de la route (route statique retirée)'],
+        ['bad_route',    'Mauvais routeur suivant', 'routeur + réseau + valeur incorrecte (route statique)'],
+        ['routing_off',  'RIP désactivé',      'routeur (calcul automatique arrêté, routes apprises perdues)'],
     ]
     fw = [40*mm, 46*mm, CONTENT_W-86*mm]
     frows_p = [[Paragraph(r[0], MONO if i>0 else CELL_B),
@@ -399,10 +417,10 @@ def build_prof(out_path):
 
     story += [
         CondPageBreak(55*mm),
-        Paragraph('2.3 Onglet 3 — Générer le package', H2),
+        Paragraph('2.3 Exporter (bouton Menu)', H2),
         Paragraph(
-            'Définissez le <b>mot de passe professeur</b> (déverrouille le mode enseignant côté élève), '
-            'puis choisissez votre format d\'export.',
+            'Les exports sont dans le bouton Menu ; la fenêtre <b>Options d\'export</b> résume l\'activité '
+            'et règle le plan d\'adressage de l\'énoncé. Quel que soit le format, l\'export part du réseau corrigé.',
             BODY),
         Paragraph('■ <b>Package SCORM (.zip)</b> — À importer dans Moodle. Remonte la note automatiquement.', BODY_L),
         Paragraph('■ <b>HTML standalone</b> — Fichier .html unique, ouvrable directement dans Chrome/Firefox. '
@@ -411,47 +429,59 @@ def build_prof(out_path):
         Paragraph('■ <b>Énoncé imprimable</b> — Page HTML avec topologie SVG, liste des objectifs et zone élève '
                   '(Nom/Classe/Score). Bouton Imprimer intégré, optimisé A4. Il contient un <b>plan d\'adressage</b> '
                   'à compléter, construit à partir des objectifs d\'adressage : une ligne par appareil, regroupée '
-                  'par salle, où chaque case reprend la contrainte de l\'objectif ou reste à remplir. Une case de '
-                  'l\'onglet le retire.', BODY_L),
+                  'par salle, où chaque case reprend la contrainte de l\'objectif ou reste à remplir. Une case des '
+                  'options d\'export le retire.', BODY_L),
         Paragraph('■ <b>Corrigé enseignant</b> — Le même document, plan d\'adressage rempli avec les adresses du '
                   'réseau du builder, vérifiées avec les règles d\'évaluation. À ne pas distribuer.', BODY_L),
-        Paragraph('■ <b>Tester comme élève</b> (bouton en haut du builder) — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder.', BODY_L),
+        Paragraph('■ <b>Tester comme élève</b> — Ouvre l\'activité dans un nouvel onglet avec les données actuelles du builder '
+                  '(la vue Test joue l\'élève sans quitter le builder).', BODY_L),
+        Paragraph('Le bouton Menu enregistre et rouvre le scénario (.json). La page élève n\'a plus de mode enseignant ni de '
+                  'mot de passe : le scénario seul porte l\'activité.', BODY_L),
         Spacer(1, 4),
     ]
 
     story += [
+        CondPageBreak(95*mm),
         Paragraph('2.4 Nouvelle activité et variantes', H2),
         Paragraph(
-            'Le bouton <b>Nouvelle activité</b>, en haut du builder, crée une activité complète à partir d\'un '
-            'modèle : réseau, objectifs, pannes, barème et consignes. Choisissez le type, le thème et le niveau ; '
+            'Le bouton Menu propose <b>Nouvelle activité</b> : elle crée une activité complète à partir d\'un '
+            'modèle (réseau, objectifs, pannes, barème et consignes). Choisissez le type, le thème et la difficulté ; '
             'l\'aperçu montre la liste ordonnée et le résultat d\'une vérification automatique. Tout reste '
-            'modifiable ensuite dans les onglets 1 et 2.',
+            'modifiable ensuite sur le schéma et dans le bandeau Évaluation.',
             BODY),
     ]
     wz_rows = [
         ['Choix', 'Options', 'Effet'],
-        ['Type', 'Construction', 'L\'élève ajoute un poste, le câble, configure IP, passerelle et DNS ; un test suit chaque étape.'],
+        ['Type', 'Construction', 'L\'élève ajoute un poste (et, en Maison, une tablette en WiFi), le câble, configure IP, passerelle et DNS ; un test suit chaque étape. Le poste est posé dans le corrigé, coché « à ajouter ».'],
         ['', 'Dépannage', 'Deux à quatre pannes, chacune suivie de sa réparation puis d\'un objectif « Test : ».'],
         ['', 'Découverte', 'Réseau fonctionnel, exploré avec ping, nslookup, DHCP et le navigateur.'],
+        ['', 'Réseau Internet', 'Plusieurs réseaux reliés par des routeurs, serveur web et DNS au bout : routage RIP ou statique, pannes de routage.'],
         ['Thème', 'Maison', 'Box WiFi, PC fixes, portable et smartphone en WiFi.'],
         ['', 'Entreprise', 'Routeur, postes de bureau, serveur intranet (DNS et web).'],
         ['', 'Salle de classe', 'Routeur, postes élèves, Serveur-Données pour les profils ; l\'ENT est hébergé sur Internet.'],
-        ['Niveau', 'Collège', 'Valeurs données, contraintes affichées, seuil 50 %.'],
-        ['', 'Lycée', 'Adresse à choisir dans une plage, passerelle « routeur du réseau », seuil 60 %.'],
-        ['', 'BTS / Terminale', 'Adresses libres, contraintes masquées, deux réseaux routés, seuil 70 %.'],
+        ['', 'Réseau Internet : Siège et agences, Lycée et annexe, Client et hébergeur', 'Thèmes propres à ce type : deux ou trois sites, un routeur par site.'],
+        ['Difficulté', '1 · Guidé', 'Valeurs données, contraintes affichées, réseau simple, 2 pannes, seuil 50 %.'],
+        ['', '2 · Intermédiaire', 'Adresse à choisir dans une plage, passerelle « routeur du réseau », 3 pannes, seuil 60 %.'],
+        ['', '3 · Autonome', 'Adresses libres, contraintes masquées, deux réseaux, 4 pannes, seuil 70 %.'],
     ]
     story.append(table_obj([[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B if i == 0 else CELL),
                              Paragraph(r[2], CELL)] for i, r in enumerate(wz_rows)],
-                           [24*mm, 34*mm, CONTENT_W-58*mm]))
+                           [24*mm, 40*mm, CONTENT_W-64*mm]))
     story += [
         Spacer(1, 6),
+        Paragraph('<b>Réseau Internet</b> : la difficulté 1 utilise le routage automatique (RIP) sur deux réseaux, avec les pannes '
+                  '« RIP désactivé » et « DNS arrêté » ; la difficulté 2 utilise des routes statiques sur deux réseaux (route '
+                  'manquante, route par défaut vers un mauvais routeur, passerelle d\'un poste) ; la difficulté 3 ajoute un '
+                  'troisième routeur en chaîne et le DNS arrêté. Le premier routeur est relié à Internet, le serveur web et DNS '
+                  'est dans le dernier réseau. Chaque panne est vérifiée sur un chemin qu\'aucune autre panne ne coupe.', BODY),
         callout('La vérification contrôle trois points : <b>0 point à l\'ouverture</b>, seuil impossible à atteindre '
                 'sans rien réparer ni construire, et chaque objectif atteignable une fois le travail fait. En dépannage, '
                 '<b>Autres appareils</b> tire d\'autres postes en panne.', TIP, '💡'),
         CondPageBreak(40*mm),
         Paragraph(
-            'Le bouton <b>Variante</b> décline l\'activité en cours (scénario fourni, importé ou créé par '
-            'l\'assistant) sans toucher au réseau :',
+            'Le bouton Menu propose aussi <b>Variante</b> : elle décline l\'activité en cours (scénario fourni, importé ou créé par '
+            'l\'assistant) sans toucher au réseau. La difficulté 1, 2 ou 3 règle le niveau de départ ; la variante l\'ajuste '
+            'à l\'intérieur d\'un niveau :',
             BODY),
         Paragraph('• <b>Plus guidée</b> : contraintes affichées sous les objectifs d\'adressage, seuil abaissé de 10 points.', BODY_L),
         Paragraph('• <b>Plus exigeante</b> : adresses exactes laissées au choix quand rien d\'autre ne les utilise, '
@@ -463,23 +493,38 @@ def build_prof(out_path):
                   'faux sur un terminal), avec sa réparation et son test.', BODY_L),
         Paragraph('• Les choix de pannes <b>se combinent</b> : autres appareils et une de plus, par exemple. Une de moins '
                   'et une de plus s\'excluent. Quand aucun appareil ne convient, la fenêtre propose d\'ajouter un poste '
-                  'dans l\'onglet 1.', BODY_L),
+                  'sur le schéma.', BODY_L),
         callout('La variante remplace l\'activité en cours : exportez d\'abord le scénario (bouton de la fenêtre) '
                 'pour garder les deux versions. Ce qui ne peut pas changer est signalé.', WARN, '⚠'),
+        Spacer(1, 4),
+        Paragraph('2.5 Routage : RIP et routes statiques', H2),
+        Paragraph('Un routeur remplit sa <b>table de routage</b> de deux façons. Avec le <b>routage automatique (RIP)</b>, '
+                  'chaque routeur apprend les réseaux de ses voisins de proche en proche : rien à saisir, et les routes suivent '
+                  'les changements du réseau. Avec des <b>routes statiques</b>, chaque route est écrite à la main '
+                  '(réseau, masque, routeur suivant) : plus de contrôle, mais une route oubliée ou fausse coupe la communication. '
+                  'Une route statique reste prioritaire sur ce que RIP apprendrait pour le même réseau.', BODY),
+        Paragraph('• Dans le bureau d\'un routeur ou d\'une box, l\'application <b>Routage</b> active ou arrête RIP, '
+                  'ajoute une route statique (le réseau doit être une vraie adresse de réseau et le routeur suivant doit être '
+                  'relié directement) et la supprime d\'une croix. L\'élève dispose du même outil.', BODY_L),
+        Paragraph('• Trois pannes de routage : <b>route manquante</b>, <b>mauvais routeur suivant</b> et <b>routage '
+                  'automatique désactivé</b>. Une route apprise par RIP revient d\'elle-même : seule une route statique peut '
+                  'manquer ou être fausse, et le contrôle du corrigé signale une panne qui n\'a aucun effet.', BODY_L),
+        Paragraph('• L\'objectif « Route existante » vérifie la route d\'un routeur vers un réseau, et peut imposer le routeur '
+                  'suivant (une adresse ou « l\'adresse de… »).', BODY_L),
         Spacer(1, 4),
     ]
 
     # 3. Scénarios
     story += [
-        CondPageBreak(60*mm),
+        CondPageBreak(95*mm),
         Paragraph('3. Scénarios prêts à l\'emploi', H1), hr(),
         Paragraph(
             'Quatre scénarios JSON complets sont fournis dans le dossier <b>scenarios/</b>. '
-            'Chargez-les avec le bouton <b>Ouvrir</b>, en haut du builder.',
+            'Chargez-les avec <b>Ouvrir</b>, dans le bouton Menu du builder.',
             BODY),
     ]
     sc_rows = [
-        ['Fichier', 'Titre', 'Niveau', 'Obj. / Seuil'],
+        ['Fichier', 'Titre', 'Public', 'Obj. / Seuil'],
         ['scenarios/reseau-maison.json',    'Réseau Maison — Panne WiFi',           '4e / 3e',       '7 / 60%'],
         ['scenarios/reseau-college.json',   'Réseau du collège — Adressage par salle', 'Collège',    '8 / 60%'],
         ['scenarios/reseau-entreprise.json','Réseau Entreprise — Serveur en panne', 'Term. / BTS',   '7 / 60%'],
@@ -506,12 +551,12 @@ def build_prof(out_path):
     story += [CondPageBreak(105*mm), Paragraph('4. Workflow complet', H1), hr()]
     wf_p = [[Paragraph(r[0], CELL_B), Paragraph(r[1], CELL_B), Paragraph(r[2], CELL)] for r in [
         ['1', 'Ouvrir le Builder',        'Double-cliquez sur scorm-builder.html dans Chrome ou Firefox.'],
-        ['2', 'Construire le réseau',     'Onglet 1 : appareils, câbles, IP — ou Nouvelle activité pour partir d\'un modèle.'],
-        ['3', 'Configurer l\'évaluation', 'Onglet 2 : objectifs, pannes, score de maîtrise.'],
-        ['4', 'Tester',                   "Contrôle du corrigé, puis vue Essai pour jouer l'élève, ou bouton « Tester comme élève »."],
-        ['5', 'Générer',                  'Onglet 3 : SCORM, HTML, énoncé imprimable et son corrigé.'],
+        ['2', 'Construire le réseau',     'Vue Conception : appareils, liaisons, IP — ou Menu, Nouvelle activité pour partir d\'un modèle.'],
+        ['3', 'Configurer l\'évaluation', 'Bandeau Évaluation : objectifs, pannes, score de maîtrise.'],
+        ['4', 'Tester',                   "Onglet Contrôle (corrigé complet ?), puis vue Test pour jouer l'élève, ou Tester comme élève."],
+        ['5', 'Exporter',                 'Menu : SCORM, HTML, énoncé imprimable et son corrigé.'],
         ['6', 'Déployer sur Moodle',      'Importez le .zip SCORM dans votre cours.'],
-        ['7', 'Enregistrer le scénario',  'Bouton Enregistrer (fichier .json), à rouvrir avec Ouvrir.'],
+        ['7', 'Enregistrer le scénario',  'Menu, Enregistrer (fichier .json), à rouvrir avec Ouvrir.'],
     ]]
     story.append(workflow_table(wf_p))
     story.append(Spacer(1, 8))
@@ -520,7 +565,7 @@ def build_prof(out_path):
     story += [Paragraph('5. Raccourcis clavier', H1), hr()]
     kb_rows = [
         ['Raccourci', 'Action'],
-        ['Ctrl+1 / 2 / 3', 'Naviguer entre les onglets'],
+        ['Ctrl+1 / 2 / 3', 'Replier le bandeau / ouvrir Évaluation / ouvrir Contrôle'],
         ['Ctrl+Z / Ctrl+Y', 'Annuler / Rétablir'],
         ['Ctrl+C / Ctrl+V', 'Copier / Coller un appareil sélectionné'],
         ['Échap',           'Revenir à l\'outil Sélection (annule un câble en cours)'],
@@ -552,7 +597,7 @@ def build_prof(out_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOC ELEVE  v2.0
+#  DOC ELEVE  v2.1
 # ══════════════════════════════════════════════════════════════════════════════
 def build_eleve(out_path):
     doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -561,7 +606,7 @@ def build_eleve(out_path):
     doc._badge       = 'Activité élève'
     doc._title       = 'Guide Élève'
     doc._tagline     = 'Apprendre les réseaux en simulant les protocoles TCP/IP'
-    doc._subtitle    = 'Guide élève v2.0'
+    doc._subtitle    = 'Guide élève v2.1'
     doc._subnote     = 'Activité pédagogique — Lycée'
     doc._headertitle = 'Guide Élève'
     doc._hdr_color   = DGREEN
@@ -611,11 +656,11 @@ def build_eleve(out_path):
                   "applications : Invite de commandes, Navigateur, Paramètres réseau, WiFi et, sur un serveur ou une "
                   "box, les réglages de ses services.", BODY_L),
         Paragraph("• Pour <b>ajouter</b> un appareil, faites-le glisser depuis la palette de gauche. Pour <b>câbler</b>, "
-                  "choisissez l'outil Câble puis cliquez sur les deux appareils. <b>Suppr</b> efface l'élément "
+                  "choisissez l'outil Liaison puis cliquez sur les deux appareils (câble ou liaison WiFi, selon les appareils). <b>Suppr</b> efface l'élément "
                   "sélectionné.", BODY_L),
         callout("Une erreur ? <b>Ctrl+Z</b> annule votre dernière action, <b>Ctrl+Y</b> la rétablit (boutons Annuler et "
-                "Rétablir, en haut). Le bouton « Recharger le réseau de départ », dans la même barre, fait tout "
-                "recommencer.", TIP, '💡'),
+                "Rétablir, en haut). Dans le menu <b>Menu</b>, « Repartir de zéro » remet le réseau de départ ; "
+                "<b>Terminer</b> envoie votre note quand vous avez fini.", TIP, '💡'),
         Spacer(1, 6),
     ]
 
@@ -675,9 +720,14 @@ def build_eleve(out_path):
                 '<b>Demander une adresse (DHCP)</b>, ou tapez la commande <b>dhcp</b> dans le terminal. Si vous décochez '
                 'la case, l\'adresse fixe saisie avant revient.', INFO, '■'),
         Paragraph("<b>Se connecter au WiFi :</b> reliez le portable, le téléphone ou la tablette à la Box WiFi avec "
-                  "l'outil Câble, puis ouvrez son bureau, application <b>WiFi</b> : vérifiez le réseau (SSID) et tapez "
+                  "l'outil Liaison, puis ouvrez son bureau, application <b>WiFi</b> : vérifiez le réseau (SSID) et tapez "
                   "le mot de passe de la box. Tant qu'ils ne correspondent pas, la liaison reste en pointillé rouge "
                   "et l'appareil ne joint rien.", BODY),
+        Paragraph("<b>Routeurs et plusieurs réseaux</b> : un poste joint un autre réseau par sa passerelle, qui est l'adresse "
+                  "du routeur de son réseau. Le routeur choisit ensuite la route d'après sa <b>table de routage</b> "
+                  "(commande <b>route</b>, ou bureau du routeur, application <b>Routage</b>). Elle peut être remplie "
+                  "automatiquement (<b>RIP</b>) ou à la main : l'application Routage permet d'ajouter une <b>route "
+                  "statique</b> (réseau, masque, routeur suivant) et de la supprimer.", BODY),
         Paragraph("<b>Services d'un serveur ou de la box</b> (web, DNS, DHCP, WiFi) : ils se règlent dans le bureau "
                   "de l'appareil, pas dans sa fiche.", BODY),
         Spacer(1, 8),
@@ -732,6 +782,10 @@ def build_eleve(out_path):
          'l\'appareil visé ne sait pas répondre (sa passerelle, ou une route manquante au retour). Sinon, vérifiez '
          'que les deux appareils sont dans le même sous-réseau, ou qu\'une passerelle est configurée pour sortir '
          'du réseau local.'),
+        ('Un autre réseau reste injoignable',
+         'Faites un <b>traceroute</b> : le dernier routeur affiché est celui qui ne sait pas continuer. Ouvrez son bureau, '
+         'application <b>Routage</b> : y a-t-il une route vers le réseau visé, avec le bon routeur suivant ? Le routage '
+         'automatique (RIP) est-il activé ? Pensez au retour : le réseau visé doit aussi connaître une route vers votre réseau.'),
         ('DNS ne résout pas',
          'Vérifiez que l\'adresse DNS du PC pointe vers un Serveur ayant le service DNS activé '
          'et que l\'enregistrement du domaine est configuré.'),

@@ -30,51 +30,69 @@ Interface graphique complète du SCORM Builder. Fichier HTML **standalone** (auc
 - **EvalModule** — gestion des objectifs pédagogiques, du score SCORM et des pannes (mode panne)
 - **GenModule** — génération des exports (ZIP SCORM et HTML standalone), import/export de scénarios JSON
 
-**3 onglets builder :**
+**Interface du builder (« Atelier Réseau ») :** une seule barre en haut, le schéma, la fiche de l'appareil à droite
+et un bandeau en bas.
 
-| Onglet | Rôle |
-|--------|------|
-| **1 Réseau** | Construire la topologie : appareils, câbles, adressage IP, WiFi, services |
-| **2 Évaluation** | Définir les objectifs pédagogiques, les points, le score de maîtrise et les pannes à injecter |
-| **3 Générer** | Exporter en SCORM (.zip) ou HTML standalone, importer/exporter un scénario JSON |
+| Élément | Rôle |
+|---------|------|
+| **Menu ☰** | Nouvelle activité, Nouveau, Ouvrir, Enregistrer, Variante, exports SCORM / HTML / énoncé / corrigé, Options d'export, Tester comme élève, plein écran |
+| **Vues** | **Conception** (le corrigé), **Départ élève** (lecture seule), **Test** (le professeur joue l'élève) |
+| **Pastille d'état** | En Conception : l'état du corrigé. En Départ élève et Test : le score de l'élève |
+| **Bandeau du bas** | **Évaluation** (activité, objectifs, pannes), **Contrôle** (contrôle du corrigé), **Journal**, **Paquets** ; se replie d'un clic |
 
-**✨ Nouvelle activité** (barre du haut) : choisir un type (Construction, Dépannage, Découverte), un thème
-(Maison, Entreprise, Salle de classe) et un niveau (Collège, Lycée, BTS / Terminale). Le builder propose le
-réseau, les objectifs, les pannes, le barème et les consignes, et vérifie l'activité avant de la créer : score
-de 0 à l'ouverture, seuil impossible à atteindre sans réparer ni construire, chaque objectif atteignable. Le
-niveau règle l'exigence : adresses données au collège, à choisir dans une plage au lycée, libres avec
-contraintes masquées en BTS ; deux réseaux routés en BTS. En dépannage, 🎲 *Autres appareils* tire d'autres
-postes en panne. Tout reste modifiable ensuite. Dans la salle de classe, l'ENT est hébergé sur Internet (serveur
-à adresse publique relié au nœud Internet, nom résolu par le DNS public) ; le réseau de l'établissement a son
-Serveur-Données pour les profils des élèves.
+**✨ Nouvelle activité** (menu ☰) : choisir un type (Construction, Dépannage, Découverte, **Réseau Internet**), un thème
+et une **difficulté** (1 · Guidé, 2 · Intermédiaire, 3 · Autonome). Le builder propose le réseau, les objectifs, les
+pannes, le barème et les consignes, et vérifie l'activité avant de la créer : score de 0 à l'ouverture, seuil
+impossible à atteindre sans réparer ni construire, chaque objectif atteignable. La difficulté règle l'exigence :
+valeurs données et contraintes affichées en 1, adresse à choisir dans une plage et passerelle à trouver en 2, adresses
+libres avec contraintes masquées et deux réseaux routés en 3 (2, 3 puis 4 pannes). En dépannage, 🎲 *Autres
+appareils* tire d'autres postes en panne. Dans les modèles « Construction », le poste à ajouter (et la tablette en
+WiFi, en Maison) est posé dans le corrigé avec la case « à ajouter par l'élève » : le contrôle du corrigé le vérifie en
+entier. Tout reste modifiable ensuite. Dans la salle de classe, l'ENT est hébergé sur Internet (serveur à adresse
+publique relié au nœud Internet, nom résolu par le DNS public) ; le réseau de l'établissement a son Serveur-Données
+pour les profils des élèves.
 
-**Trois vues du schéma** (boutons en haut du schéma) : **Corrigé**, le réseau qui fonctionne, où tout se règle ;
+**Type « Réseau Internet »** : plusieurs réseaux reliés par des routeurs, le premier relié à Internet, serveur web et
+DNS dans le dernier réseau. Thèmes : *Siège et agences*, *Lycée et annexe*, *Client et hébergeur*. Difficulté 1 : deux
+réseaux en routage automatique (RIP), pannes « RIP désactivé » et « DNS arrêté » ; 2 : deux réseaux en routes
+statiques, pannes « route manquante », « mauvais routeur suivant » (route par défaut) et passerelle d'un poste ;
+3 : trois routeurs en chaîne et le DNS arrêté en plus.
+
+**Trois vues du schéma** (boutons de la barre) : **Conception**, le réseau qui fonctionne, où tout se règle ;
 **Départ élève**, ce que l'élève trouve à l'ouverture (corrigé avec les pannes, pastilles P1, P2…), en lecture
-seule ; **Essai**, la même copie où le professeur joue l'élève et obtient le score qu'il aurait. Les exports partent
-toujours du corrigé.
+seule ; **Test**, la même copie où le professeur joue l'élève et obtient le score qu'il aurait (« ↺ Repartir de
+zéro » remet le réseau et le score au départ). Les exports partent toujours du corrigé.
 
-**Contrôle du corrigé** : en vue Corrigé, l'en-tête n'affiche pas de score mais l'état du corrigé (« Corrigé
-complet », « N objectifs non réalisés », « N pannes à revoir »). Un clic ouvre un tableau, une ligne par objectif :
-réalisé ou non dans le corrigé (les commandes ping, nslookup, page web et DHCP sont rejouées automatiquement, avec
-la raison d'un échec), puis ce qu'il vaut au départ de l'élève (à faire, déjà acquis, panne qui le casse). Une panne
-qui ne change rien est signalée.
+**Contrôle du corrigé** : en vue Conception, la pastille de la barre n'affiche pas de score mais l'état du corrigé :
+« ✅ Corrigé complet » (tous les objectifs sont vérifiés), « 🧪 N vérifiés · M à vérifier en Test » (ce que l'élève
+doit encore construire), « ⚠️ Corrigé non conforme · N non atteignables » ou « ⚠️ Corrigé : N pannes à revoir ». Un
+clic ouvre l'onglet **Contrôle** du bandeau, une ligne par objectif : réalisé ou non dans le corrigé (les commandes
+ping, nslookup, page web et DHCP sont rejouées automatiquement, avec la raison d'un échec), puis ce qu'il vaut au
+départ de l'élève (à faire, déjà acquis, panne qui le casse). Une panne qui ne change rien est signalée.
 
-**Appareil à ajouter par l'élève** : une case sur la fiche d'un appareil, en vue Corrigé. L'appareil reste dans le
-corrigé, avec ses câbles et ses réglages, et il est retiré du réseau que reçoit l'élève et de son énoncé.
+**Appareil à ajouter par l'élève** : une case sur la fiche d'un appareil, en vue Conception, ou le bouton
+« + Appareil à ajouter » du bandeau Évaluation (qui crée aussi l'objectif « Poste ajouté »). L'appareil reste dans le
+corrigé, avec ses câbles et ses réglages (pastille verte « + »), et il est retiré du réseau que reçoit l'élève et de
+son énoncé.
 
 **Pannes notées** : une panne porte ses points (« Points si l'élève la répare ») ; la réparation est mesurée sur la
 valeur du corrigé, sans objectif à créer.
 
 **Bureau des appareils** : un double-clic sur un appareil ouvre son bureau (Invite de commandes, Navigateur,
-Paramètres réseau, WiFi, services d'un serveur ou de la box). Il n'y a plus de mode Configuration ni Simulation :
-un clic ouvre la fiche, un double-clic le bureau, chez le professeur comme chez l'élève.
+Paramètres réseau, WiFi, services d'un serveur ou de la box, **Routage** d'un routeur). Il n'y a plus de mode
+Configuration ni Simulation : un clic ouvre la fiche, un double-clic le bureau, chez le professeur comme chez
+l'élève.
 
-**Ouvrir, enregistrer** : le builder s'ouvre vierge. « 📂 Ouvrir » reprend un scénario `.json`, « 💾 Enregistrer »
-le garde ; fermer l'onglet avec un travail non enregistré déclenche une alerte.
+**Routage** : l'application Routage du bureau d'un routeur ou d'une box active ou arrête le routage automatique (RIP),
+ajoute une **route statique** (réseau, masque, routeur suivant) et la supprime. Trois pannes de routage : route
+manquante, mauvais routeur suivant, RIP désactivé.
 
-**Indices et descriptions** (onglet 2) : chaque objectif a un champ *Indice*, affiché à l'élève sous l'objectif tant
+**Ouvrir, enregistrer** : le builder s'ouvre vierge. « 📂 Ouvrir » (menu ☰) reprend un scénario `.json`,
+« 💾 Enregistrer » le garde ; fermer l'onglet avec un travail non enregistré déclenche une alerte.
+
+**Indices et descriptions** (bandeau Évaluation) : chaque objectif a un champ *Indice*, affiché à l'élève sous l'objectif tant
 qu'il n'est pas atteint. Il est pré-rempli selon le type d'objectif, ses paramètres et la panne qu'il répare (« Outil
-Câble : reliez PC-Bureau à Switch-Salon », ou « ipconfig est bon mais rien ne passe ? Regardez les câbles de
+Liaison : reliez PC-Bureau à Switch-Salon », ou « ipconfig est bon mais rien ne passe ? Regardez les câbles de
 PC-Bureau » quand une panne débranche ce câble). L'indice proposé suit l'objectif et les pannes tant qu'il n'est pas
 réécrit ; ↺ revient à la proposition, un champ vide supprime l'indice. De même, la *Description de la panne* est
 pré-remplie (type et appareil) et modifiable.
@@ -83,49 +101,49 @@ pré-remplie (type et appareil) et modifiable.
 que le DHCP est coché, sans effet sur la simulation ni sur les objectifs) ; la décocher les remet en place. Cette
 configuration mise de côté n'est pas transmise à l'élève.
 
-**🔀 Variante** : décline l'activité en cours sans toucher au réseau. *Plus guidée* (contraintes affichées,
+**🔀 Variante** (menu ☰) : décline l'activité en cours sans toucher au réseau. *Plus guidée* (contraintes affichées,
 seuil −10), *plus exigeante* (adresses exactes laissées au choix quand rien d'autre ne les utilise, passerelle
 « routeur du réseau », contraintes et indices masqués, seuil +10) ; pannes *sur d'autres appareils* (la
 réparation et ses tests suivent, adresses et libellés compris ; sur un petit réseau où chaque poste a déjà sa panne,
 deux pannes échangent leurs postes ; un mot de passe WiFi faux passe à un autre terminal de la box), *une de moins*
 ou *une de plus* (avec sa réparation et son test). Les choix de pannes se combinent (*autres appareils* et *une de
 plus*, par exemple ; *une de moins* et *une de plus* s'excluent). Quand aucun appareil ne convient, la fenêtre le
-dit et propose d'ajouter un poste dans l'onglet Réseau. La fenêtre liste ce qui change et vérifie la variante ; exporter d'abord l'activité
+dit et propose d'ajouter un poste sur le schéma. La fenêtre liste ce qui change et vérifie la variante ; exporter d'abord l'activité
 actuelle pour garder les deux versions.
 
 **Types d'appareils disponibles :** PC, Serveur (HTTP/DNS/DHCP), Switch, Routeur, Box WiFi, Internet, Cadre, Annotation texte.
 
 **Utilisation :**
 1. Ouvrir `scorm-builder.html` dans Chrome ou Firefox
-2. Onglet **Réseau** : construire la topologie, configurer les IP et les services
-3. Onglet **Évaluation** : ajouter les objectifs et les pannes
-4. Onglet **Générer** : exporter le SCORM (Moodle) ou le HTML (test local)
+2. Vue **Conception** : construire la topologie, configurer les IP et les services (ou menu ☰ › Nouvelle activité)
+3. Bandeau **Évaluation** : ajouter les objectifs et les pannes ; onglet **Contrôle** pour vérifier le corrigé
+4. Menu ☰ : exporter le SCORM (Moodle) ou le HTML (test local) ; vue **Test** pour jouer l'élève
 
-**Raccourcis clavier :** `Ctrl+1/2/3` (onglets), `Ctrl+Z` / `Ctrl+Y` (annuler, rétablir, chez l'élève aussi), `Échap` (retour à l'outil Sélection, depuis n'importe quel outil, en annulant un câble en cours), `Suppr` (effacer l'appareil, le câble, le cadre ou le texte sélectionné ; `Ctrl+Z` l'annule dans le builder), `F11` (plein écran). En mode câble, le pointeur prend la forme du câble.
+**Raccourcis clavier :** `Ctrl+1/2/3` (replier le bandeau, ouvrir Évaluation, ouvrir Contrôle), `Ctrl+Z` / `Ctrl+Y` (annuler, rétablir, chez l'élève aussi), `Échap` (retour à l'outil Sélection, depuis n'importe quel outil, en annulant un câble en cours), `Suppr` (effacer l'appareil, le câble, le cadre ou le texte sélectionné ; `Ctrl+Z` l'annule dans le builder), `F11` (plein écran). En mode câble, le pointeur prend la forme du câble.
 
 ---
 
 ### Tests unitaires
 
 #### `tests/sim-tests.js`
-Suite de **412 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
+Suite de **453 tests** couvrant le moteur de simulation réseau, l'évaluation et les scénarios fournis. S'exécute avec Node.js sans navigateur, via un sandbox `vm.createContext()` qui extrait le code JS du `scorm-builder.html`.
 
 **Suites couvertes :**
 - Fonctions réseau de base : `ip2n`, `isValidUserIP`, `isValidUserMask`, `sameNet`, `netAddr`, `isRouter`, `lanSeg`, `cablePath`, `devByIP`
 - Simulation applicative : `simPing` (LAN, WiFi, pont WiFi ↔ câble de la box, routé, internet), `simDNS`, `simHTTP`, `simDHCP`
 - Routage : `getRoutingTable`, `autoRoute` (RIP propagé, route par défaut), acheminement par les tables, route la plus précise, retour des réponses, boucles, adresses inconnues privées ou publiques
 - Évaluation : `checkObjectiveStatic` (10 types statiques, adresses en plage ou joker, références `{Appareil}`, passerelle cohérente), `checkDynamicObjective` (4 types dynamiques), objectifs perdus quand l'élève casse sa configuration, contrainte affichée à l'élève
-- Mode panne : `applyFaults` (8 types de pannes, formats plat et imbriqué)
+- Mode panne : `applyFaults` (11 types de pannes dont trois de routage, formats plat et imbriqué)
 - Connexion WiFi : SSID et mot de passe du terminal, liaison inactive et messages tant qu'ils ne correspondent pas à la box
 - Commandes élève : terminal et navigateur jusqu'à la validation des objectifs
 - Score et SCORM : calcul du score, seuil de réussite, échanges avec un LMS simulé
 - Session : sauvegarde, reprise, réseau de départ
 - Scénarios : pour chaque fichier de `scenarios/`, cohérence, score de 100 une fois le réseau corrigé, et score sous le seuil tant que les pannes ne sont pas réparées
-- Assistant et variantes : les mêmes règles pour chaque modèle (27 combinaisons, 3 tirages) et chaque variante des scénarios fournis
+- Assistant et variantes : les mêmes règles pour chaque modèle (3 types × 3 thèmes × 3 difficultés, plus le type Réseau Internet et ses 3 thèmes, 3 tirages) et chaque variante des scénarios fournis
 
 ```bash
 node tests/sim-tests.js
-# ✅ 396/396 tests passés — SUCCÈS
+# ✅ 453/453 tests passés — SUCCÈS
 ```
 
 #### `tests/e2e/`
@@ -142,7 +160,7 @@ Ces tests ne remplacent pas un essai sur un vrai Moodle, et ne couvrent ni le dr
 
 ### Scénarios prêts à l'emploi (`scenarios/`)
 
-Quatre scénarios JSON complets couvrant les 14 types d'objectifs et 5 des 8 types de pannes. À charger via **Onglet 3 Générer → 📂 Importer un scénario**.
+Quatre scénarios JSON complets couvrant les 14 types d'objectifs. À charger via **menu ☰ → 📂 Ouvrir**. Dans `reseau-college` et `reseau-lycee`, le poste à ajouter est posé dans le corrigé avec la case « à ajouter par l'élève ».
 
 Tous démarrent avec un score de **0** : chaque point se gagne en réparant une panne, en construisant ce qui est demandé ou en prouvant par une commande (ping, nslookup, navigateur, dhcp) que le réseau fonctionne. Les tests vérifient ce score de départ pour chaque fichier de `scenarios/`.
 
@@ -197,7 +215,7 @@ Objectifs couverts : `cable_exists`, `ip_configured`, `device_added`, `ping_succ
 ### Documentation
 
 #### `docs/doc-prof.pdf`
-Guide complet pour les **enseignants** : présentation, 3 onglets du builder, assistant « Nouvelle activité » et variantes, 14 types d'objectifs, mode panne, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
+Guide complet pour les **enseignants** : présentation, interface du builder, assistant « Nouvelle activité » et variantes, 14 types d'objectifs, mode panne, routage, workflow en 7 étapes, import/export de scénarios, raccourcis clavier.
 
 #### `docs/doc-eleve.pdf`
 Guide de prise en main pour les **élèves** : interface, fiche et bureau des appareils, commandes du terminal (`ping`, `ipconfig`, `nslookup`, `dhcp`, `traceroute`…), navigateur du bureau pour le web, objectifs et score, exemple guidé, résolution de problèmes.
@@ -234,7 +252,6 @@ node tests/sim-tests.js
 {
   "version": 1,
   "createdAt": "2026-06-18T00:00:00.000Z",
-  "teacherPwd": "prof",
   "network": {
     "nid": 8,
     "devs": {
@@ -283,7 +300,7 @@ node tests/sim-tests.js
 | `service_active` | Configuration | `dev`, `service` (`http`/`dns`/`dhcp`) |
 | `device_added` | Configuration | `newdev`, `type`, `ip`, `mask`, `gateway` |
 | `ssid_configured` | Configuration | `dev`, `ssid` |
-| `route_exists` | Configuration | `dev`, `dest` |
+| `route_exists` | Configuration | `dev`, `dest`, `mask`, `gw` (routeur suivant, facultatif) |
 | `dns_record` | Configuration | `dev`, `domain`, `ip` |
 
 **Adresses au choix.** Dans `ip_configured`, `gateway_configured` et `device_added`, l'adresse
@@ -326,7 +343,7 @@ types, l'enseignant peut en rédiger un. Dans le builder, le bloc « Montrer une
 de chaque objectif propose le texte généré, qui suit les paramètres tant qu'il n'est pas modifié,
 et un lien pour y revenir.
 
-**Ordre des objectifs et des pannes.** Dans l'onglet 2, objectifs (pastille bleue numérotée) et
+**Ordre des objectifs et des pannes.** Dans le bandeau Évaluation, objectifs (pastille bleue numérotée) et
 pannes (pastille rouge P1, P2…) forment une seule liste, réordonnable par glisser-déposer (⠿) ou avec
 ▲ ▼. L'ordre est enregistré dans `evalOrder` (clés `o:<id>` pour un objectif, `f:<id>` pour une panne) ;
 les objectifs sont présentés à l'élève dans cet ordre. Sans `evalOrder`, les objectifs viennent
@@ -339,14 +356,14 @@ objectif reste affiché, marqué « (introuvable) », et l'aperçu de l'objectif
 nom d'un appareil est reconnu sans tenir compte de la casse ni des espaces, y compris pour l'appareil
 d'où part un ping, une résolution DNS, une page web ou une demande DHCP.
 
-**Plan d'adressage.** L'énoncé imprimable (onglet 3) contient un tableau construit à partir des
+**Plan d'adressage.** L'énoncé imprimable contient un tableau construit à partir des
 objectifs d'adressage (`ip_configured`, `gateway_configured`, `dns_configured`, `device_added`) : une
 ligne par appareil, regroupée par encadré, et seulement les colonnes utilisées (IP, masque,
 passerelle, DNS). Chaque case suit le niveau choisi : valeur écrite, contrainte avec une ligne à
 compléter (« entre 192.168.1.10 et .50 : ____ », « adresse du routeur : ____ », « adresse de
 Srv-DNS : ____ »), ou ligne vide. Une valeur exacte n'est écrite que si la contrainte de l'objectif est
 affichée. Un appareil à ajouter rejoint l'encadré de l'appareil auquel un objectif de câblage le relie ;
-un appareil cité par « l'adresse de… » sans ligne propre est donné en référence. Une case de l'onglet 3
+un appareil cité par « l'adresse de… » sans ligne propre est donné en référence. Une case des options d'export
 retire le plan de l'énoncé.
 
 Le bouton **Corrigé enseignant** produit le même document, rempli avec les adresses du réseau actuel
@@ -368,7 +385,7 @@ retour :
 Les routes RIP sont recalculées (à l'ouverture de l'activité, à l'import dans le builder, à chaque
 modification d'un routeur) et se propagent de proche en proche ; l'appareil Internet annonce la route
 par défaut et n'apprend aucun réseau du schéma. Un routeur dont le routage automatique est décoché
-n'apprend rien : sans éditeur de routes, il ne communique qu'avec ses réseaux directs.
+n'apprend rien : il ne communique qu'avec ses réseaux directs et les routes statiques qu'on y écrit (application Routage du bureau).
 
 **Connexion WiFi.** Une liaison WiFi tracée vers une box ne transporte rien tant que le terminal n'a
 pas choisi le réseau de la box (SSID) et, pour un réseau protégé, saisi son mot de passe : liaison en
@@ -386,7 +403,7 @@ l'élève casse sa configuration, il perd les points, et le score affiché est l
 LMS. Un objectif de simulation (ping, DNS, HTTP, DHCP) se valide par une commande réussie, puis cette
 commande est rejouée sans affichage à chaque modification du réseau.
 
-**8 types de pannes (`faults`) :**
+**11 types de pannes (`faults`) :**
 
 | Type | Effet | Paramètres |
 |------|-------|------------|
@@ -398,6 +415,9 @@ commande est rejouée sans affichage à chaque modification du réseau.
 | `missing_cable` | Câble débranché | `devA`, `devB` |
 | `ssid_wrong` | SSID WiFi incorrect : les terminaux de la box se déconnectent | `dev`, `badValue` |
 | `wifi_pass_wrong` | Mot de passe WiFi incorrect sur un terminal | `dev`, `badValue` |
+| `route_missing` | Route statique retirée (une route RIP revient seule) | `dev` (routeur), `dest` |
+| `bad_route` | Route statique renvoyée vers un mauvais routeur suivant | `dev`, `dest`, `badValue` |
+| `routing_off` | Routage automatique (RIP) désactivé, routes apprises perdues | `dev` (routeur) |
 
 ---
 
@@ -409,7 +429,7 @@ open scorm-builder.html          # macOS
 start scorm-builder.html         # Windows
 
 # Charger un scénario de démonstration
-# → Onglet 3 Générer → 📂 Importer un scénario → scenarios/reseau-maison.json
+# → menu ☰ → 📂 Ouvrir → scenarios/reseau-maison.json
 
 # Lancer les tests unitaires
 node tests/sim-tests.js
@@ -444,18 +464,17 @@ Seuls les textes officiels en anglais de ces licences font foi.
 
 ### Étape 1 — Tester le builder (côté enseignant)
 1. Ouvrir `scorm-builder.html`
-2. **Onglet Réseau** : ajouter des appareils, les câbler, configurer les IP
-3. Ouvrir un scénario : **📂 Ouvrir** (barre du haut) → `scenarios/reseau-maison.json`
-4. Vérifier que les objectifs apparaissent dans l'**Onglet 2 Évaluation**
-5. Exporter en HTML : **🧪 Exporter en HTML** et ouvrir le fichier téléchargé
+2. Vue **Conception** : ajouter des appareils, les relier, configurer les IP
+3. Ouvrir un scénario : menu ☰ › **📂 Ouvrir** → `scenarios/reseau-maison.json`
+4. Vérifier que les objectifs apparaissent dans le bandeau **Évaluation**
+5. Exporter en HTML : menu ☰ › **Exporter en HTML** et ouvrir le fichier téléchargé
 
 ### Étape 2 — Tester l'activité (côté élève)
 1. Ouvrir le fichier HTML exporté
-2. L'onglet **📋 Activité** en bas liste les objectifs à atteindre
+2. L'onglet **Activité** du bandeau du bas liste les objectifs à atteindre
 3. Double-cliquer sur un poste pour ouvrir son bureau, puis utiliser l'invite de commandes (`ping`, `ipconfig`, `nslookup`, `dhcp`)
 4. Corriger les pannes dans la fiche des appareils (clic) ou dans leur bureau (services, WiFi)
 5. Vérifier que le score progresse et que les objectifs se valident
-6. Tester le mode enseignant : mot de passe `prof` (bouton discret en bas à droite)
 
 ### Étape 3 — Signaler vos retours
 **E-mail :** sylvain.guilbert1@ac-toulouse.fr
