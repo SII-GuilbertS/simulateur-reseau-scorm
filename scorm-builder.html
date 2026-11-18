@@ -5264,6 +5264,28 @@ var EvalModule = (function() {
     }, 50);
   }
 
+  /* Objectif « Poste ajouté » pour un appareil que l'élève doit ajouter (bouton « + Appareil à ajouter ») : le poste est
+     imposé par son nom et son genre, l'adresse reste à préciser dans la carte. Même présentation que addObjective. */
+  function addDeviceObjective(name, type) {
+    var obj = {
+      id: 'obj_' + (_nextId++),
+      label: 'Le poste ' + name + ' est ajouté au réseau',
+      check: 'device_added',
+      points: 10,
+      params: { newdev: name, type: type || 'pc', ip: '', mask: '', gateway: '' }
+    };
+    _config.objectives.push(obj);
+    obj.hint = _autoHints[obj.id] = autoHint(obj);
+    renderObjectives();
+    setTimeout(function(){
+      var wrap = document.querySelector('[data-objid="'+obj.id+'"]');
+      var body = wrap && wrap.querySelector('.obj-card-body');
+      if(body) body.classList.add('open');
+      if(wrap && wrap.scrollIntoView) wrap.scrollIntoView({block:'nearest'});
+    }, 50);
+    return obj.id;
+  }
+
   function removeObjective(id) {
     _config.objectives = _config.objectives.filter(function(o){ return o.id !== id; });
     renderObjectives();
@@ -5827,6 +5849,7 @@ var EvalModule = (function() {
     getConfig: getConfig,
     setConfig: setConfig,
     addObjective: addObjective,
+    addDeviceObjective: addDeviceObjective,
     removeObjective: removeObjective,
     updateObjectiveField: updateObjectiveField,
     toggleCard: toggleCard,
@@ -7750,8 +7773,10 @@ var BldEval = (function(){
       snapHistory();
       var id = mkDev(type, at.x, at.y, kind);
       S.devs[id].toAdd = true;
-      S.sel = id; render(); showProps(id); checkAllObjectives();
-      notif('➕ ' + S.devs[id].name + ' : à ajouter par l\'élève. Reliez-le au réseau : il part avec ses câbles et ses réglages, et est retiré du réseau de départ.', 'ok');
+      S.sel = id; render(); showProps(id);
+      EvalModule.addDeviceObjective(S.devs[id].name, S.devs[id].type);   // l'objectif « poste ajouté » qui va avec, dans la liste
+      checkAllObjectives();
+      notif('➕ ' + S.devs[id].name + ' : à ajouter par l’élève. Un objectif « poste ajouté » est créé dans la liste ; reliez le poste au réseau, et si vous le renommez, corrigez le nom dans l’objectif.', 'ok');
     }
   };
 })();

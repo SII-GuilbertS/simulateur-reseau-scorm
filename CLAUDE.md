@@ -279,7 +279,8 @@ pour l'évaluation, 215 px pour Journal et Paquets). Mêmes identifiants qu'avan
 `#ev-mastery`, `#ev-displaymode`, `#ev-total-pts`, `#ev-list`…). `openEval()` (ramène au corrigé) remplace `showBuilderTab` ;
 Ctrl+2 ouvre l'évaluation, Ctrl+1 replie le bandeau. Tout clic ou saisie dans le bandeau relance le contrôle (250 ms) : les
 pastilles et la pastille d'état suivent en direct. Bouton « + Appareil à ajouter » (`BldEval.addDev`) : crée un poste
-`toAdd` sur un emplacement libre du schéma visible, sélectionné, annulable (Ctrl+Z). Correction au passage :
+`toAdd` sur un emplacement libre du schéma visible, sélectionné, annulable (Ctrl+Z), et l'objectif « poste ajouté » qui va avec
+(`EvalModule.addDeviceObjective` : `device_added`, nom et genre imposés ; renommer le poste oblige à corriger l'objectif). Correction au passage :
 `studentStartResults` ne désélectionne plus l'appareil du schéma. Tests navigateur : helpers `openEval(page)` / `closeEval(page)`.
 La colonne « Activité » du bandeau prend 40 % de la largeur (`--ev-side-w`) et se redimensionne à la souris par la poignée `#rsz-ev` (plancher 220 px, plafond 75 %, double-clic : retour à 40 %).
 Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scrollIntoView` dans `addObjective` / `addFault`) : la liste dépasse vite la hauteur du bandeau et la nouvelle carte, toute en bas, passait inaperçue.

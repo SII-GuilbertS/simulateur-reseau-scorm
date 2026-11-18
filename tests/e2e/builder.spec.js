@@ -2313,6 +2313,12 @@ test.describe('Bandeau Évaluation', () => {
     const d = await page.evaluate((i) => ({ toAdd: S.devs[i].toAdd, type: S.devs[i].type, kind: S.devs[i].kind, sel: S.sel }), id);
     expect(d).toEqual({ toAdd: true, type: 'pc', kind: 'desktop', sel: id });
     await expect(page.locator(`#layer-badges g[data-toadd="${id}"]`)).toBeVisible();     // pastille verte « + »
+    // L'objectif « poste ajouté » correspondant est dans la liste, nommé d'après le poste
+    const name = await page.evaluate((i) => S.devs[i].name, id);
+    const obj = await page.evaluate((n) => EvalModule.getConfig().objectives.filter((o) => o.check === 'device_added' && o.params.newdev === n)
+      .map((o) => ({ type: o.params.type, label: o.label })), name);
+    expect(obj).toEqual([{ type: 'pc', label: `Le poste ${name} est ajouté au réseau` }]);
+    await expect(page.locator('#ev-obj-count')).toHaveText('8');
     await expect(page.locator('#toadd')).toBeChecked();                                   // case de la fiche
 
     // Ctrl+Z le retire ; Départ élève ne le montre pas
