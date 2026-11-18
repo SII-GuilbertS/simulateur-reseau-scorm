@@ -478,7 +478,7 @@ function svgPt(e){var r=document.getElementById('canvas').getBoundingClientRect(
 /* Lecture seule : la vue « Départ élève » du builder (deskView), où rien ne se modifie, ni sur le
    schéma ni dans la fiche. Chez l'élève, toujours faux. */
 function readOnly(){return deskView()==='depart';}
-function roNotice(){notif('👁️ Vue « Départ élève » en lecture seule : passez en « Essai » pour agir','info');}
+function roNotice(){notif('👁️ Vue « Départ élève » en lecture seule : passez en « Test » pour agir','info');}
 
 /* Appui sur un appareil. Outils Supprimer et Câble : l'action de l'outil. Sinon : sélection, fiche,
    début d'un glisser ; un second appui rapproché ouvre son
@@ -1181,7 +1181,7 @@ function deskOut(id,fn){
 function deskUncounted(body){
   if(deskView()!=='corrige')return;
   var n=document.createElement('div');n.className='dnote';
-  n.textContent='Vue Corrigé : non comptabilisé dans le score. Pour jouer l\'élève, passez en vue Essai.';
+  n.textContent='Vue Conception : non comptabilisé dans le score. Pour jouer l\'élève, passez en vue Test.';
   body.appendChild(n);
 }
 function deskBrowse(id){

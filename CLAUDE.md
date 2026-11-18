@@ -173,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 70 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 71 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -286,6 +286,8 @@ La colonne « Activité » du bandeau prend 40 % de la largeur (`--ev-side-w`) e
 Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scrollIntoView` dans `addObjective` / `addFault`) : la liste dépasse vite la hauteur du bandeau et la nouvelle carte, toute en bas, passait inaperçue.
 
 **Étape 3 faite** : plus de barre orange (`#teacher-bar` reste dans le HTML, masquée en permanence, pour `toggleTeacherMode` du moteur ; suppression à l'étape 6). L'état du corrigé est la pastille `#hdr-score` de l'en-tête ; un clic (`bldScoreClick`) ouvre l'onglet « ✔ Contrôle » du bandeau du bas (`#bt-ctl` / `#tp-ctl`, vue Corrigé seulement, Ctrl+3, `openCtl`), un second clic replie le bandeau. L'onglet porte le titre de l'activité (`#ctl-act`), les pastilles `#ctl-banner` (départ élève, objectifs atteignables, seuil…) et `#ctl-body` (tableau du contrôle et pannes à revoir, `ctlRenderBody`, remis à jour par `ctlRefresh`). En vues Départ élève et Essai, la même pastille `#hdr-score` est déplacée par `_viewUI` dans la barre de la vue (bleue ou verte, emplacement `#vb-score`) et porte le score de l'élève ; son détail (`#score-details`, `renderScoreDetails`) est celui de l'élève, sans aucune mention du corrigé.
+
+**Étape 4 faite** : les vues s'appellent **Conception** (ex-Corrigé), **Départ élève** et **Test** (ex-Essai) ; les identifiants et valeurs internes restent `btn-cfg` / `btn-depart` / `btn-sim` et `'corrige'` / `'depart'` / `'essai'`. « Recommencer l'essai » devient « ↺ Repartir de zéro » dans la barre verte (`restartEssai` : réseau remis au départ de l'élève et score à 0, confirmation seulement si des points seraient perdus). Le bouton « Retour au corrigé » des barres de vue est supprimé (les onglets de vue suffisent), la barre bleue garde « Passer au test ». Le schéma est cadré aux couleurs de la vue (`body[data-view]`, contour bleu ou vert sur `.cw`). La pastille de l'en-tête dit toujours « Corrigé » (c'est l'état du réseau corrigé). Correction au passage : `ActivityWizard.review` / `withNetwork` ne désélectionnent plus l'appareil du schéma (`sel` dans `STATE_KEYS`).
 
 ## Pour reprendre le travail
 

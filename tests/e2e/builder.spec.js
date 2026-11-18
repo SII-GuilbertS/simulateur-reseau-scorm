@@ -1269,7 +1269,7 @@ test.describe('Builder', () => {
 
     // Essai : on répare, le score monte ; sans pastilles de panne
     await page.locator('#btn-sim').click();
-    await expect(page.locator('#view-bar')).toContainText('Essai');
+    await expect(page.locator('#view-bar')).toContainText('Test');
     await expect(page.locator('#layer-badges g')).toHaveCount(0);
     const dns2 = await openDeskApp(page, 'Serveur', 'Serveur DNS');
     await dns2.locator('[data-act="toggle"]').click();
@@ -1415,9 +1415,9 @@ test.describe('Builder', () => {
     await page.locator('#btn-sim').click();
     await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
 
-    // « Recommencer l'essai » : confirmation (des points seraient perdus), puis départ neuf
+    // « Repartir de zéro » : confirmation (des points seraient perdus), puis départ neuf
     page.dialogs.length = 0;
-    await page.locator('#view-bar button', { hasText: 'Recommencer' }).click();
+    await page.locator('#view-bar button', { hasText: 'Repartir de zéro' }).click();
     expect(page.dialogs.at(-1)).toContain('20 % obtenus');
     await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
     expect(await dnsOn()).toBe(false);
@@ -2449,5 +2449,40 @@ test.describe('Contrôle du corrigé dans le bandeau', () => {
     await page.locator('#btn-cfg').click();
     await expect(page.locator('.hdr-r #hdr-score')).toBeVisible();
     await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
+  });
+});
+
+test.describe('Vues Conception · Départ élève · Test', () => {
+  test("les vues portent leurs nouveaux noms ; « Repartir de zéro » remet réseau et score au départ ; cadre coloré selon la vue", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(page.locator('#btn-cfg')).toHaveText(/Conception/);
+    await expect(page.locator('#btn-depart')).toHaveText(/Départ élève/);
+    await expect(page.locator('#btn-sim')).toHaveText(/Test/);
+    await expect(page.locator('body')).toHaveAttribute('data-view', 'corrige');
+
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('body')).toHaveAttribute('data-view', 'depart');
+    await expect(page.locator('#view-bar button', { hasText: 'Passer au test' })).toBeVisible();
+    await expect(page.locator('#view-bar button', { hasText: 'Retour' })).toHaveCount(0);
+    expect(await page.locator('.cw').evaluate((e) => getComputedStyle(e).outlineStyle)).toBe('solid');
+
+    await page.locator('#view-bar button', { hasText: 'Passer au test' }).click();
+    await expect(page.locator('body')).toHaveAttribute('data-view', 'essai');
+    await expect(page.locator('#view-bar button', { hasText: 'Repartir de zéro' })).toBeVisible();
+    await expect(page.locator('#view-bar button', { hasText: 'Retour' })).toHaveCount(0);
+    await expect(page.locator('#view-bar')).not.toContainText('Essai');
+
+    // Un réglage du réseau et des points obtenus, puis tout revient au départ
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(builderScore(page)).toHaveText('📊 Score : 20 / 100 pts');
+    page.dialogs.length = 0;
+    await page.locator('#view-bar button', { hasText: 'Repartir de zéro' }).click();
+    expect(page.dialogs.at(-1)).toContain('Repartir de zéro');
+    await expect(builderScore(page)).toHaveText('📊 Score : 0 / 100 pts');
+    expect(await page.evaluate(() => Object.values(S.devs).find((d) => d.name === 'Serveur').dns.on)).toBe(false);
+
+    await page.locator('#btn-cfg').click();
+    await expect(page.locator('body')).toHaveAttribute('data-view', 'corrige');
   });
 });

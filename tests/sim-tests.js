@@ -3354,7 +3354,7 @@ test('corrigé incomplet : objectif non réalisé, commande qui échoue avec sa 
   eq(rv.acquired, 1);
 });
 
-test('poste au choix de l\'élève : tous les postes essayés ; poste à ajouter : à vérifier en Essai', function() {
+test('poste au choix de l\'élève : tous les postes essayés ; poste à ajouter : à vérifier en Test', function() {
   var data = readScenario('reseau-entreprise.json');
   var a = data.activity, ping = a.objectives.filter(function(o) { return o.check === 'ping_success'; })[0];
   delete ping.params.from;
@@ -3368,7 +3368,7 @@ test('poste au choix de l\'élève : tous les postes essayés ; poste à ajouter
   a.objectives.push({id: 99, label: 'Un poste est ajouté', check: 'device_added', points: 5, params: {newdev: '', ip: '192.168.1.*'}});
   var rv = AW.review(data), add = reviewRow(rv, 'device_added');
   eq(add.corrige, 'later'); eq(add.start, 'todo'); eq(rv.later, 1);
-  ok(/à vérifier en Essai/.test(add.corrigeText));
+  ok(/à vérifier en Test/.test(add.corrigeText));
   ok(AW.audit(data).failing.every(function(l) { return l !== 'Un poste est ajouté'; }));
 });
 
