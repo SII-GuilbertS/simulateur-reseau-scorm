@@ -262,7 +262,6 @@ Chaque appareil garde sa session (historique, sortie, page). Une commande lancé
 **Mode unique : chantier terminé**, fusionné dans `master` le 15 novembre 2026 (clic et fiche uniques,
 boutons de mode supprimés, bandeau repliable, sauvegarde temporisée, vue Corrigé non comptabilisée, Ctrl+Z chez
 l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison dans `TODO.md`, « Mode unique »).
-Le tag local `avant-mode-unique` marque l'état d'avant.
 
 ## Pour reprendre le travail
 
