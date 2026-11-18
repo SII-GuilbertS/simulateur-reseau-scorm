@@ -5255,10 +5255,12 @@ var EvalModule = (function() {
     _config.objectives.push(obj);
     obj.hint = _autoHints[obj.id] = autoHint(obj);   // indice proposé, modifiable
     renderObjectives();
-    // Open the new card
+    // Open the new card et la montrer : la liste défile dans le bandeau, la nouvelle carte est tout en bas
     setTimeout(function(){
       var card = document.querySelector('[data-objid="'+obj.id+'"] .obj-card-body');
       if(card) card.classList.add('open');
+      var wrap = document.querySelector('[data-objid="'+obj.id+'"]');
+      if(wrap && wrap.scrollIntoView) wrap.scrollIntoView({block:'nearest'});
     }, 50);
   }
 
@@ -5619,6 +5621,8 @@ var EvalModule = (function() {
     setTimeout(function(){
       var card=document.querySelector('[data-fltid="'+flt.id+'"] .obj-card-body');
       if(card)card.classList.add('open');
+      var wrap=document.querySelector('[data-fltid="'+flt.id+'"]');
+      if(wrap&&wrap.scrollIntoView)wrap.scrollIntoView({block:'nearest'});   // la liste défile dans le bandeau
     },50);
   }
 

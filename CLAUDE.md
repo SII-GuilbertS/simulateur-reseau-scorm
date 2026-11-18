@@ -173,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 65 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 66 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -282,6 +282,7 @@ pastilles et la pastille d'état suivent en direct. Bouton « + Appareil à ajou
 `toAdd` sur un emplacement libre du schéma visible, sélectionné, annulable (Ctrl+Z). Correction au passage :
 `studentStartResults` ne désélectionne plus l'appareil du schéma. Tests navigateur : helpers `openEval(page)` / `closeEval(page)`.
 La colonne « Activité » du bandeau prend 40 % de la largeur (`--ev-side-w`) et se redimensionne à la souris par la poignée `#rsz-ev` (plancher 220 px, plafond 75 %, double-clic : retour à 40 %).
+Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scrollIntoView` dans `addObjective` / `addFault`) : la liste dépasse vite la hauteur du bandeau et la nouvelle carte, toute en bas, passait inaperçue.
 
 ## Pour reprendre le travail
 

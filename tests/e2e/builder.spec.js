@@ -2351,4 +2351,28 @@ test.describe('Bandeau Évaluation', () => {
     await page.locator('#rsz-ev').dblclick();
     expect(Math.abs((await side.boundingBox()).width - w0)).toBeLessThan(3);
   });
+
+  test("un objectif ou une panne ajouté arrive ouvert et visible, même au bas d'une longue liste", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-lycee');          // 21 objectifs, 7 pannes : la liste dépasse le bandeau
+    await openEval(page);
+    const inView = async (selector) => {
+      const box = await page.locator(selector).boundingBox();
+      const main = await page.locator('.ev-main').boundingBox();
+      return box.y >= main.y - 1 && box.y + box.height <= main.y + main.height + 1;
+    };
+    const objs = () => page.evaluate(() => EvalModule.getConfig().objectives.map((o) => o.id));
+    const before = await objs();
+    await page.locator('.ev-add-btns .btn-add-obj', { hasText: 'Ajouter un objectif' }).click();
+    const id = (await objs()).find((i) => !before.includes(i));
+    const card = `[data-objid="${id}"]`;
+    await expect(page.locator(card + ' .obj-card-body.open')).toBeVisible();
+    await expect.poll(() => inView(card + ' .obj-card-hdr')).toBe(true);
+
+    const faults = () => page.evaluate(() => EvalModule.getConfig().faults.map((f) => f.id));
+    const fBefore = await faults();
+    await page.locator('.ev-add-btns .btn-add-fault').click();
+    const fid = (await faults()).find((i) => !fBefore.includes(i));
+    await expect(page.locator(`[data-fltid="${fid}"] .obj-card-body.open`)).toBeVisible();
+    await expect.poll(() => inView(`[data-fltid="${fid}"] .obj-card-hdr`)).toBe(true);
+  });
 });
