@@ -180,6 +180,17 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .ctl-pill{padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.18);white-space:nowrap;font-weight:600}
 .ctl-pill.ok{background:rgba(72,187,120,.45)}
 .ctl-pill.warn{background:rgba(229,62,62,.6)}
+/* Onglet « Contrôle » du bandeau : fond clair, les pastilles de l'ancienne barre orange y changent de couleurs */
+.ctl-pane{height:100%;overflow:auto;padding:10px 16px;box-sizing:border-box;background:#fff}
+.ctl-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:.8em}
+.ctl-head .ctl-act{color:#2d3748;max-width:60ch}
+.ctl-head .ctl-banner{cursor:default}
+.ctl-head .ctl-pill{background:#edf2f7;color:#4a5568}
+.ctl-head .ctl-pill.ok{background:#c6f6d5;color:#22543d}
+.ctl-head .ctl-pill.warn{background:#fed7d7;color:#742a2a}
+.ctl-body{max-width:900px}
+.view-bar .vb-score{flex:0 0 auto;min-width:0;display:flex;align-items:center}
+.view-bar .vb-score .score-badge{font-size:.95em;cursor:pointer;background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.5)}
 .view-bar{display:none;align-items:center;gap:12px;padding:5px 14px;font-size:.8em;color:#fff;flex-shrink:0;flex-wrap:wrap}
 .view-bar.depart{background:#2b6cb0}
 .view-bar.essai{background:#2f855a}
@@ -497,7 +508,7 @@ body{padding-top:0}/* nav is flex child */
   </div>
 
   <div class="hdr-r">
-    <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs" style="cursor:pointer">📋 Corrigé : aucun objectif</div>
+    <div class="score-badge" id="hdr-score" onclick="bldScoreClick()" title="Voir le détail des objectifs" style="cursor:pointer">📋 Corrigé : aucun objectif</div>
     <div id="score-details"></div>
   </div>
   <input type="file" id="gen-import-file" accept=".json" style="display:none" onchange="GenModule.importScenario(event)"/>
@@ -589,6 +600,7 @@ body{padding-top:0}/* nav is flex child */
   <div class="rsz-h" id="rsz-bot"></div>
   <div class="btabs">
     <button class="bt" id="bt-eval" data-tab="eval" onclick="bldTab('eval')" title="Objectifs, points et pannes (Ctrl+2)">🎯 Évaluation</button>
+    <button class="bt" id="bt-ctl" data-tab="ctl" onclick="bldTab('ctl')" title="Contrôle du corrigé : chaque objectif est-il réalisé, que trouve l'élève au départ (Ctrl+3)">✔ Contrôle</button>
     <button class="bt active" data-tab="log" onclick="bldTab('log')">📋 Journal</button>
     <button class="bt" data-tab="pkt" onclick="bldTab('pkt')">🔍 Paquets</button>
     <button type="button" class="bot-tg" id="bot-toggle" onclick="toggleBot()" aria-expanded="true" title="Replier ou déplier le bandeau">▾ Replier</button>
@@ -660,6 +672,14 @@ body{padding-top:0}/* nav is flex child */
         </div>
         <div id="ev-list"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Contrôle du corrigé (vue Corrigé) : ce que l'élève trouvera à l'ouverture, objectif par objectif -->
+  <div class="tp" id="tp-ctl">
+    <div class="ctl-pane">
+      <div class="ctl-head"><span class="ctl-act" id="ctl-act"></span><span class="ctl-banner" id="ctl-banner"></span></div>
+      <div class="ctl-body" id="ctl-body"></div>
     </div>
   </div>
 
@@ -4077,36 +4097,28 @@ function renderScoreDetails(){
   var _so=cfg?scoredObjectives(cfg):[];
   var objs=_so.length?_so:null;
   var h='<div class="sd-title">📊 Détail des objectifs</div>';
-  panel.classList.toggle('wide',BUILDER_VIEW==='corrige'&&!!objs);
-  // Sous la pastille, même quand l'en-tête passe sur deux lignes : un clic sur elle referme le panneau
+  panel.classList.remove('wide');
+  // Sous la pastille (dans la barre de la vue), même quand elle passe sur deux lignes : un clic sur elle referme le panneau
   var hb=document.getElementById('hdr-score');
   if(hb&&hb.getBoundingClientRect)panel.style.top=Math.round(hb.getBoundingClientRect().bottom+6)+'px';
-  if(objs&&BUILDER_VIEW==='corrige'){
-    panel.innerHTML=ctlReviewHTML(ctlReview())+ctlFaultsHTML(cfg);
-    ctlPill(TEACHER_CTL.review);
-    return;
-  }
+  // Ce détail est celui de l'élève : rien sur le corrigé (c'est l'affaire de l'onglet Contrôle)
   if(objs){
-    try{ctlCompute();}catch(e){}
     var total=objs.reduce(function(s,o){return s+(parseInt(o.points)||0);},0);
     var earned=objs.reduce(function(s,o){return s+(ACTIVITY_RESULTS[o.id]?(parseInt(o.points)||0):0);},0);
-    h+='<div class="sd-note">Score de <strong>votre essai</strong> dans le builder. L\'élève, lui, part de '+
-      (TEACHER_CTL.startScore==null?'…':TEACHER_CTL.startScore+' / 100')+' (voir la barre orange).</div>';
+    h+='<div class="sd-note">'+(BUILDER_VIEW==='essai'
+      ?'Score de <strong>votre essai</strong> : celui que l\'élève obtiendrait avec les mêmes gestes.'
+      :'Score de l\'élève <strong>à l\'ouverture</strong> de l\'activité.')+'</div>';
     objs.forEach(function(o){
       var done=!!ACTIVITY_RESULTS[o.id];
       var isDynamic=STATIC_TYPES.indexOf(o.check)<0;
-      var statusTitle=isDynamic&&!done?'(à tester : terminal ou navigateur)':'';
-      var note=done?'':ctlScoreNote(o);
-      h+='<div class="sd-obj"><span title="'+statusTitle+'">'+(done?'✅':'⭕')+'</span>'+
-        '<span class="sd-label">'+esc(o.label||o.check)+(isDynamic&&!done?'<br><em style="color:#a0aec0;font-size:.85em">à tester : terminal ou navigateur</em>':'')+
-        (note?'<br><em style="color:#c05621;font-size:.85em">'+esc(note)+'</em>':'')+'</span>'+
+      h+='<div class="sd-obj"><span>'+(done?'✅':'⭕')+'</span>'+
+        '<span class="sd-label">'+esc(o.label||o.check)+(isDynamic&&!done?'<br><em style="color:#a0aec0;font-size:.85em">à tester : terminal ou navigateur</em>':'')+'</span>'+
         '<span class="sd-pts">'+(parseInt(o.points)||0)+' pt</span></div>';
     });
     h+='<div class="sd-total">'+earned+' / '+total+' pts</div>';
   } else {
-    h+='<div style="color:#a0aec0;font-size:.9em;padding:6px 0">Aucun objectif : le score se calcule à partir des objectifs.<br>Une panne rapporte des points quand un objectif mesure sa réparation : dans l\'onglet Évaluation, bouton « Créer l\'objectif de réparation » sur la panne.</div>';
+    h+='<div style="color:#a0aec0;font-size:.9em;padding:6px 0">Aucun objectif : le score se calcule à partir des objectifs.</div>';
   }
-  h+=ctlFaultsHTML(cfg);
   panel.innerHTML=h;
 }
 
@@ -4338,7 +4350,7 @@ function ctlGoFault(id){
   },30);
 }
 
-/* Bandeau de la barre orange : ce que l'élève trouvera à l'ouverture. */
+/* En-tête de l'onglet Contrôle : ce que l'élève trouvera à l'ouverture. */
 function ctlRenderBanner(){
   var bn=document.getElementById('ctl-banner'),ac=document.getElementById('ctl-act');
   if(!bn)return;
@@ -4349,7 +4361,7 @@ function ctlRenderBanner(){
   if(!objs.length){
     bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans le bandeau Évaluation</span>'+
       (nF?'<span class="ctl-pill warn">⚠️ '+nF+' panne'+(nF>1?'s':'')+' sans points : rien à gagner</span>':'');
-    bn.title='Donnez des points à chaque panne (bandeau Évaluation) : l\'élève les obtient en la réparant.';return;
+    bn.title='Donnez des points à chaque panne (bandeau Évaluation) : l\'élève les obtient en la réparant.';return;   // (ctl-body : voir ctlRenderBody)
   }
   var au=ActivityWizard.audit({network:SimModule.getState(),activity:cfg});
   var pill=function(c,t){return '<span class="ctl-pill '+c+'">'+t+'</span>';};
@@ -4361,7 +4373,7 @@ function ctlRenderBanner(){
   h+=pill('',(au.faults?au.faults+' panne'+(au.faults>1?'s':''):'aucune panne')+' · seuil '+au.mastery+' %');
   bn.innerHTML=h;
   bn.title=(au.ok?'Aucun problème détecté. ':'')+'Départ élève = ce que l\'élève a en ouvrant l\'activité (réseau corrigé + pannes), sans rien faire.'+
-    (au.problems.length?'\n• '+au.problems.join('\n• '):'')+'\nCliquer pour ouvrir le bandeau Évaluation.';
+    (au.problems.length?'\n• '+au.problems.join('\n• '):'');
 }
 
 /* ── Contrôle du corrigé (vue Corrigé) ───────────────────────
@@ -4407,11 +4419,27 @@ function ctlReviewHTML(rv){
   }
   return h;
 }
+/* Corps de l'onglet Contrôle : le tableau du contrôle et les pannes à revoir (vue Corrigé). */
+function ctlRenderBody(){
+  var el=document.getElementById('ctl-body');if(!el)return;
+  var cfg=ctlCfg(),objs=cfg?scoredObjectives(cfg):[],rv=TEACHER_CTL.review;
+  var h=(objs.length&&rv)?ctlReviewHTML(rv)
+    :'<div class="sd-title">📋 Contrôle du corrigé</div><div style="color:#a0aec0;font-size:.9em;padding:6px 0">Aucun objectif : le score se calcule à partir des objectifs.<br>Une panne rapporte des points quand un objectif mesure sa réparation : dans l\'onglet Évaluation, bouton « Créer l\'objectif de réparation » sur la panne.</div>';
+  h+=ctlFaultsHTML(cfg);
+  if(el._h!==h){el._h=h;el.innerHTML=h;}
+}
+/* Contrôle refait tout de suite (ouverture de l'onglet, clic sur la pastille). */
+function ctlNow(){try{ctlRenderBanner();ctlPill(ctlReview());ctlRenderBody();}catch(e){}}
+/* Pastille d'état : en vue Corrigé elle ouvre (ou referme) l'onglet Contrôle ; ailleurs, le détail du score. */
+function bldScoreClick(){
+  if(BUILDER_VIEW!=='corrige'){toggleScoreDetails();return;}
+  var bot=document.querySelector('.bot'),t=document.getElementById('bt-ctl');
+  if(bot&&!bot.classList.contains('closed')&&t&&t.classList.contains('active'))setBot(false);else bldTab('ctl');
+}
 /* Rejoue la commande d'une ligne dans le bureau du poste, pour la lire en détail. */
 function ctlShowRun(id){
   var rv=TEACHER_CTL.review,r=rv&&rv.rows.filter(function(x){return String(x.id)===String(id);})[0];
   if(!r||!S.devs[r.fromId])return;
-  var panel=document.getElementById('score-details');if(panel)panel.classList.remove('open');
   if(r.check==='http_success'){deskSess(r.fromId).url=r.cmd;deskOpen(r.fromId,'brow');deskBrowse(r.fromId);}
   else{deskOpen(r.fromId,'term');deskTermRun(r.fromId,r.cmd);}
 }
@@ -4421,7 +4449,7 @@ function ctlRefresh(){
   if(TEACHER_CTL.timer)return;
   TEACHER_CTL.timer=setTimeout(function(){
     TEACHER_CTL.timer=null;
-    try{ctlRenderBadges();ctlRenderBanner();if(BUILDER_VIEW==='corrige')ctlPill(ctlReview());}catch(e){}
+    try{ctlRenderBadges();ctlRenderBanner();if(BUILDER_VIEW==='corrige'){ctlPill(ctlReview());ctlRenderBody();}}catch(e){}
   },150);
 }
 
@@ -4555,30 +4583,37 @@ function _viewUI(){
   [['btn-cfg','corrige'],['btn-depart','depart'],['btn-sim','essai']].forEach(function(p){
     var b=document.getElementById(p[0]);if(b)b.classList.toggle('active',v===p[1]);
   });
+  // La pastille d'état est dans l'en-tête en vue Corrigé ; dans les deux autres vues, elle passe dans la barre de la vue
+  // (avant que la barre soit réécrite) et y porte le score de l'élève
+  var hs=document.getElementById('hdr-score'),hr=document.querySelector('.hdr-r');
+  if(hs&&hr&&hs.parentNode!==hr)hr.insertBefore(hs,hr.firstChild);
   var bar=document.getElementById('view-bar');
   if(bar){
     bar.className='view-bar'+(v==='corrige'?'':' '+v);
     bar.style.display=v==='corrige'?'none':'flex';
     var back='<button type="button" onclick="setBuilderView(\'corrige\')">← Retour au corrigé</button>';
+    var slot='<span class="vb-score" id="vb-score"></span>';
     bar.innerHTML=v==='depart'
-      ?'<strong>👁️ Départ élève</strong><span>Ce que l\'élève trouve à l\'ouverture : le réseau corrigé avec les pannes (pastilles rouges). Lecture seule — le corrigé n\'est pas modifié.</span>'+
+      ?'<strong>👁️ Départ élève</strong><span>Ce que l\'élève trouve à l\'ouverture : le réseau corrigé avec les pannes (pastilles rouges). Lecture seule — le corrigé n\'est pas modifié.</span>'+slot+
         '<button type="button" onclick="setBuilderView(\'essai\')">🧪 Passer à l\'essai</button>'+back
       :v==='essai'
-      ?'<strong>🧪 Essai</strong><span>Vous jouez l\'élève sur une copie : diagnostiquez, réparez, testez. Le score est celui que l\'élève obtiendrait ; le corrigé reste intact. L\'essai est conservé quand vous changez de vue.</span>'+
+      ?'<strong>🧪 Essai</strong><span>Vous jouez l\'élève sur une copie : diagnostiquez, réparez, testez. Le corrigé reste intact. L\'essai est conservé quand vous changez de vue.</span>'+slot+
         '<button type="button" onclick="restartEssai()">↺ Recommencer l\'essai</button>'+back
       :'';
+    var vs=document.getElementById('vb-score');
+    if(vs&&hs)vs.appendChild(hs);
   }
   palLock(v==='depart');   // lecture seule : palette et outils grisés
-  // L'évaluation se règle dans le corrigé : l'onglet disparaît des autres vues (Journal prend le relais s'il était ouvert)
-  var te=document.getElementById('bt-eval');
-  if(te){
+  // L'évaluation et le contrôle se règlent dans le corrigé : leurs onglets disparaissent des autres vues (Journal prend le relais s'il était ouvert)
+  ['bt-eval','bt-ctl'].forEach(function(tid){
+    var te=document.getElementById(tid);
+    if(!te)return;
     te.style.display=v==='corrige'?'':'none';
     if(v!=='corrige'&&te.classList.contains('active')){
       var bot=document.querySelector('.bot'),closed=bot&&bot.classList.contains('closed');
       bldTab('log');if(closed)setBot(false);
     }
-  }
-  var hs=document.getElementById('hdr-score');
+  });
   if(hs)hs.title=v==='essai'?'Score de votre essai : celui que l\'élève obtiendrait avec les mêmes gestes. Cliquer pour le détail.'
     :v==='depart'?'Score de l\'élève à l\'ouverture de l\'activité. Cliquer pour le détail.'
     :'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
@@ -7734,9 +7769,15 @@ function bldTab(id) {
   if(bot) {
     var from = cur ? cur.getAttribute('data-tab') : 'log';
     if(from !== id && !bot.classList.contains('closed') && bot.style.height) BOT_H[from] = bot.style.height;
-    bot.style.height = BOT_H[id] || (id === 'eval' ? Math.round(window.innerHeight * 0.42) + 'px' : '215px');
+    bot.style.height = BOT_H[id] || (id === 'eval' || id === 'ctl' ? Math.round(window.innerHeight * 0.42) + 'px' : '215px');
   }
   showTab(id);
+  if(id === 'ctl') ctlNow();
+}
+/* Ouvre le contrôle du corrigé (toujours dans le corrigé). */
+function openCtl() {
+  ensureCorrige();
+  bldTab('ctl');
 }
 /* Ouvre l'évaluation (toujours dans le corrigé) : les objectifs et les pannes se règlent sur le réseau qui fonctionne. */
 function openEval() {
@@ -7825,22 +7866,11 @@ window.addEventListener('load', function() {
     });
   })();
 
-  // Teacher bar always visible in builder (no password)
+  // Builder : plus de barre orange (la barre « Mode Professeur » du moteur reste masquée). Le contrôle du corrigé
+  // est la pastille de l'en-tête et l'onglet « ✔ Contrôle » du bandeau du bas.
   _teacherMode = true;
-  var tb = document.getElementById('teacher-bar');
-  if(tb) {
-    tb.style.display = 'flex';
-    // Replace teacher bar buttons with builder shortcut
-    tb.innerHTML = '<span class="tbar-title" title="Le schéma ci-dessous est le réseau qui FONCTIONNE ; les pannes sont ajoutées par-dessus dans le bandeau Évaluation (pastilles rouges P1, P2…)">🔧 Réseau corrigé</span>'+
-      '<span class="ctl-act" id="ctl-act"></span>'+
-      '<span class="tbar-sep"></span>'+
-      '<span class="ctl-banner" id="ctl-banner" onclick="openEval()"></span>'+
-      '<button class="wbtn" onclick="openEval()">🎯 Évaluation et pannes →</button>'+
-      '<button class="wbtn" onclick="openExportDialog()">📦 Exporter…</button>'+
-      '<span class="tbar-hint">Dessinez le réseau qui fonctionne ; les pannes se règlent dans le bandeau Évaluation</span>';
-    var hs = document.getElementById('hdr-score');
-    if(hs) hs.title = 'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
-  }
+  var hs0 = document.getElementById('hdr-score');
+  if(hs0) hs0.title = 'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail (Ctrl+3).';
 
   // Fermer ou recharger sans avoir enregistré le travail : le navigateur demande confirmation
   window.addEventListener('beforeunload', function(e){
@@ -7855,6 +7885,7 @@ window.addEventListener('load', function() {
     // Raccourcis : Ctrl+1 replie le bandeau (schéma seul), Ctrl+2 ouvre l'évaluation
     if(e.ctrlKey&&e.key==='1'){setBot(false);e.preventDefault();}
     if(e.ctrlKey&&e.key==='2'){openEval();e.preventDefault();}
+    if(e.ctrlKey&&e.key==='3'){openCtl();e.preventDefault();}
   });
 
   // Panel resize (same as simulator)

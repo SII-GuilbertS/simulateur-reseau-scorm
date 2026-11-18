@@ -173,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 66 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 70 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -262,7 +262,7 @@ l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison 
 ## Refonte de l'interface (chantier en cours, branche `claude/network-simulator-ui-redesign-a9ca90`)
 
 Plan en 6 étapes, un commit chacune : (1) barre unique et menu ☰, (2) évaluation intégrée au Corrigé (bandeau du bas),
-(3) contrôle du corrigé intégré (fin de la barre orange), (4) vues Départ élève / Test et « Repartir de zéro »,
+(3) contrôle du corrigé intégré (fin de la barre orange, score de l’essai dans la barre de vue), (4) vues Départ élève / Test et « Repartir de zéro »,
 (5) en-tête élève allégé, (6) nettoyage et documentation. Noms retenus : « Atelier Réseau » (builder), vues
 Conception · Départ élève · Test (renommage à l'étape 4).
 
@@ -285,6 +285,8 @@ pastilles et la pastille d'état suivent en direct. Bouton « + Appareil à ajou
 La colonne « Activité » du bandeau prend 40 % de la largeur (`--ev-side-w`) et se redimensionne à la souris par la poignée `#rsz-ev` (plancher 220 px, plafond 75 %, double-clic : retour à 40 %).
 Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scrollIntoView` dans `addObjective` / `addFault`) : la liste dépasse vite la hauteur du bandeau et la nouvelle carte, toute en bas, passait inaperçue.
 
+**Étape 3 faite** : plus de barre orange (`#teacher-bar` reste dans le HTML, masquée en permanence, pour `toggleTeacherMode` du moteur ; suppression à l'étape 6). L'état du corrigé est la pastille `#hdr-score` de l'en-tête ; un clic (`bldScoreClick`) ouvre l'onglet « ✔ Contrôle » du bandeau du bas (`#bt-ctl` / `#tp-ctl`, vue Corrigé seulement, Ctrl+3, `openCtl`), un second clic replie le bandeau. L'onglet porte le titre de l'activité (`#ctl-act`), les pastilles `#ctl-banner` (départ élève, objectifs atteignables, seuil…) et `#ctl-body` (tableau du contrôle et pannes à revoir, `ctlRenderBody`, remis à jour par `ctlRefresh`). En vues Départ élève et Essai, la même pastille `#hdr-score` est déplacée par `_viewUI` dans la barre de la vue (bleue ou verte, emplacement `#vb-score`) et porte le score de l'élève ; son détail (`#score-details`, `renderScoreDetails`) est celui de l'élève, sans aucune mention du corrigé.
+
 ## Pour reprendre le travail
 
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
@@ -303,7 +305,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
 - **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur.
-  Point connu : `reseau-lycee` affiche « P7 sans points » dans la barre orange (panne sans objectif de réparation).
+  Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios
 

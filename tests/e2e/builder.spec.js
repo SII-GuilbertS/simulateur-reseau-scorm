@@ -530,7 +530,7 @@ test.describe('Builder', () => {
 
     // Tableau : état dans le corrigé (commande rejouée sans terminal) et au départ de l'élève
     await builderScore(page).click();
-    const panel = page.locator('#score-details');
+    const panel = page.locator('#ctl-body');
     await expect(panel).toContainText('Contrôle du corrigé');
     await expect(panel).not.toContainText('Score');
     const nsl = panel.locator('tr', { hasText: 'nslookup' }).last();
@@ -1048,11 +1048,11 @@ test.describe('Builder', () => {
 
     // Le détail du score explique pourquoi un objectif vrai dans le corrigé reste à zéro
     await page.locator('#hdr-score').click();
-    await expect(page.locator('#score-details')).toContainText('Contrôle du corrigé');
-    await expect(page.locator('#score-details')).toContainText('à faire (panne P1)');
-    await expect(page.locator('#score-details')).toContainText('à faire (panne P2)');
+    await expect(page.locator('#ctl-body')).toContainText('Contrôle du corrigé');
+    await expect(page.locator('#ctl-body')).toContainText('à faire (panne P1)');
+    await expect(page.locator('#ctl-body')).toContainText('à faire (panne P2)');
     // Ici chaque panne est mesurée par un objectif de réparation : pas de section « pannes sans points »
-    await expect(page.locator('#score-details')).not.toContainText('Pannes sans points');
+    await expect(page.locator('#ctl-body')).not.toContainText('Pannes sans points');
 
     // Onglet Évaluation : état par rapport au corrigé et au départ élève
     await openEval(page);
@@ -1065,9 +1065,9 @@ test.describe('Builder', () => {
     await closeEval(page);
     await expect(banner).toContainText('2 pannes sans points');
     await page.locator('#hdr-score').click();
-    await expect(page.locator('#score-details')).toContainText('le score se calcule à partir des objectifs');
-    await expect(page.locator('#score-details')).toContainText('P2 — Passerelle incorrecte · PC-Bob');
-    await expect(page.locator('#score-details')).toContainText('ne rapporte aucun point');
+    await expect(page.locator('#ctl-body')).toContainText('le score se calcule à partir des objectifs');
+    await expect(page.locator('#ctl-body')).toContainText('P2 — Passerelle incorrecte · PC-Bob');
+    await expect(page.locator('#ctl-body')).toContainText('ne rapporte aucun point');
     await page.locator('#hdr-score').click();
     await page.evaluate(() => { EvalModule.getConfig().objectives.push(...window.__objs); });
     await openEval(page);
@@ -1089,7 +1089,7 @@ test.describe('Builder', () => {
     await expect(page.locator('button[onclick="freezeStart()"], #btn-reset-start')).toHaveCount(0);
     const charlie = await deviceId(page, 'PC-Charlie');
     const banner = page.locator('#ctl-banner');
-    const panel = page.locator('#score-details');
+    const panel = page.locator('#ctl-body');
     const row = panel.locator('tr', { hasText: 'PC-Charlie est ajouté' });
 
     // Objectif « ajouter PC-Charlie » alors que le poste est dans le corrigé : acquis d'avance, le contrôle dit quoi cocher
@@ -1162,7 +1162,7 @@ test.describe('Builder', () => {
     });
     await expect(builderScore(page)).toHaveText('⚠️ Corrigé : 1 panne à revoir');
     await builderScore(page).click();
-    const panel = page.locator('#score-details');
+    const panel = page.locator('#ctl-body');
     await expect(panel).toContainText('Pannes à revoir (1)');
     await expect(panel.locator('[data-rvf]')).toContainText('P2 — sans effet : la valeur de panne est déjà la passerelle du corrigé');
     await expect(panel.locator('tr', { hasText: 'La passerelle de PC-Bob' }).locator('td').nth(2)).toContainText('déjà acquis');
@@ -2380,5 +2380,74 @@ test.describe('Bandeau Évaluation', () => {
     const fid = (await faults()).find((i) => !fBefore.includes(i));
     await expect(page.locator(`[data-fltid="${fid}"] .obj-card-body.open`)).toBeVisible();
     await expect.poll(() => inView(`[data-fltid="${fid}"] .obj-card-hdr`)).toBe(true);
+  });
+});
+
+test.describe('Contrôle du corrigé dans le bandeau', () => {
+  test("plus de barre orange : l'état est la pastille de l'en-tête, le détail est l'onglet « ✔ Contrôle »", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(page.locator('#teacher-bar')).toBeHidden();
+    await expect(page.locator('.tbar:visible')).toHaveCount(0);
+    await expect(page.locator('#bt-ctl')).toBeVisible();
+    await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
+
+    // La pastille ouvre l'onglet Contrôle, un second clic replie le bandeau
+    await page.locator('#hdr-score').click();
+    await expect(page.locator('#bt-ctl')).toHaveClass(/active/);
+    await expect(page.locator('#ctl-body')).toBeVisible();
+    await expect(page.locator('#ctl-banner')).toBeVisible();
+    await expect(page.locator('#ctl-banner')).toContainText('Départ élève : 0 / 100');
+    await page.locator('#hdr-score').click();
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+
+    // Ctrl+3 l'ouvre aussi
+    await page.keyboard.press('Control+3');
+    await expect(page.locator('#ctl-body')).toBeVisible();
+    await expect(page.locator('#ctl-body tr[data-rv]').first()).toBeVisible();
+  });
+
+  test("le tableau suit le réseau en direct, onglet ouvert", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await page.keyboard.press('Control+3');
+    const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
+    await dns.locator('[data-act="toggle"]').click();
+    await expect(page.locator('#hdr-score')).toHaveText('⚠️ Corrigé : 4 objectifs non réalisés');
+    await expect(page.locator('#ctl-body tr', { hasText: 'Le service DNS du Serveur est actif' }).locator('td').nth(1)).toContainText('non réalisé dans le corrigé');
+  });
+
+  test("l'onglet Contrôle n'existe qu'en vue Corrigé", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await page.keyboard.press('Control+3');
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#bt-ctl')).toBeHidden();
+    await expect(page.locator('#bt-ctl')).not.toHaveClass(/active/);
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#bt-ctl')).toBeHidden();
+  });
+
+  test("le score de l'essai est dans la barre verte, sans rien du corrigé", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(page.locator('.hdr-r #hdr-score')).toHaveCount(1);      // vue Corrigé : état du corrigé, dans l'en-tête
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#view-bar.essai #hdr-score')).toBeVisible();   // plus en haut à droite
+    await expect(page.locator('.hdr-r #hdr-score')).toHaveCount(0);
+    await expect(page.locator('#hdr-score')).toHaveText('📊 Score : 0 / 100 pts');
+    await expect(page.locator('#hdr-score')).not.toContainText('Corrigé');
+
+    await page.locator('#hdr-score').click();
+    const panel = page.locator('#score-details');
+    await expect(panel).toHaveClass(/open/);
+    await expect(panel).toContainText('votre essai');
+    await expect(panel).not.toContainText('corrigé');
+    await expect(panel).not.toContainText('barre orange');
+    await expect(panel).not.toContainText('Pannes');
+    await page.locator('#hdr-score').click();
+
+    // Départ élève : la même pastille dans la barre bleue ; retour au corrigé : elle regagne l'en-tête
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#view-bar.depart #hdr-score')).toBeVisible();
+    await page.locator('#btn-cfg').click();
+    await expect(page.locator('.hdr-r #hdr-score')).toBeVisible();
+    await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
   });
 });
