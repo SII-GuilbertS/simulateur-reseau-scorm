@@ -55,7 +55,7 @@
 - [x] **Scénarios fournis et assistant : case « à ajouter par l'élève »** — fait le 18 novembre 2026 : modèles « Construction » de l'assistant, `reseau-college` (B210-P3) et `reseau-lycee` (PC-Salle3) posent le poste dans le corrigé avec `toAdd`. Restent « à vérifier en Test » les 2 objectifs de l'enregistrement DNS de `reseau-lycee` et de Construction · Entreprise · difficulté 3 (pas de case pour un enregistrement).
 - [ ] **Bandeau Évaluation : aperçu des objectifs à commande** — l'aperçu d'un ping ou d'un nslookup y dit encore « pas encore validé dans votre test » ; il pourrait reprendre le résultat du contrôle du corrigé (`ActivityWizard.review`).
 
-- [ ] **Assistant « Nouvelle activité » : d'autres modèles** — un lycée à deux salles, une construction où l'élève configure le routeur, d'autres thèmes (médiathèque, hôpital…). Chaque modèle passe automatiquement les règles des scénarios dans `sim-tests.js`.
+- [ ] **Assistant « Nouvelle activité » : d'autres modèles** (le type « Réseau Internet » existe depuis le 18 novembre 2026) — un lycée à deux salles, une construction où l'élève configure le routeur, d'autres thèmes (médiathèque, hôpital…). Chaque modèle passe automatiquement les règles des scénarios dans `sim-tests.js`.
 
 - [ ] **Variante « une panne de plus » sur une Box** — elle vise un poste à adresse fixe, ou à défaut un terminal WiFi d'une box protégée (mot de passe faux) : Maison en bénéficie. Restent le DHCP coupé et le SSID faux sur la Box elle-même.
 

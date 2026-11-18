@@ -28,7 +28,7 @@ de simulation embarqué pour l'élève. Il combine quatre parties :
    import/export de scénarios JSON), plus les surcharges builder (copier/coller,
    drag & drop de la topologie, etc.).
 4. **Bloc WIZARD** (`WIZARD-START` … `WIZARD-END`, dans le JS du builder, maintenu à la main) —
-   `ActivityWizard` : modèles de l'assistant « ✨ Nouvelle activité » (type × thème × niveau),
+   `ActivityWizard` : modèles de l'assistant « ✨ Nouvelle activité » (type × thème × difficulté),
    variantes (« 🔀 Variante » : exigence, pannes déplacées, retirées ou ajoutées) et contrôle d'une
    activité (`audit` : score à l'ouverture, sans réparer, objectifs atteignables). Sans interface :
    `tests/sim-tests.js` l'extrait par ses marqueurs. Juste après, `WizardUI` gère les deux fenêtres.
@@ -137,9 +137,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 428/428
+## Tests : `node tests/sim-tests.js` → doit afficher 453/453
 
-Suite de 428 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 453 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -155,7 +155,7 @@ et imbriqué), commandes élève jusqu'à la validation des objectifs, score, SC
 sauvegarde et reprise, fichier ou session abîmés refusés avant de remplacer le réseau (`networkDataProblem`),
 sauvegarde refusée par le LMS signalée, sauvegarde temporisée (une minuterie, un envoi seulement si le réseau a changé), annuler et rétablir (appareil supprimé retrouvé, pas groupés, pas sans effet sautés, lecture seule), cœur réseau exécuté seul sans navigateur (`linkCheck`, scénarios chargés, évalués et mis en panne), et pour chaque fichier de `scenarios/` : cohérence, ordre de la liste complet, score de 0 à l'ouverture, score
 de 100 une fois le réseau corrigé, score sous le seuil tant que les pannes ne sont pas réparées. Le contrôle du corrigé (`ActivityWizard.review` : corrigé complet ou non, commandes rejouées, poste au choix, poste à ajouter) a sa suite, comme les pannes sans effet et le rejeu du DHCP (bail conservé à la redemande), et comme l'appareil « à ajouter par l'élève » (retiré à l'ouverture avec ses câbles, ajouté et validé par l'élève, contrôle du corrigé, poste oublié dans le réseau de départ). Les mêmes règles sont vérifiées sur chaque
-modèle de l'assistant « Nouvelle activité » (27 combinaisons, 3 tirages) et sur chaque variante des
+modèle de l'assistant « Nouvelle activité » (36 combinaisons : 3 types × 3 thèmes × 3 difficultés, plus le type « Réseau Internet » × 3 thèmes propres × 3 difficultés ; 3 tirages) et sur chaque variante des
 4 scénarios. Non couverts : rendu de l'interface et `EvalModule`/`GenModule` du builder (exports).
 
 Les règles d'évaluation sont dans `src/net-core.js`, partagées par le builder et l'élève
@@ -175,7 +175,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 76 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 77 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -299,6 +299,22 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Pastille du corrigé** (`ctlPill`) : « ✅ Corrigé complet » seulement si tous les objectifs sont vérifiés dans le corrigé ; sinon elle compte « N vérifiés · M à vérifier en Test » (🧪, quand l'élève doit encore construire), « ⚠️ Corrigé non conforme · K non atteignables · N vérifiés… » si des objectifs échouent dans le corrigé, ou « ⚠️ Corrigé : N pannes à revoir ».
 
+## Assistant « Nouvelle activité » : difficulté et type « Réseau Internet »
+
+Il n'y a plus de niveau scolaire : la **difficulté** est 1 · Guidé (valeurs données, contraintes affichées, réseau simple,
+2 pannes, seuil 50 %), 2 · Intermédiaire (plage d'adresses, passerelle à trouver, 3 pannes, 60 %) ou 3 · Autonome (adresses
+libres, contraintes masquées, deux réseaux, 4 pannes, 70 %). Identifiants `d1`, `d2`, `d3` ; champ `activity.level` :
+« Difficulté N / 3 ». « Plus guidée / plus exigeante » de la fenêtre Variante règle ensuite la difficulté à l'intérieur d'un niveau.
+
+Les modèles « Construction » posent le poste à ajouter (et la Tablette) dans le corrigé avec `toAdd` (`addToAddHosts`).
+
+Type **Réseau Internet** (`themeInter`, `internetItems`, `internetInstructions`) : plusieurs réseaux reliés par des routeurs, le
+premier relié à Internet, serveur web et DNS dans le dernier réseau. Thèmes propres au type (`types:['internet']`,
+`ActivityWizard.themesFor(type)` ; `levelsFor(type)` donne le sens des difficultés) : Siège et agences, Lycée et annexe,
+Client et hébergeur. Difficulté 1 : deux réseaux en RIP, pannes `routing_off` et DNS arrêté ; 2 : deux réseaux, routes statiques
+(et route par défaut), pannes `route_missing`, `bad_route` (route par défaut), passerelle d'un poste ; 3 : trois routeurs en
+chaîne, mêmes pannes plus DNS arrêté. Chaque panne est testée sur un chemin qu'aucune autre panne ne coupe.
+
 ## Routage statique et pannes de routage
 
 Le bureau d'un routeur ou d'une box (application Routage, `DESK_FORMS.routes` dans `src/sim-ui.js`) permet d'activer ou non
@@ -319,7 +335,7 @@ sur la route du corrigé ; `FAULT_REPAIR_CHECKS`, `FAULT_FIXES`), l'assistant au
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
   HTML et énoncé ne comptent pas comme un enregistrement (alerte à la fermeture, voir plus haut).
 - **Hook de commit partagé** : `.git/hooks/pre-commit` (un seul pour tous les dossiers de travail) exige
-  exactement 428/428 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
+  exactement 453/453 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic dans le menu ☰ avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
@@ -331,7 +347,7 @@ sur la route du corrigé ; `FAULT_REPAIR_CHECKS`, `FAULT_FIXES`), l'assistant au
   libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
-- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74 ; après le routage (étape 3) : 428 et 76.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74 ; après le routage (étape 3) : 428 et 76 ; après le type Réseau Internet (étape 4) : 453 et 77.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios
@@ -372,7 +388,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 428/428
+node tests/sim-tests.js    # → 453/453
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -420,6 +436,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS (tout le script du builder, modules après `STUDENT_TEMPLATE` compris), résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 428 tests Node.js |
+| `tests/sim-tests.js` | Suite de 453 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

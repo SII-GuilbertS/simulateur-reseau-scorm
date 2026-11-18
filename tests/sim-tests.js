@@ -3216,13 +3216,13 @@ function scenarioBattery(data, where) {
 suite('Assistant « Nouvelle activité » — chaque modèle est une activité valide');
 
 AW.TYPES.forEach(function(t) {
-  AW.THEMES.forEach(function(th) {
+  AW.themesFor(t.id).forEach(function(th) {
     AW.LEVELS.forEach(function(lv) {
       test(t.label + ' · ' + th.label + ' · ' + lv.label + ' (3 tirages)', function() {
         for(var seed = 0; seed < 3; seed++) {
           var sc = AW.build({type: t.id, theme: th.id, level: lv.id, seed: seed});
           scenarioBattery(JSON.parse(JSON.stringify(sc)), 'tirage ' + seed);
-          if(t.id === 'depannage') ok(sc.activity.faults.length >= 2, 'au moins deux pannes');
+          if(t.id === 'depannage' || t.id === 'internet') ok(sc.activity.faults.length >= 2, 'au moins deux pannes');
           else eq(sc.activity.faults.length, 0);
         }
       });
@@ -3232,7 +3232,7 @@ AW.TYPES.forEach(function(t) {
 
 suite('Assistant « Nouvelle activité » — Construction : postes à ajouter posés dans le corrigé');
 
-AW.THEMES.forEach(function(th) {
+AW.themesFor('construction').forEach(function(th) {
   AW.LEVELS.forEach(function(lv) {
     test('Construction · ' + th.label + ' · ' + lv.label + ' : corrigé vérifiable (poste coché « à ajouter »)', function() {
       var sc = AW.build({type: 'construction', theme: th.id, level: lv.id});
@@ -3660,7 +3660,7 @@ function loadFile(content) {
 test('réseau des 4 scénarios et des modèles de l\'assistant : accepté', function() {
   var problem = sandbox.networkDataProblem;
   fs.readdirSync(SCENARIOS_DIR).forEach(function(f) { eq(problem(readScenario(f).network), ''); });
-  AW.TYPES.forEach(function(t) { AW.THEMES.forEach(function(th) { AW.LEVELS.forEach(function(lv) {
+  AW.TYPES.forEach(function(t) { AW.themesFor(t.id).forEach(function(th) { AW.LEVELS.forEach(function(lv) {
     eq(problem(AW.build({type: t.id, theme: th.id, level: lv.id, seed: 1}).network), '');
   }); }); });
   eq(problem(goodNet()), '');
@@ -4018,6 +4018,52 @@ test('pannes de routage : format imbriqué {params} accepté, routeur inconnu ou
     {type: 'route_missing', dev: 'PC-A', dest: '192.168.2.0'}, {type: 'routing_off', dev: 'Absent'}]);
   eq(S.devs[n.r1].staticRoutes.length, 0);
   eq(S.devs[n.a].staticRoutes.length, 0);
+});
+
+suite('Assistant « Nouvelle activité » — Réseau Internet : corrigé vérifié, topologie, variantes');
+
+AW.themesFor('internet').forEach(function(th) {
+  AW.LEVELS.forEach(function(lv, li) {
+    test('Réseau Internet · ' + th.label + ' · ' + lv.label + ' : corrigé complet, ' + (2 + li) + ' pannes, ' + (li === 2 ? 3 : 2) + ' réseaux', function() {
+      var sc = AW.build({type: 'internet', theme: th.id, level: lv.id});
+      var r = AW.review(JSON.parse(JSON.stringify(sc)));
+      eq(r.ko, 0, 'objectifs non réalisés dans le corrigé');
+      eq(r.later, 0, 'objectifs à vérifier en Test');
+      eq(r.faultKo, 0, 'pannes sans effet');
+      eq(sc.activity.faults.length, 2 + li);
+      var routers = Object.values(sc.network.devs).filter(function(d) { return d.type === 'router'; });
+      eq(routers.length, li === 2 ? 3 : 2);
+      // RIP seulement en difficulté 1 ; sinon des routes statiques écrites
+      routers.forEach(function(d) {
+        eq(d.autoRouteEnabled !== false, li === 0, d.name + ' : routage automatique');
+        eq(d.staticRoutes.length > 0, li > 0, d.name + ' : routes statiques');
+      });
+      // Les types de pannes sont ceux du routage
+      var types = sc.activity.faults.map(function(f) { return f.type; });
+      ok(types.some(function(t) { return t === 'routing_off' || t === 'route_missing'; }), types.join(','));
+    });
+  });
+});
+
+test('Réseau Internet : un autre type de modèle ne propose pas ses thèmes, et inversement', function() {
+  eq(AW.themesFor('internet').map(function(t) { return t.id; }).join(','), 'agences,annexe,operateur');
+  eq(AW.themesFor('depannage').map(function(t) { return t.id; }).join(','), 'maison,entreprise,classe');
+  eq(AW.build({type: 'internet', theme: 'maison', level: 'd2'}).activity.title, 'Réseau Internet — Siège et agences', 'thème inconnu : le premier du type');
+  ok(/RIP/.test(AW.levelsFor('internet')[0].desc) && !/RIP/.test(AW.levelsFor('depannage')[0].desc));
+});
+
+AW.themesFor('internet').forEach(function(th) {
+  ['d2', 'd3'].forEach(function(lv) {
+    test('Réseau Internet · ' + th.label + ' · ' + lv + ' : variantes (pannes en plus ou en moins, exigence) restent valides', function() {
+      var base = AW.build({type: 'internet', theme: th.id, level: lv});
+      [{faults: ['add']}, {faults: ['remove']}, {faults: ['move']}, {exigence: 'guided'}, {exigence: 'demanding'},
+       {faults: ['remove', 'move'], exigence: 'demanding'}].forEach(function(o) {
+        var r = AW.makeVariant(base, o);
+        if(r.changed) scenarioBattery(JSON.parse(JSON.stringify(r.scenario)), 'variante ' + JSON.stringify(o));
+        ok(r.audit.ok, JSON.stringify(o) + ' : ' + r.audit.problems.join(' ; '));
+      });
+    });
+  });
 });
 
 /* ─────────────────────────────────────────────────────

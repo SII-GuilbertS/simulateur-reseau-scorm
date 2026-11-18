@@ -2641,3 +2641,39 @@ test.describe('Routage : routes statiques et pannes de routage', () => {
     await expect(page.locator('#hdr-score')).toContainText('panne');
   });
 });
+
+test.describe('Assistant : type Réseau Internet', () => {
+  test('modèle Siège et agences, difficulté 2 : thèmes du type, corrigé complet, route ajoutée par l\'élève et testée', async ({ page }) => {
+    await page.goto(BUILDER_URL);
+    await menu(page, 'btn-wizard');
+    const card = (group, id) => page.locator(`.wz-card[data-group="${group}"][data-id="${id}"]`);
+    await card('type', 'internet').click();
+    // Les thèmes sont ceux du type, et la difficulté s'explique pour lui
+    await expect(page.locator('.wz-card[data-group="theme"]')).toHaveCount(3);
+    await expect(card('theme', 'agences')).toHaveClass(/on/);
+    await expect(card('theme', 'maison')).toHaveCount(0);
+    await expect(card('level', 'd1')).toContainText('RIP');
+    await card('level', 'd2').click();
+    await expect(page.locator('.wz-prev-title')).toHaveText('Réseau Internet — Siège et agences');
+    await expect(page.locator('.wz-audit')).toContainText('Vérifié');
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+    await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
+    // Un autre type rend ses thèmes
+    await menu(page, 'btn-wizard');
+    await card('type', 'depannage').click();
+    await expect(card('theme', 'maison')).toHaveClass(/on/);
+    await expect(card('theme', 'agences')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    await page.locator('#btn-sim').click();
+    expect(await page.evaluate(() => S.score)).toBe(0);
+    const win = await openDeskApp(page, 'Routeur-Siege', 'Routage');
+    await win.locator('[data-f="rdest"]').fill('192.168.2.0');
+    await win.locator('[data-f="rgw"]').fill('172.16.0.2');
+    await win.locator('[data-act="addroute"]').click();
+    await expect(win.locator('.dtab')).toContainText('172.16.0.2');
+    await deskTerminal(page, 'PC-Accueil', 'ping 192.168.2.100');
+    expect(await page.evaluate(() => S.score)).toBe(40);
+  });
+});

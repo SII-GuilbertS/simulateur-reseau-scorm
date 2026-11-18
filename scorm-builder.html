@@ -6438,13 +6438,36 @@ var ActivityWizard=(function(){
   var TYPES=[
     {id:'construction',label:'Construction',icon:'🏗️',desc:"L'élève ajoute un poste, le configure, puis teste chaque étape."},
     {id:'depannage',label:'Dépannage',icon:'🔧',desc:"Des pannes sont injectées : l'élève diagnostique, corrige et teste."},
-    {id:'decouverte',label:'Découverte',icon:'🔍',desc:"Le réseau fonctionne : l'élève l'explore avec ping, nslookup et le navigateur."}
+    {id:'decouverte',label:'Découverte',icon:'🔍',desc:"Le réseau fonctionne : l'élève l'explore avec ping, nslookup et le navigateur."},
+    {id:'internet',label:'Réseau Internet',icon:'🌐',desc:"Plusieurs réseaux reliés par des routeurs, un serveur web et DNS au bout : l'élève diagnostique le routage."}
   ];
   var THEMES=[
     {id:'maison',label:'Maison',icon:'🏠',desc:'Box WiFi, PC fixe, portable en WiFi'},
     {id:'entreprise',label:'Entreprise',icon:'🏢',desc:'Routeur, postes de bureau, serveur intranet'},
-    {id:'classe',label:'Salle de classe',icon:'🏫',desc:'Routeur, postes élèves, serveur de données ; ENT sur Internet'}
+    {id:'classe',label:'Salle de classe',icon:'🏫',desc:'Routeur, postes élèves, serveur de données ; ENT sur Internet'},
+    /* Thèmes du type « Réseau Internet » (types:['internet']) : trois sites ; à deux réseaux, pick2 choisit lesquels. */
+    {id:'agences',types:['internet'],label:'Siège et agences',icon:'🏢',desc:'Siège, agence, entrepôt : intranet de l\'entreprise',
+      place:'de l\'entreprise',sites:['Siege','Agence','Entrepot'],pick2:[0,1],server:'Serveur-Agence',domain:'intranet.entreprise.fr',title:'Intranet',
+      hosts:[['PC-Accueil','PC-Compta'],['PC-Agence'],['PC-Entrepot']]},
+    {id:'annexe',types:['internet'],label:'Lycée et annexe',icon:'🏫',desc:'Lycée, annexe, internat : ENT de l\'établissement',
+      place:'de l\'établissement',sites:['Lycee','Annexe','Internat'],pick2:[0,1],server:'Serveur-ENT',domain:'ent.lycee.fr',title:'ENT',
+      hosts:[['Poste-Prof','Poste-CDI'],['Poste-Annexe'],['Poste-Internat']]},
+    {id:'operateur',types:['internet'],label:'Client et hébergeur',icon:'🌍',desc:'Un client, un opérateur de transit, un hébergeur web',
+      place:'du client',sites:['Client','Operateur','Hebergeur'],pick2:[0,2],server:'Serveur-Web',domain:'www.hebergeur.fr',title:'Hébergeur',
+      hosts:[['PC-Client1','PC-Client2'],['PC-Supervision'],['PC-Hebergeur']]}
   ];
+  /* Thèmes proposés pour un type : ceux du type « Réseau Internet » lui sont réservés. */
+  function themesFor(type){
+    return THEMES.filter(function(t){return type==='internet'?(t.types||[]).indexOf('internet')>=0:!t.types;});
+  }
+  /* Difficultés : leur sens propre au type « Réseau Internet ». */
+  var INTERNET_LEVEL_DESC={d1:'Deux réseaux, routage automatique (RIP), 2 pannes',
+    d2:'Deux réseaux, routes statiques à rétablir, 3 pannes',d3:'Trois routeurs en chaîne, routes statiques, 4 pannes'};
+  function levelsFor(type){
+    return LEVELS.map(function(l){
+      return type==='internet'?{id:l.id,label:l.label,full:l.full,desc:INTERNET_LEVEL_DESC[l.id]}:l;
+    });
+  }
   var LEVELS=[
     {id:'d1',label:'1 · Guidé',full:'Difficulté 1 / 3',desc:'Valeurs données à l\'élève, consignes détaillées, réseau simple'},
     {id:'d2',label:'2 · Intermédiaire',full:'Difficulté 2 / 3',desc:'Adresse à choisir dans une plage, passerelle à trouver'},
@@ -6785,6 +6808,107 @@ var ActivityWizard=(function(){
     return it;
   }
 
+  /* ── Type « Réseau Internet » : sites reliés par des routeurs, serveur web et DNS au bout ──
+     Difficulté 1 : deux réseaux, routage automatique (RIP). 2 : deux réseaux, routes statiques.
+     3 : trois routeurs en chaîne, routes statiques. Le premier routeur est relié à Internet. */
+  function themeInter(level,th){
+    var n=level==='d3'?3:2,rip=level==='d1',idx=n===3?[0,1,2]:th.pick2;
+    var net=newNet(),inet=addInternet(net),sites=idx.map(function(i){return th.sites[i];}),R=[],SW=[],i;
+    function lanIP(k,o){return '192.168.'+(k+1)+'.'+o;}
+    function linkIP(k,o){return '172.16.'+k+'.'+o;}
+    for(i=0;i<n;i++){
+      var ifs=[rif('eth0',i?linkIP(i-1,2):'10.0.0.2'),rif('eth1',lanIP(i,1))];
+      if(i<n-1)ifs.push(rif('eth2',linkIP(i,1)));
+      var r=addDev(net,'router','Routeur-'+sites[i],340+i*300,280,ifs);
+      if(!rip){
+        r.autoRouteEnabled=false;
+        // Réseaux plus loin : par le routeur suivant ; réseaux en amont et Internet : par le routeur précédent
+        for(var j=0;j<n;j++){
+          if(j>i)r.staticRoutes.push({dest:lanIP(j,0),mask:'255.255.255.0',gw:linkIP(i,2),iface:'eth2',type:'static'});
+          if(j<i)r.staticRoutes.push({dest:lanIP(j,0),mask:'255.255.255.0',gw:linkIP(i-1,1),iface:'eth0',type:'static'});
+        }
+        r.staticRoutes.push({dest:'0.0.0.0',mask:'0.0.0.0',gw:i?linkIP(i-1,1):'10.0.0.1',iface:'eth0',type:'static'});
+      }
+      R.push(r);
+    }
+    addLink(net,inet,R[0]);
+    for(i=0;i<n;i++){
+      var sw=addDev(net,'switch','Switch-'+sites[i],340+i*300,450,[]);
+      SW.push(sw);addLink(net,R[i],sw);
+      if(i<n-1)addLink(net,R[i],R[i+1]);
+    }
+    var ctx=mkCtx(net,th.id,level,R[0].name,'le '+R[0].name);
+    ctx.th=th;ctx.n=n;ctx.rip=rip;ctx.routers=R.map(function(r){return r.name;});ctx.sites=sites;
+    for(i=0;i<n;i++)ctx.lans.push({prefix:lanIP(i,0).replace(/0$/,''),gw:lanIP(i,1),sw:SW[i].name});
+    ctx.dnsIP=lanIP(n-1,100);
+    th.hosts[idx[0]].forEach(function(h,k){addHost(ctx,h,0,10+k,250+k*180,620,'desktop');});
+    th.hosts[idx[1]].slice(0,1).forEach(function(h){addHost(ctx,h,1,10,340+300-90,620,'desktop');});
+    addServer(ctx,th.server,n-1,100,340+(n-1)*300+90,620,th.domain,th.title,'Bienvenue sur '+th.domain+'.');
+    ctx.lanServer=th.server;ctx.domain=th.domain;
+    return ctx;
+  }
+
+  /* Réseau en panne de routage : une route, un routeur suivant ou le calcul automatique est en cause. */
+  function internetItems(ctx){
+    var c=ctx,it=[],n=c.n,R=c.routers,A=lanHosts(c,0),B=lanHosts(c,1),srv=c.server,last=n-1,M='255.255.255.0';
+    var A1=A[0],A2=A[1],B1=B[0];
+    function lanNet(k){return '192.168.'+(k+1)+'.0';}
+    function http(from,label){
+      O(it,'http_success',{from:from,url:c.site},label||'Test : '+from+' ouvre le site '+c.site,
+        'Double-clic sur '+from+', Navigateur : entrez '+c.site,2);
+    }
+    function pingSrv(){
+      O(it,'ping_success',{from:A1,to:'{'+srv+'}'},'Test : '+A1+' joint le '+srv+' (ping), à travers les routeurs',
+        'Terminal de '+A1+' : ping (adresse du '+srv+', voir ipconfig sur le serveur) ; traceroute montre les routeurs traversés',3);
+    }
+    function net8(from){
+      O(it,'ping_success',{from:from,to:'8.8.8.8'},'Test : '+from+' accède à Internet (ping 8.8.8.8)',
+        'Terminal de '+from+' : ping 8.8.8.8',2);
+    }
+    if(c.rip){
+      // Routage automatique : le routeur du serveur n'apprend plus rien, la réponse ne revient pas
+      var rl=R[last];
+      F(it,{type:'routing_off',dev:rl});
+      O(it,'route_exists',{dev:rl,dest:lanNet(0),mask:M},rl+' apprend de nouveau le réseau de '+c.sites[0]+' (RIP)',
+        'Bureau de '+rl+', application Routage : le calcul automatique (RIP) est arrêté',3);
+      pingSrv();
+      it=it.concat(faultItems(c,'srv_dns',B1));
+      http(A1);
+      O(it,'ping_success',{from:A1,to:'8.8.8.8'},A1+' accède à Internet (ping 8.8.8.8)','Terminal de '+A1+' : ping 8.8.8.8',2);
+      return it;
+    }
+    // Routes statiques
+    var rA=R[0],rB=R[1],next=R[1];
+    F(it,{type:'route_missing',dev:rA,dest:lanNet(last)});
+    O(it,'route_exists',{dev:rA,dest:lanNet(last),mask:M,gw:'{'+next+'}'},
+      rA+' a une route vers le réseau '+lanNet(last)+' par '+next,
+      'Bureau de '+rA+', application Routage : ajoutez la route vers '+lanNet(last)+' (routeur suivant : '+next+')',3);
+    pingSrv();
+    F(it,{type:'bad_route',dev:rB,dest:'0.0.0.0',badValue:'172.16.0.9'});
+    O(it,'route_exists',{dev:rB,dest:'0.0.0.0',mask:'0.0.0.0',gw:'{'+rA+'}'},
+      rB+' envoie le reste du trafic (Internet) vers '+rA,
+      'Les postes de '+c.sites[1]+' n\'accèdent pas à Internet ? Regardez la route par défaut (0.0.0.0) de '+rB+' : table de routage (commande route)',3);
+    net8(B1);
+    it=it.concat(faultItems(c,'gateway',A2));
+    if(n===3)it=it.concat(faultItems(c,'srv_dns',B1));
+    http(A1);
+    return it;
+  }
+
+  function internetInstructions(c){
+    var th=c.th,lines=[],s=c.sites,rip=c.rip;
+    var s0='Le réseau '+th.place+' relie '+c.n+' réseaux par des routeurs : '+s.join(', ')+'. Le '+c.server+' (site '+c.site+
+      ') est dans le réseau de '+s[c.n-1]+' ; le routeur de '+s[0]+' est relié à Internet.';
+    var panne=rip?'Le routage automatique (RIP) ne fonctionne plus comme prévu, et un service est arrêté.'
+      :'Des routes sont manquantes ou fausses (c\'est le routage statique : chaque route est écrite à la main).';
+    return s0+'\n\n'+panne+'\n\n🔍 Votre mission :\n'+
+      '1. Double-cliquez sur un poste : testez ping, traceroute et le navigateur. traceroute montre les routeurs traversés.\n'+
+      '2. Double-cliquez sur un routeur, application Routage : lisez sa table et repérez la route qui manque ou qui est fausse'+
+      (rip?', et vérifiez que le routage automatique est activé.':' (réseau, masque, routeur suivant).')+'\n'+
+      '3. Corrigez, puis refaites les tests.\n\n'+
+      '💡 Astuce : un ping qui « arrive mais ne revient pas » signale un problème de route sur le chemin du retour.';
+  }
+
   /* Points répartis selon les poids, pour un total exact, par pas de « step » points
      (5 pour des barèmes lisibles) quand il y a assez de points pour tous. */
   function distribute(weights,total,step){
@@ -6859,18 +6983,18 @@ var ActivityWizard=(function(){
   /* Nouvelle activité : {type, theme, level, seed} → scénario complet. */
   function build(opts){
     opts=opts||{};
-    var type=pick(TYPES,opts.type),theme=pick(THEMES,opts.theme),level=pick(LEVELS,opts.level);
-    var ctx=theme.id==='maison'?themeMaison(level.id):themeOffice(level.id,theme.id);
+    var type=pick(TYPES,opts.type),theme=pick(themesFor(type.id),opts.theme),level=pick(LEVELS,opts.level),inet=type.id==='internet';
+    var ctx=inet?themeInter(level.id,theme):theme.id==='maison'?themeMaison(level.id):themeOffice(level.id,theme.id);
     ctx.seed=Math.abs(parseInt(opts.seed,10)||0);
-    var items=type.id==='construction'?constructionItems(ctx):type.id==='depannage'?depannageItems(ctx):decouverteItems(ctx);
+    var items=inet?internetItems(ctx):type.id==='construction'?constructionItems(ctx):type.id==='depannage'?depannageItems(ctx):decouverteItems(ctx);
     var r=finish(items);
     return {
       version:1,createdAt:new Date().toISOString(),
       network:ctx.net,
       activity:{
-        title:'Réseau'+PLACE[theme.id]+' — '+type.label,
+        title:inet?'Réseau Internet — '+theme.label:'Réseau'+PLACE[theme.id]+' — '+type.label,
         level:level.full,
-        instructions:instructions(type.id,ctx,r.faults.length),
+        instructions:inet?internetInstructions(ctx):instructions(type.id,ctx,r.faults.length),
         masteryscore:MASTERY[level.id],
         displayMode:'full',
         objectives:r.objectives,faults:r.faults,evalOrder:r.evalOrder
@@ -7484,7 +7608,7 @@ var ActivityWizard=(function(){
     });
   }
 
-  return {TYPES:TYPES,THEMES:THEMES,LEVELS:LEVELS,build:build,audit:audit,review:review,makeVariant:makeVariant,
+  return {TYPES:TYPES,THEMES:THEMES,LEVELS:LEVELS,themesFor:themesFor,levelsFor:levelsFor,build:build,audit:audit,review:review,makeVariant:makeVariant,
     orderedItems:orderedItems,distribute:distribute};
 })();
 /* WIZARD-END */
@@ -7551,8 +7675,8 @@ var WizardUI=(function(){
       st.result=AW.build({type:st.type,theme:st.theme,level:st.level,seed:st.seed});
       title.textContent='✨ Nouvelle activité';
       left='<div class="wz-step">1. Type d\'activité</div>'+cards('type',AW.TYPES,st.type)+
-        '<div class="wz-step">2. Thème</div>'+cards('theme',AW.THEMES,st.theme)+
-        '<div class="wz-step">3. Difficulté</div>'+cards('level',AW.LEVELS,st.level,LEVEL_ICONS)+
+        '<div class="wz-step">2. Thème</div>'+cards('theme',AW.themesFor(st.type),st.theme)+
+        '<div class="wz-step">3. Difficulté</div>'+cards('level',AW.levelsFor(st.type),st.level,LEVEL_ICONS)+
         '<p class="wz-note">L\'activité remplace le réseau et l\'évaluation en cours. Tout reste modifiable ensuite '+
         'sur le schéma et dans le bandeau Évaluation.</p>';
       reroll=st.type==='depannage'&&JSON.stringify(st.result.activity.faults)!==
@@ -7608,7 +7732,10 @@ var WizardUI=(function(){
       else{f.push(v);var opp={add:'remove',remove:'add'}[v];if(opp&&f.indexOf(opp)>=0)f.splice(f.indexOf(opp),1);}
       v=['move','remove','add'].filter(function(x){return f.indexOf(x)>=0;});
     }
-    st[k]=v;if(k!=='exigence')st.seed=0;render();
+    st[k]=v;if(k!=='exigence')st.seed=0;
+    // Un autre type : le thème doit en être un
+    if(k==='type'&&!AW.themesFor(v).some(function(t){return t.id===st.theme;}))st.theme=AW.themesFor(v)[0].id;
+    render();
   }
   function reroll(){st.seed++;render();}
   function create(){
