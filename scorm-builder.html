@@ -6,7 +6,7 @@
 Licence : PolyForm Noncommercial 1.0.0 — https://polyformproject.org/licenses/noncommercial/1.0.0
 Required Notice: Copyright (c) 2026 Sylvain Guilbert (https://github.com/SII-GuilbertS/simulateur-reseau-scorm)
 -->
-<title>SCORM Builder — Simulateur Réseau IPv4</title>
+<title>Atelier Réseau — Simulateur Réseau IPv4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 
@@ -217,37 +217,21 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
    Module Simulateur ci-dessus)
 ════════════════════════════════════════════════════════════ */
 
-/* ── Barre de navigation Builder (tout en haut) ── */
-#bld-nav{
-  position:relative;z-index:1900;
-  background:linear-gradient(90deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%);
-  color:#fff;display:flex;align-items:stretch;gap:0;flex-shrink:0;
-  border-bottom:2px solid #e94560;
-  font-family:'Segoe UI',Arial,sans-serif;
-  min-height:42px;
-}
-#bld-nav .bld-brand{
-  padding:0 18px;font-size:.92em;font-weight:800;
-  color:#e94560;white-space:nowrap;letter-spacing:.3px;
-  border-right:1px solid rgba(255,255,255,.12);
-  display:flex;align-items:center;gap:6px;
-}
-#bld-nav .bld-tabs{display:flex;}
-#bld-nav .bld-tab{
-  padding:0 20px;border:none;background:transparent;color:rgba(255,255,255,.6);
-  cursor:pointer;font-size:.82em;font-weight:700;letter-spacing:.2px;
-  border-bottom:3px solid transparent;transition:all .18s;white-space:nowrap;
-  display:flex;align-items:center;
-}
-#bld-nav .bld-tab:hover{color:#fff;background:rgba(255,255,255,.07)}
-#bld-nav .bld-tab.active{color:#e94560;border-bottom-color:#e94560;background:rgba(233,69,96,.08)}
-#bld-nav .bld-tab-num{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.15);
-  font-size:.78em;margin-right:7px;font-weight:800;
-}
-#bld-nav .bld-tab.active .bld-tab-num{background:#e94560;color:#fff}
-#bld-nav .bld-hint{margin-left:auto;padding:0 14px;font-size:.72em;color:rgba(255,255,255,.4);white-space:nowrap}
+/* ── Barre unique du builder : menu, onglets, vues ── */
+.hdr{position:relative;z-index:1900;font-family:'Segoe UI',Arial,sans-serif}
+.bld-menu-wrap{position:relative;flex-shrink:0}
+.bld-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;min-width:270px;background:#fff;color:#2d3748;border-radius:9px;
+  box-shadow:0 10px 34px rgba(0,0,0,.35);padding:6px;z-index:2100;font-size:.85em}
+.bld-menu.open{display:block}
+.bld-menu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:none;border-radius:6px;
+  padding:7px 10px;cursor:pointer;color:inherit;font:inherit}
+.bld-menu button:hover,.bld-menu button:focus-visible{background:#ebf4ff;outline:none}
+.bld-menu .mi-sep{height:1px;background:#e2e8f0;margin:5px 4px}
+.bld-menu .mi-grp{font-size:.74em;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:.5px;padding:5px 10px 2px}
+.hdr-tabs .mbtn{padding:4px 13px}
+/* ── Fenêtre « Options d'export » ── */
+.exp-box{width:min(480px,96vw)}
+.exp-body{padding:16px 20px 20px;overflow-y:auto;background:#f0f4f8}
 
 /* ── Overlay tabs (2 & 3) ── */
 .bld-overlay{
@@ -441,28 +425,6 @@ body{padding-top:0}/* nav is flex child */
 <!-- ══════════════════════════════════════════════════════════
      BARRE DE NAVIGATION BUILDER (Module indépendant)
 ══════════════════════════════════════════════════════════ -->
-<div id="bld-nav">
-  <div class="bld-brand">🔧 SCORM Builder</div>
-  <div class="bld-tabs">
-    <button class="bld-tab active" data-tab="1" onclick="showBuilderTab(1)">
-      <span class="bld-tab-num">1</span>Réseau
-    </button>
-    <button class="bld-tab" data-tab="2" onclick="showBuilderTab(2)">
-      <span class="bld-tab-num">2</span>Évaluation
-    </button>
-    <button class="bld-tab" data-tab="3" onclick="showBuilderTab(3)">
-      <span class="bld-tab-num">3</span>Générer SCORM
-    </button>
-  </div>
-  <button class="bld-nav-btn" id="btn-wizard" style="margin-left:auto" onclick="WizardUI.open('new')" title="Créer une activité à partir d'un modèle : type, thème et niveau">✨ Nouvelle activité</button>
-  <button class="bld-nav-btn" id="btn-open" onclick="document.getElementById('gen-import-file').click()" title="Ouvrir une activité enregistrée (scénario .json)">📂 Ouvrir</button>
-  <button class="bld-nav-btn" id="btn-save" onclick="GenModule.exportScenario()" title="Enregistrer l'activité en cours (scénario .json : réseau corrigé, objectifs et pannes)">💾 Enregistrer</button>
-  <button class="bld-nav-btn" id="btn-variant" onclick="WizardUI.open('variant')" title="Décliner l'activité en cours : plus guidée, plus exigeante, autres pannes">🔀 Variante</button>
-  <button onclick="GenModule.previewAsStudent()" title="Ouvrir la vue élève dans un nouvel onglet" style="margin-right:10px;padding:5px 13px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82em;font-weight:600;white-space:nowrap">👁️ Tester comme élève</button>
-  <div class="bld-hint">Ctrl+1 / Ctrl+2 / Ctrl+3 pour naviguer</div>
-</div>
-
-
 <!-- Fenêtre de l'assistant « Nouvelle activité » et des variantes (WizardUI) -->
 <div id="wz-ovl" class="wz-ovl" onclick="if(event.target===this)WizardUI.close()">
   <div class="wz-box" role="dialog" aria-modal="true">
@@ -481,16 +443,36 @@ body{padding-top:0}/* nav is flex child */
 
 <!-- ══ HEADER ══════════════════════════════════════════ -->
 <div class="hdr">
-  <div class="hdr-title">🖥️ Simulateur Réseau IPv4</div>
+  <div class="bld-menu-wrap">
+    <button type="button" class="wbtn" id="menu-btn" aria-haspopup="true" aria-expanded="false" onclick="BldMenu.toggle(event)" title="Fichier, export, assistant">☰ Menu</button>
+    <div class="bld-menu" id="file-menu" role="menu">
+      <button type="button" role="menuitem" id="btn-wizard"  onclick="BldMenu.run('wizard')"  title="Créer une activité à partir d'un modèle : type, thème et niveau">✨ Nouvelle activité…</button>
+      <button type="button" role="menuitem" id="btn-new"     onclick="BldMenu.run('new')"     title="Repartir d'un builder vierge">📄 Nouveau (vierge)</button>
+      <button type="button" role="menuitem" id="btn-open"    onclick="BldMenu.run('open')"    title="Ouvrir une activité enregistrée (scénario .json)">📂 Ouvrir…</button>
+      <button type="button" role="menuitem" id="btn-save"    onclick="BldMenu.run('save')"    title="Enregistrer l'activité en cours (scénario .json : réseau corrigé, objectifs et pannes)">💾 Enregistrer</button>
+      <button type="button" role="menuitem" id="btn-variant" onclick="BldMenu.run('variant')" title="Décliner l'activité en cours : plus guidée, plus exigeante, autres pannes">🔀 Variante…</button>
+      <div class="mi-sep"></div>
+      <div class="mi-grp">Exporter</div>
+      <button type="button" role="menuitem" id="mi-scorm"  onclick="BldMenu.run('scorm')"  title="Fichier .zip à importer dans Moodle">📦 Package SCORM (.zip)</button>
+      <button type="button" role="menuitem" id="mi-html"   onclick="BldMenu.run('html')"   title="Fichier .html autonome : ouvrez-le directement dans le navigateur">🧪 Page HTML autonome</button>
+      <button type="button" role="menuitem" id="mi-enonce" onclick="BldMenu.run('enonce')" title="Topologie, objectifs et zone élève : imprimable ou PDF">📄 Énoncé imprimable</button>
+      <button type="button" role="menuitem" id="mi-corrige" onclick="BldMenu.run('corrige')" title="Plan d'adressage rempli">🔑 Corrigé enseignant</button>
+      <button type="button" role="menuitem" id="mi-options" onclick="BldMenu.run('options')" title="Résumé de l'activité, mot de passe professeur, plan d'adressage de l'énoncé">⚙️ Options d'export…</button>
+      <div class="mi-sep"></div>
+      <button type="button" role="menuitem" id="mi-preview" onclick="BldMenu.run('preview')" title="Ouvrir l'activité comme l'élève la verra, dans un nouvel onglet">👁️ Aperçu élève (nouvel onglet)</button>
+      <button type="button" role="menuitem" id="btn-fs" onclick="BldMenu.run('fs')" title="Plein écran (F11)">⤢ Plein écran</button>
+    </div>
+  </div>
+  <div class="hdr-title">🔧 Atelier Réseau</div>
+
+  <div class="hdr-mode hdr-tabs">
+    <button class="mbtn bld-tab active" data-tab="1" onclick="showBuilderTab(1)" title="Le schéma du réseau (Ctrl+1)">Réseau</button>
+    <button class="mbtn bld-tab" data-tab="2" onclick="showBuilderTab(2)" title="Objectifs, points et pannes (Ctrl+2)">Évaluation</button>
+  </div>
 
   <div class="hdr-tools" id="hdr-tools">
-    <button class="tbtn icon-only" id="t-clear"  onclick="clearAll()" title="Reset — Effacer tout le réseau">♻</button>
     <button class="tbtn icon-only" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled>↩</button>
     <button class="tbtn icon-only" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled>↪</button>
-    <button class="tbtn icon-only" id="t-save" onclick="manualSave()" title="Sauvegarder dans la session (reprise possible)">💾</button>
-    <button class="tbtn icon-only" onclick="saveTopology()" title="Exporter le réseau en fichier JSON">📤</button>
-    <button class="tbtn icon-only" onclick="document.getElementById('load-inp').click()" title="Importer un réseau depuis un fichier JSON">📂</button>
-    <input type="file" id="load-inp" accept=".json" style="display:none" onchange="loadTopology(event)"/>
   </div>
 
   <div class="hdr-mode">
@@ -501,13 +483,9 @@ body{padding-top:0}/* nav is flex child */
 
   <div class="hdr-r">
     <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs" style="cursor:pointer">📋 Corrigé : aucun objectif</div>
-    <button class="wbtn icon-only" onclick="resetScore()" title="Remettre le score à zéro et recalculer">🔄</button>
     <div id="score-details"></div>
-    <button class="wbtn icon-only" id="btn-fs"  onclick="toggleFullscreen()" title="Plein écran">⤢</button>
-
-    <button class="fbtn" onclick="finishActivity()">🏁 Terminer</button>
-    <button class="wbtn" onclick="toggleTeacherMode()" title="Mode Professeur" style="background:rgba(192,86,33,.5);border-color:rgba(192,86,33,.8)">🎓</button>
   </div>
+  <input type="file" id="gen-import-file" accept=".json" style="display:none" onchange="GenModule.importScenario(event)"/>
 </div>
 
 <!-- ══ BARRE PROFESSEUR ════════════════════════════════ -->
@@ -700,89 +678,40 @@ body{padding-top:0}/* nav is flex child */
      Combine SimModule.getState() + EvalModule.getConfig()
      → SCORM ZIP via JSZip
 ══════════════════════════════════════════════════════════ -->
-<div id="bld-overlay-gen" class="bld-overlay">
-  <div class="bld-page">
-    <div class="bld-page-title">📦 Générer le SCORM</div>
-    <div class="gen-grid">
-
-      <!-- ── Colonne gauche : résumé + bouton ── -->
-      <div>
-        <div class="bld-card">
-          <div class="bld-card-title">📊 Résumé</div>
-          <div id="gen-summary-content">
-            <div class="gen-summary-stat">
-              <span class="gen-summary-icon">🖥️</span>
-              <div><span class="gen-summary-val" id="gen-s-devs">0 appareil(s)</span><br><span class="gen-summary-sub">dans le réseau corrigé</span></div>
-            </div>
-            <div class="gen-summary-stat">
-              <span class="gen-summary-icon">🔗</span>
-              <div><span class="gen-summary-val" id="gen-s-links">0 câble(s)</span><br><span class="gen-summary-sub">connexions câblées</span></div>
-            </div>
-            <div class="gen-summary-stat">
-              <span class="gen-summary-icon">🎯</span>
-              <div><span class="gen-summary-val" id="gen-s-objs">0 objectif(s)</span><br><span class="gen-summary-sub" id="gen-s-pts">0 pt — seuil 60%</span></div>
-            </div>
+<div id="bld-overlay-gen" class="wz-ovl" onclick="if(event.target===this)closeExportDialog()">
+  <div class="wz-box exp-box" role="dialog" aria-modal="true" aria-labelledby="exp-title">
+    <div class="wz-hdr"><span id="exp-title">📦 Options d'export</span><button type="button" class="wz-x" onclick="closeExportDialog()" title="Fermer">✕</button></div>
+    <div class="exp-body">
+      <div class="bld-card">
+        <div class="bld-card-title">📊 Résumé</div>
+        <div id="gen-summary-content">
+          <div class="gen-summary-stat">
+            <span class="gen-summary-icon">🖥️</span>
+            <div><span class="gen-summary-val" id="gen-s-devs">0 appareil(s)</span><br><span class="gen-summary-sub">dans le réseau corrigé</span></div>
           </div>
-        </div>
-
-        <div class="bld-card">
-          <div class="bld-card-title">🔑 Options</div>
-          <div class="bld-row">
-            <label>Mot de passe professeur</label>
-            <input id="gen-pwd" type="text" value="prof" placeholder="prof"/>
+          <div class="gen-summary-stat">
+            <span class="gen-summary-icon">🔗</span>
+            <div><span class="gen-summary-val" id="gen-s-links">0 câble(s)</span><br><span class="gen-summary-sub">connexions câblées</span></div>
           </div>
-          <div id="gen-status" style="margin-top:8px;font-size:.77em;color:#718096;padding:6px 10px;background:#f7fafc;border-radius:5px;border:1px solid #edf2f7;">
-            ℹ️ Template : chargement…
+          <div class="gen-summary-stat">
+            <span class="gen-summary-icon">🎯</span>
+            <div><span class="gen-summary-val" id="gen-s-objs">0 objectif(s)</span><br><span class="gen-summary-sub" id="gen-s-pts">0 pt — seuil 60%</span></div>
           </div>
         </div>
       </div>
-
-      <!-- ── Colonne droite : actions ── -->
-      <div>
-        <div class="bld-card">
-          <div class="bld-card-title">🚀 Génération</div>
-          <button class="gen-btn-main" id="gen-btn-main" onclick="GenModule.generate()">
-            📦 Générer le package SCORM
-          </button>
-          <div style="text-align:center;font-size:.75em;color:#a0aec0;margin-bottom:10px;">
-            Téléchargement d'un fichier .zip à importer dans Moodle
-          </div>
-          <button class="gen-btn-main" onclick="GenModule.generateHtml()" style="background:linear-gradient(135deg,#2d6a4f,#40916c);margin-bottom:4px;">
-            🧪 Exporter en HTML (test navigateur)
-          </button>
-          <div style="text-align:center;font-size:.75em;color:#a0aec0;margin-bottom:16px;">
-            Fichier .html standalone — ouvrez-le directement dans Chrome/Firefox
-          </div>
-          <button class="gen-btn-main" onclick="GenModule.generateEnonce()" style="background:linear-gradient(135deg,#553c9a,#805ad5);margin-bottom:4px;">
-            📄 Générer l'énoncé imprimable
-          </button>
-          <div style="text-align:center;font-size:.75em;color:#a0aec0;margin-bottom:16px;">
-            Page HTML avec topologie, objectifs et zone élève — imprimable ou PDF
-          </div>
-          <label class="gen-plan-opt"><input type="checkbox" id="gen-plan" checked/> Inclure le plan d'adressage à compléter</label>
-          <button class="gen-btn-sec gen-btn-corrige" onclick="GenModule.generateCorrige()">🔑 Corrigé enseignant (plan d'adressage rempli)</button>
-          <div class="gen-secondary-btns">
-            <button class="gen-btn-sec" onclick="GenModule.exportScenario()">💾 Exporter le scénario (.json)</button>
-            <button class="gen-btn-sec" onclick="document.getElementById('gen-import-file').click()">📂 Importer un scénario</button>
-          </div>
-          <input type="file" id="gen-import-file" accept=".json" style="display:none" onchange="GenModule.importScenario(event)"/>
+      <div class="bld-card" style="margin-bottom:0">
+        <div class="bld-card-title">🔑 Options</div>
+        <div class="bld-row">
+          <label for="gen-pwd">Mot de passe professeur</label>
+          <input id="gen-pwd" type="text" value="prof" placeholder="prof"/>
         </div>
-
-        <div class="bld-card" style="background:#fffbeb;border-color:#fbd38d;">
-          <div class="bld-card-title" style="color:#c05621;">📌 Guide rapide</div>
-          <ol style="padding-left:18px;font-size:.82em;color:#744210;line-height:1.8;margin:0">
-            <li><strong>Onglet 1 Réseau</strong> — Dessiner le réseau corrigé (celui qui fonctionne)</li>
-            <li><strong>Onglet 2 Évaluation</strong> — Définir objectifs, points et pannes (pastilles P1, P2… sur le schéma)</li>
-            <li><strong>Onglet 3 Générer</strong> — Télécharger et importer dans Moodle</li>
-          </ol>
-          <div style="margin-top:10px;font-size:.75em;color:#a0aec0">
-            Le fichier ZIP contient <code>index.html</code> + <code>imsmanifest.xml</code>
-          </div>
+        <label class="gen-plan-opt" style="margin:0 0 8px"><input type="checkbox" id="gen-plan" checked/> Inclure le plan d'adressage à compléter dans l'énoncé</label>
+        <div id="gen-status" style="font-size:.77em;color:#718096;padding:6px 10px;background:#f7fafc;border-radius:5px;border:1px solid #edf2f7;">
+          ℹ️ Template : chargement…
         </div>
       </div>
-
-    </div><!-- /.gen-grid -->
-  </div><!-- /.bld-page -->
+    </div>
+  </div>
 </div><!-- /#bld-overlay-gen -->
 
 
@@ -4619,9 +4548,6 @@ function _viewUI(){
       :'';
   }
   palLock(v==='depart');   // lecture seule : palette et outils grisés
-  // « Remettre le score à zéro » : sans objet en vue Corrigé, qui n'a pas de score
-  var rz=document.querySelector('.hdr-r button[onclick="resetScore()"]');
-  if(rz)rz.style.display=v==='corrige'?'none':'';
   var hs=document.getElementById('hdr-score');
   if(hs)hs.title=v==='essai'?'Score de votre essai : celui que l\'élève obtiendrait avec les mêmes gestes. Cliquer pour le détail.'
     :v==='depart'?'Score de l\'élève à l\'ouverture de l\'activité. Cliquer pour le détail.'
@@ -7690,7 +7616,60 @@ function bldNotif(msg, type) {
   setTimeout(function(){ n.style.transition='opacity .4s';n.style.opacity='0';setTimeout(function(){n.remove();},420); }, 3800);
 }
 
+/* Fenêtre « Options d'export » : résumé, mot de passe professeur, plan d'adressage de l'énoncé. */
+function openExportDialog() {
+  ensureCorrige();
+  GenModule.updateSummary();
+  var o = document.getElementById('bld-overlay-gen'); if(o) o.classList.add('open');
+}
+function closeExportDialog() {
+  var o = document.getElementById('bld-overlay-gen'); if(o) o.classList.remove('open');
+}
+
+/* Menu ☰ : fichier, export, assistant. Les exports partent toujours du corrigé (ensureCorrige). */
+var BldMenu = (function(){
+  var ACTIONS = {
+    wizard:  function(){ WizardUI.open('new'); },
+    'new':   function(){
+      if(hasUnsavedWork() && !confirm('Le travail en cours n\'est pas enregistré. Repartir d\'un builder vierge ?')) return;
+      SAVED_FP = null;   // la question vient d'être posée : pas de seconde alerte au rechargement
+      location.reload();
+    },
+    open:    function(){ document.getElementById('gen-import-file').click(); },
+    save:    function(){ ensureCorrige(); GenModule.exportScenario(); },
+    variant: function(){ WizardUI.open('variant'); },
+    scorm:   function(){ ensureCorrige(); GenModule.generate(); },
+    html:    function(){ ensureCorrige(); GenModule.generateHtml(); },
+    enonce:  function(){ ensureCorrige(); GenModule.generateEnonce(); },
+    corrige: function(){ ensureCorrige(); GenModule.generateCorrige(); },
+    options: function(){ openExportDialog(); },
+    preview: function(){ GenModule.previewAsStudent(); },
+    fs:      function(){ toggleFullscreen(); }
+  };
+  function el(){ return document.getElementById('file-menu'); }
+  function isOpen(){ var m = el(); return !!m && m.classList.contains('open'); }
+  function setOpen(on){
+    var m = el(), b = document.getElementById('menu-btn');
+    if(m) m.classList.toggle('open', on);
+    if(b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  document.addEventListener('mousedown', function(e){
+    if(isOpen() && !e.target.closest('.bld-menu-wrap')) setOpen(false);
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    if(isOpen()){ setOpen(false); var b = document.getElementById('menu-btn'); if(b) b.focus(); }
+    var o = document.getElementById('bld-overlay-gen');
+    if(o && o.classList.contains('open')) closeExportDialog();
+  });
+  return {
+    toggle: function(e){ if(e) e.stopPropagation(); setOpen(!isOpen()); },
+    run: function(name){ setOpen(false); if(ACTIONS[name]) ACTIONS[name](); }
+  };
+})();
+
 function showBuilderTab(n) {
+  if(n===3){ openExportDialog(); return; }   // l'ancien onglet « Générer » est devenu la fenêtre d'export
   if(n!==1) ensureCorrige();
   // Update nav buttons
   document.querySelectorAll('.bld-tab').forEach(function(b){
@@ -7698,15 +7677,10 @@ function showBuilderTab(n) {
   });
   // Show/hide overlays
   var evalOvl = document.getElementById('bld-overlay-eval');
-  var genOvl  = document.getElementById('bld-overlay-gen');
   if(evalOvl) evalOvl.classList.toggle('active', n===2);
-  if(genOvl)  genOvl.classList.toggle('active',  n===3);
-  // Update top position of overlays (after nav bar height)
-  var nav = document.getElementById('bld-nav');
-  var navH = nav ? nav.offsetHeight : 40;
-  [evalOvl, genOvl].forEach(function(el){ if(el) el.style.top = navH + 'px'; });
-  // When switching to gen tab, refresh summary
-  if(n===3) GenModule.updateSummary();
+  // La page Évaluation commence sous l'en-tête
+  var hdr = document.querySelector('.hdr');
+  if(evalOvl && hdr) evalOvl.style.top = hdr.offsetHeight + 'px';
   // Quitter l'onglet Évaluation → recalculer le score sur le réseau courant
   if(n!==2) checkAllObjectives();
 }
@@ -7733,16 +7707,10 @@ window.addEventListener('load', function() {
       '<span class="tbar-sep"></span>'+
       '<span class="ctl-banner" id="ctl-banner" onclick="showBuilderTab(2)"></span>'+
       '<button class="wbtn" onclick="showBuilderTab(2)">🎯 Évaluation et pannes →</button>'+
-      '<button class="wbtn" onclick="showBuilderTab(3)">📦 Générer →</button>'+
+      '<button class="wbtn" onclick="openExportDialog()">📦 Exporter…</button>'+
       '<span class="tbar-hint">Dessinez le réseau qui fonctionne ; les pannes se règlent dans l\'onglet 2</span>';
-    // Le score de l'en-tête est celui de l'essai du professeur ; « Terminer » et « Mode Professeur » ne servent qu'à l'élève
     var hs = document.getElementById('hdr-score');
     if(hs) hs.title = 'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
-    var rz0 = document.querySelector('.hdr-r button[onclick="resetScore()"]'); if(rz0) rz0.style.display = 'none';   // vue Corrigé : pas de score
-    var fb = document.querySelector('.hdr-r .fbtn'); if(fb) fb.style.display = 'none';
-    // 📤 et 📂 de l'en-tête exportaient un « réseau » : Ouvrir et Enregistrer (barre du haut) font l'activité entière
-    document.querySelectorAll('#hdr-tools button[onclick="saveTopology()"], #hdr-tools button[onclick*="load-inp"]').forEach(function(b){ b.style.display = 'none'; });
-    var tm = document.querySelector('.hdr-r [onclick="toggleTeacherMode()"]'); if(tm) tm.style.display = 'none';
   }
 
   // Set initial tab
@@ -7758,10 +7726,9 @@ window.addEventListener('load', function() {
   // Keyboard shortcuts
   window.addEventListener('keydown', function(e){
     if(e.key==='F11'){e.preventDefault();toggleFullscreen();}
-    // Builder shortcuts
+    // Raccourcis : Ctrl+1 (schéma), Ctrl+2 (évaluation)
     if(e.ctrlKey&&e.key==='1'){showBuilderTab(1);e.preventDefault();}
     if(e.ctrlKey&&e.key==='2'){showBuilderTab(2);e.preventDefault();}
-    if(e.ctrlKey&&e.key==='3'){showBuilderTab(3);e.preventDefault();}
   });
 
   // Panel resize (same as simulator)
@@ -7798,7 +7765,7 @@ window.addEventListener('load', function() {
     if(b)b.textContent=document.fullscreenElement?'⤡ Fenêtre':'⤢ Plein écran';
   });
 
-  addLog('🔧 SCORM Builder : dessinez le réseau corrigé ici, ajoutez objectifs et pannes (Ctrl+2), puis générez (Ctrl+3). Pour reprendre un travail : 📂 Ouvrir.','info');
+  addLog('🔧 Atelier Réseau : dessinez le réseau corrigé ici, ajoutez objectifs et pannes (Ctrl+2), puis exportez (☰ Menu). Pour reprendre un travail : ☰ Menu › Ouvrir.','info');
   markSaved();   // builder vierge : rien à enregistrer tant que rien n'est fait
   ctlRefresh();
 });

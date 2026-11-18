@@ -96,10 +96,15 @@ async function download(page, action, file) {
   return file;
 }
 
+/* Menu ☰ de la barre du haut : l'ouvre s'il est fermé, puis clique l'entrée demandée (id de l'entrée). */
+async function menu(page, id) {
+  if (!(await page.locator('#file-menu.open').count())) await page.locator('#menu-btn').click();
+  await page.locator('#' + id).click();
+}
+
 async function exportFile(page, kind, file) {
-  await page.locator('.bld-tab[data-tab="3"]').click();
-  const fn = { html: 'generateHtml', scorm: 'generate', scenario: 'exportScenario' }[kind];
-  return download(page, () => page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click(), file);
+  const id = { html: 'mi-html', scorm: 'mi-scorm', scenario: 'btn-save' }[kind];
+  return download(page, () => menu(page, id), file);
 }
 
 const runInTerminal = (page, deviceName, command) => deskTerminal(page, deviceName, command);
@@ -224,10 +229,12 @@ test.describe('Import et export de chaque scénario', () => {
       const data = readScenario(name);
       await openBuilderWith(page, name);
 
-      await page.locator('.bld-tab[data-tab="3"]').click();
+      await menu(page, 'mi-options');
       await expect(page.locator('#gen-s-devs')).toHaveText(`${Object.keys(data.network.devs).length} appareil(s)`);
       await expect(page.locator('#gen-s-objs')).toHaveText(`${data.activity.objectives.length} objectif(s)`);
       await expect(page.locator('#gen-s-pts')).toHaveText(`100 pt — seuil ${mastery}%`);
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#bld-overlay-gen')).not.toHaveClass(/open/);
 
       const file = await exportFile(page, 'html', info.outputPath(name + '.html'));
       expect(page.dialogs, 'aucun avertissement : l\'élève ne réussit pas d\'office').toEqual([]);
@@ -622,13 +629,12 @@ test.describe('Builder', () => {
     fs.writeFileSync(scenario, JSON.stringify(data));
     await page.goto(BUILDER_URL);
     await importScenarioFile(page, scenario);
-    await page.locator('.bld-tab[data-tab="3"]').click();
 
     page.dialogAction = 'dismiss';
     let downloaded = false;
     page.on('download', () => { downloaded = true; });
-    for (const fn of ['generateHtml', 'generate']) {
-      await page.locator(`#bld-overlay-gen button[onclick="GenModule.${fn}()"]`).click();
+    for (const id of ['mi-html', 'mi-scorm']) {
+      await menu(page, id);
     }
     await expect.poll(() => page.dialogs.length).toBe(2);
     await page.waitForTimeout(500);
@@ -731,18 +737,17 @@ test.describe('Builder', () => {
     await card.locator('.ipf select').selectOption('range');
     await card.locator('#ipr-e-7-ip').fill('20');
     await card.locator('#ipr-e-7-ip').press('Tab');
-    await page.locator('.bld-tab[data-tab="3"]').click();
 
-    const open = async (selector) => {
+    const open = async (menuId) => {
       const pending = context.waitForEvent('page');
-      await page.locator(selector).click();
+      await menu(page, menuId);
       const doc = await pending;
       await doc.waitForLoadState();
       return doc;
     };
     const rows = (doc) => doc.locator('table.plan tbody tr');
 
-    const enonce = await open('button[onclick="GenModule.generateEnonce()"]');
+    const enonce = await open('mi-enonce');
     await expect(enonce.locator('h2', { hasText: 'Plan d\'adressage' })).toBeVisible();
     await expect(rows(enonce)).toHaveCount(2);
     const added = rows(enonce).filter({ hasText: 'B210-P3' });
@@ -754,7 +759,7 @@ test.describe('Builder', () => {
     await enonce.screenshot({ path: info.outputPath('enonce.png'), fullPage: true });
     await enonce.close();
 
-    const corrige = await open('.gen-btn-corrige');
+    const corrige = await open('mi-corrige');
     await expect(corrige.locator('.teacher-banner')).toContainText('Document enseignant');
     await expect(corrige.locator('.student-grid')).toHaveCount(0);
     await expect(rows(corrige).filter({ hasText: 'B105-P2' })).toContainText('10.2.105.2');
@@ -762,8 +767,10 @@ test.describe('Builder', () => {
     await corrige.screenshot({ path: info.outputPath('corrige.png'), fullPage: true });
     await corrige.close();
 
+    await menu(page, 'mi-options');
     await page.locator('#gen-plan').uncheck();
-    const sansPlan = await open('button[onclick="GenModule.generateEnonce()"]');
+    await page.keyboard.press('Escape');
+    const sansPlan = await open('mi-enonce');
     await expect(sansPlan.locator('h2', { hasText: 'Objectifs' })).toBeVisible();
     await expect(sansPlan.locator('table.plan')).toHaveCount(0);
     await sansPlan.close();
@@ -987,7 +994,7 @@ test.describe('Builder', () => {
 
   test('Nouvelle activité : modèle choisi, vérifié, créé, puis réussi à 100 par l\'élève', async ({ page }, info) => {
     await page.goto(BUILDER_URL);
-    await page.locator('#btn-wizard').click();
+    await menu(page, 'btn-wizard');
     const card = (group, id) => page.locator(`.wz-card[data-group="${group}"][data-id="${id}"]`);
     await card('type', 'decouverte').click();
     await card('theme', 'classe').click();
@@ -1215,8 +1222,8 @@ test.describe('Builder', () => {
 
     // Une activité créée par l'assistant n'est pas enregistrée : alerte
     await page.locator('.bld-tab[data-tab="1"]').click();
-    await page.locator('#btn-open').click({ trial: true });                  // le bouton existe, visible dans la barre du haut
-    await page.locator('#btn-wizard').click();
+    await expect(page.locator('#menu-btn')).toBeVisible();                   // Ouvrir, Enregistrer et l'assistant sont dans le menu ☰ de la barre du haut
+    await menu(page, 'btn-wizard');
     await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
     await page.locator('#wz-create').click();
     await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
@@ -1258,7 +1265,7 @@ test.describe('Builder', () => {
 
     // Un export pendant l'essai donne le corrigé, pas la copie : DNS démarré, pannes seulement dans l'activité
     const file = await exportFile(page, 'scenario', info.outputPath('essai.json'));
-    await expect(page.locator('#btn-cfg')).toHaveClass(/active/);          // l'onglet 3 ramène au corrigé
+    await expect(page.locator('#btn-cfg')).toHaveClass(/active/);          // l'export ramène au corrigé
     const exported = JSON.parse(fs.readFileSync(file, 'utf8'));
     expect(Object.values(exported.network.devs).find((d) => d.name === 'Serveur').dns.on).toBe(true);
     expect(exported.activity.faults.length).toBe(2);
@@ -1410,7 +1417,7 @@ test.describe('Builder', () => {
       await corrigeComplet(page); await departZero(page);
     }
     for (const theme of ['maison', 'entreprise', 'classe']) {
-      await page.locator('#btn-wizard').click();
+      await menu(page, 'btn-wizard');
       await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
       await page.locator(`.wz-card[data-group="theme"][data-id="${theme}"]`).click();
       await page.locator('#wz-create').click();
@@ -1459,7 +1466,7 @@ test.describe('Builder', () => {
 
   test('câble débranché : le professeur le rebranche en vue Essai, l\'objectif compte (au bon switch seulement)', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
-    await page.locator('#btn-wizard').click();
+    await menu(page, 'btn-wizard');
     await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
     await page.locator('.wz-card[data-group="theme"][data-id="maison"]').click();
     await page.locator('.wz-card[data-group="level"][data-id="college"]').click();
@@ -1496,7 +1503,7 @@ test.describe('Builder', () => {
 
   test('Variante : plus exigeante, panne déplacée, puis réparée chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-entreprise');
-    await page.locator('#btn-variant').click();
+    await menu(page, 'btn-variant');
     await expect(page.locator('#wz-create')).toBeDisabled();    // rien ne change encore
     await page.locator('.wz-card[data-group="exigence"][data-id="demanding"]').click();
     await page.locator('.wz-card[data-group="faults"][data-id="move"]').click();
@@ -1521,7 +1528,7 @@ test.describe('Builder', () => {
 
   test('Variante : choix de pannes combinés (autres appareils + une de plus) sur le réseau maison', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
-    await page.locator('#btn-variant').click();
+    await menu(page, 'btn-variant');
     const card = (id) => page.locator(`.wz-card[data-group="faults"][data-id="${id}"]`);
     await card('move').click();
     await expect(page.locator('.wz-report')).toContainText('Ajoutez-en un dans l\'onglet Réseau');
@@ -1538,7 +1545,7 @@ test.describe('Builder', () => {
     await expect(page.locator('.wz-audit')).toContainText('Vérifié');
     await page.locator('#wz-create').click();
     expect((await page.evaluate(() => EvalModule.getConfig())).faults).toHaveLength(2);
-    await page.locator('#btn-variant').click();
+    await menu(page, 'btn-variant');
     await card('move').click();
     await card('same').click();                                  // « Les mêmes » vide la sélection
     await expect(card('move')).not.toHaveClass(/\bon\b/);
@@ -2147,5 +2154,73 @@ test.describe('Package SCORM dans un LMS simulé', () => {
     expect(cmi['cmi.core.lesson_status']).toBe('passed');
     expect(cmi['cmi.core.score.raw']).toBe('100');
     await context.close();
+  });
+});
+
+/* ── Barre unique et menu ☰ ──────────────────────────────────────────── */
+
+test.describe('Barre du haut et menu ☰', () => {
+  test('une seule barre : menu, onglets, vues ; plus de barre « SCORM Builder » ni d\'onglet Générer', async ({ page }) => {
+    await page.goto(BUILDER_URL);
+    await expect(page.locator('#bld-nav')).toHaveCount(0);
+    await expect(page.locator('.bld-tab')).toHaveCount(2);
+    for (const id of ['#menu-btn', '#btn-cfg', '#btn-depart', '#btn-sim', '#btn-undo', '#btn-redo', '#hdr-score']) {
+      await expect(page.locator(id)).toBeVisible();
+    }
+    // Ce que le menu a remplacé : ♻, 💾 sans effet, 🔄, ⤢, 📤, 📂, Terminer, 🎓
+    for (const id of ['#t-clear', '#t-save', '#load-inp']) await expect(page.locator(id)).toHaveCount(0);
+    await expect(page.locator('.hdr .fbtn')).toHaveCount(0);
+    // Tout tient sur une ligne : l'en-tête ne dépasse pas une barre
+    expect(await page.locator('.hdr').evaluate((e) => e.offsetHeight)).toBeLessThan(60);
+  });
+
+  test('le menu s\'ouvre, se ferme (clic ailleurs, Échap) et contient fichier, exports, aperçu', async ({ page }) => {
+    await page.goto(BUILDER_URL);
+    const menuEl = page.locator('#file-menu');
+    await expect(menuEl).toBeHidden();
+    await page.locator('#menu-btn').click();
+    await expect(menuEl).toBeVisible();
+    await expect(page.locator('#menu-btn')).toHaveAttribute('aria-expanded', 'true');
+    for (const id of ['btn-wizard', 'btn-new', 'btn-open', 'btn-save', 'btn-variant',
+      'mi-scorm', 'mi-html', 'mi-enonce', 'mi-corrige', 'mi-options', 'mi-preview', 'btn-fs']) {
+      await expect(page.locator('#' + id)).toBeVisible();
+    }
+    await page.locator('#canvas').click({ position: { x: 300, y: 300 } });
+    await expect(menuEl).toBeHidden();
+    await page.locator('#menu-btn').click();
+    await page.keyboard.press('Escape');
+    await expect(menuEl).toBeHidden();
+    await expect(page.locator('#menu-btn')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('Options d\'export : résumé, mot de passe, plan ; se ferme avec Échap, la croix ou le fond', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await menu(page, 'mi-options');
+    const dlg = page.locator('#bld-overlay-gen');
+    await expect(dlg).toHaveClass(/open/);
+    await expect(page.locator('#gen-pwd')).toBeVisible();
+    await expect(page.locator('#gen-plan')).toBeChecked();
+    await expect(page.locator('#gen-status')).toContainText('Template élève prêt');
+    await page.locator('#bld-overlay-gen .wz-x').click();
+    await expect(dlg).not.toHaveClass(/open/);
+    await menu(page, 'mi-options');
+    await page.locator('#bld-overlay-gen').click({ position: { x: 5, y: 5 } });
+    await expect(dlg).not.toHaveClass(/open/);
+  });
+
+  test('Nouveau : propose d\'abord de garder le travail non enregistré, puis repart d\'un builder vierge', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.locator('#ev-title').fill('Autre titre');                        // travail modifié, non enregistré
+    page.dialogAction = 'dismiss';
+    await menu(page, 'btn-new');
+    await expect.poll(() => page.dialogs.at(-1)).toContain('pas enregistré');
+    expect(await page.evaluate(() => Object.keys(S.devs).length)).toBeGreaterThan(0);   // refusé : rien n'est perdu
+
+    page.dialogAction = 'accept';
+    await menu(page, 'btn-new');
+    await page.waitForLoadState('load');
+    await expect.poll(() => page.evaluate(() => Object.keys(S.devs).length)).toBe(0);
+    expect(page.dialogs.filter((d) => d.includes('pas enregistré')).length).toBe(2);   // une seule alerte par essai : pas de seconde au rechargement
   });
 });

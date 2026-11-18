@@ -177,7 +177,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 56 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 60 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -262,6 +262,20 @@ Chaque appareil garde sa session (historique, sortie, page). Une commande lancé
 **Mode unique : chantier terminé**, fusionné dans `master` le 15 novembre 2026 (clic et fiche uniques,
 boutons de mode supprimés, bandeau repliable, sauvegarde temporisée, vue Corrigé non comptabilisée, Ctrl+Z chez
 l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison dans `TODO.md`, « Mode unique »).
+
+## Refonte de l'interface (chantier en cours, branche `claude/network-simulator-ui-redesign-a9ca90`)
+
+Plan en 6 étapes, un commit chacune : (1) barre unique et menu ☰, (2) évaluation intégrée au Corrigé (bandeau du bas),
+(3) contrôle du corrigé intégré (fin de la barre orange), (4) vues Départ élève / Test et « Repartir de zéro »,
+(5) en-tête élève allégé, (6) nettoyage et documentation. Noms retenus : « Atelier Réseau » (builder), vues
+Conception · Départ élève · Test (renommage à l'étape 4).
+
+**Étape 1 faite** : plus de barre « SCORM Builder » ni d'onglet « Générer ». Une seule barre (`.hdr`) : menu ☰ (`BldMenu`,
+entrées `#btn-wizard`, `#btn-new`, `#btn-open`, `#btn-save`, `#btn-variant`, `#mi-scorm`, `#mi-html`, `#mi-enonce`,
+`#mi-corrige`, `#mi-options`, `#mi-preview`, `#btn-fs`), onglets Réseau / Évaluation (provisoires), ↩ ↪, vues, pastille
+`#hdr-score`. L'ancien onglet 3 est la fenêtre « Options d'export » (`openExportDialog`, `#bld-overlay-gen` : résumé,
+`#gen-pwd`, `#gen-plan`). Les exports et l'enregistrement ramènent au corrigé (`ensureCorrige`). Retirés du builder : ♻, 💾 sans
+effet, 🔄 (reste `resetScore`, appelé par l'import), ⤢, 📤, 📂, Terminer, 🎓 et Ctrl+3. Tests navigateur : helper `menu(page, id)`.
 
 ## Pour reprendre le travail
 
