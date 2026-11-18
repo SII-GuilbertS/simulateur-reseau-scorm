@@ -34,7 +34,7 @@ de simulation embarqué pour l'élève. Il combine quatre parties :
    `tests/sim-tests.js` l'extrait par ses marqueurs. Juste après, `WizardUI` gère les deux fenêtres.
    Un modèle ajouté doit respecter les règles des scénarios (voir plus bas) : les tests le vérifient.
 
-**Trois vues du schéma (barre d'en-tête du builder)** — `BUILDER_VIEW` : **Corrigé** (réseau qui
+**Trois vues du schéma (barre d'en-tête du builder ; noms affichés : Conception, Départ élève, Test)** — `BUILDER_VIEW` : **Corrigé** (réseau qui
 fonctionne ; le professeur y règle tout et peut y tester, terminal et navigateur compris, mais rien ne s'y
 gagne), **Départ élève** (copie du corrigé + pannes, lecture seule, pastilles de panne P1, P2…) et
 **Essai** (même copie, le professeur joue l'élève : terminal, réparations, score réel, règles de l'élève).
@@ -259,19 +259,19 @@ Chaque appareil garde sa session (historique, sortie, page). Une commande lancé
 boutons de mode supprimés, bandeau repliable, sauvegarde temporisée, vue Corrigé non comptabilisée, Ctrl+Z chez
 l'élève). L'option `lockTopology` prévue en étape 3 est abandonnée (raison dans `TODO.md`, « Mode unique »).
 
-## Refonte de l'interface (chantier en cours, branche `claude/network-simulator-ui-redesign-a9ca90`)
+## Refonte de l'interface (chantier terminé, branche `claude/network-simulator-ui-redesign-a9ca90`, à fusionner dans `master` sur accord)
 
 Plan en 6 étapes, un commit chacune : (1) barre unique et menu ☰, (2) évaluation intégrée au Corrigé (bandeau du bas),
 (3) contrôle du corrigé intégré (fin de la barre orange, score de l’essai dans la barre de vue), (4) vues Départ élève / Test et « Repartir de zéro »,
 (5) en-tête élève allégé, (6) nettoyage et documentation. Noms retenus : « Atelier Réseau » (builder), vues
-Conception · Départ élève · Test (renommage à l'étape 4).
+Conception · Départ élève · Test (renommage à l'étape 4). Les identifiants internes gardent `corrige` / `depart` / `essai`.
 
 **Étape 1 faite** : plus de barre « SCORM Builder » ni d'onglet « Générer ». Une seule barre (`.hdr`) : menu ☰ (`BldMenu`,
 entrées `#btn-wizard`, `#btn-new`, `#btn-open`, `#btn-save`, `#btn-variant`, `#mi-scorm`, `#mi-html`, `#mi-enonce`,
 `#mi-corrige`, `#mi-options`, `#mi-preview`, `#btn-fs`), ↩ ↪, vues, pastille
 `#hdr-score`. L'ancien onglet 3 est la fenêtre « Options d'export » (`openExportDialog`, `#bld-overlay-gen` : résumé,
-`#gen-pwd`, `#gen-plan`). Les exports et l'enregistrement ramènent au corrigé (`ensureCorrige`). Retirés du builder : ♻, 💾 sans
-effet, 🔄 (reste `resetScore`, appelé par l'import), ⤢, 📤, 📂, Terminer, 🎓 et Ctrl+3. Tests navigateur : helper `menu(page, id)`.
+`#gen-plan`). Les exports et l'enregistrement ramènent au corrigé (`ensureCorrige`). Retirés du builder : ♻, 💾 sans
+effet, 🔄 (reste `resetScore`, appelé par l'import), ⤢, 📤, 📂, Terminer, 🎓 (Ctrl+3 est revenu à l'étape 3 : contrôle du corrigé). Tests navigateur : helper `menu(page, id)`.
 
 **Étape 2 faite** : plus d'onglets Réseau / Évaluation ni de page plein écran. L'évaluation est le panneau `#tp-eval` du
 bandeau du bas (onglet `#bt-eval`, vue Corrigé seulement ; `bldTab(id)` donne à chaque onglet sa hauteur, 42 % de l'écran
@@ -293,6 +293,8 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Étape 5 faite** : en-tête élève sur le modèle de la vue Test du builder : menu « ☰ Menu » (`#stu-menu-btn`, `stuMenuToggle` / `stuMenuRun` dans `src/template-extra.js` ; entrées « ↺ Repartir de zéro » `#t-clear`, 💾 `#t-save`, 📤 `#t-export`, 📂 `#t-import`, « Masquer / Afficher le panneau Propriétés » `#t-toggleprops`, ⤢ `#btn-fs`), ↩ ↪, pastille de score, 🏁 Terminer. Les outils 🖱 🔗 🗑 de l'en-tête sont supprimés (la palette a `#pi-sel`, `#pi-link`, `#pi-del`). **Mode professeur supprimé de la page élève** (commit séparé) : plus de bouton 🎓, de barre orange, de mot de passe (`TEACHER_PWD`), de `toggleTeacherMode`, `generateScorm`, `clearStarterAndGenerate`, ni de bibliothèque JSZip dans le template (il fonctionne hors ligne). Le builder n'a plus de champ « Mot de passe professeur » (Options d'export) et n'écrit plus `teacherPwd` dans ses scénarios ; les anciens fichiers qui le contiennent s'importent toujours (clé ignorée). `tools/build_site.py` n'injecte plus de mot de passe. `README.md` et `docs/` en parlent encore : à mettre à jour à la prochaine version stable.
 
+**Étape 6 faite** : nettoyage. Retirés du builder : 33 règles CSS sans usage (restes de l'ancienne page Générer et d'anciennes fenêtres) et leurs `@media`, la fonction `ctlScoreNote` ; du squelette élève : les styles `.hdr-mode` / `.mbtn` ; du moteur : les identifiants `t-link` / `t-delete` des outils d'en-tête (`setTool`, `palLock`). Vocabulaire des messages harmonisé (« votre test », « vue Test », « bandeau Évaluation » à la place de « onglet 2 »). Reste volontairement : `#teacher-bar` n'existe plus nulle part ; `TEACHER_CTL.startScore` est calculé mais n'est plus affiché. État final : 412 tests unitaires, 72 tests navigateur. La documentation (`docs/`, `README.md`, `site/`) n'a pas été régénérée : elle décrit encore l'ancienne interface (onglets, barre orange, mode professeur, « Essai ») et sera refaite à la prochaine version stable.
+
 ## Pour reprendre le travail
 
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
@@ -301,7 +303,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
   exactement 412/412 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
-  clic sur l'onglet Générer avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
+  clic dans le menu ☰ avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
 - **Documentation à jour en v2.0** (15 novembre 2026) : `docs/*.pdf` (via `tools/gen_docs.py`), `README.md`,
   `site/index.html` et les deux captures de `site/assets/` décrivent le mode unique, le bureau des appareils,
   les trois vues, le contrôle du corrigé, l'appareil « à ajouter par l'élève » et les pannes notées. Les captures
@@ -310,13 +312,12 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
   libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
-- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 72.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios
 
-- `scenarios/` — 4 scénarios JSON clés-en-main, prêts à importer via l'onglet 3 (**Générer →
-  Importer un scénario**) :
+- `scenarios/` — 4 scénarios JSON clés-en-main, prêts à importer par le menu ☰ (**Ouvrir…**) :
   - `reseau-maison.json` — panne WiFi, niveau 4e/3e, 7 objectifs
   - `reseau-entreprise.json` — serveur web/DNS en panne, niveau Terminale/BTS, 7 objectifs
   - `reseau-lycee.json` — diagnostic complet couvrant les 14 types d'objectifs, niveau

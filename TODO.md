@@ -39,7 +39,7 @@
 
 ## 🎓 Expérience élève
 
-- [ ] **Mode guidé pas-à-pas** — afficher les objectifs un par un, chacun déverrouillé quand le précédent est atteint. Option `displayMode: 'step'` dans l'onglet Évaluation. Bien adapté au collège et à la liste ordonnée (panne → réparation → test).
+- [ ] **Mode guidé pas-à-pas** — afficher les objectifs un par un, chacun déverrouillé quand le précédent est atteint. Option `displayMode: 'step'` dans le bandeau Évaluation. Bien adapté au collège et à la liste ordonnée (panne → réparation → test).
 
 - [ ] **Historique des tentatives** — panneau qui liste les commandes déjà tapées et leurs résultats ; solution affichée une fois l'activité réussie.
 
@@ -49,18 +49,19 @@
 
 ## 🛠️ Expérience enseignant (builder)
 
+- [x] **Refonte de l'interface du builder et de l'en-tête élève** (18 novembre 2026) — une seule barre avec menu ☰ ; évaluation et contrôle du corrigé dans le bandeau du bas (onglets « 🎯 Évaluation » et « ✔ Contrôle », plus de barre orange) ; vues Conception · Départ élève · Test avec « ↺ Repartir de zéro » et le score de l'essai dans la barre de vue ; « + Appareil à ajouter » (poste et objectif) ; outil « Liaison » (câble ou WiFi) ; en-tête élève allégé (menu ☰) ; mode professeur et mot de passe retirés. Détail dans `CLAUDE.md`.
 - [x] **Vue Corrigé : contrôle du corrigé à la place du score** (15 novembre 2026) — le mot « score » prêtait à confusion (0 affiché sur un corrigé juste). L'en-tête dit si le corrigé réalise tous les objectifs ; un clic ouvre un tableau : état dans le corrigé (commandes rejouées sans terminal, raison de l'échec) et au départ de l'élève (pannes qui le masquent, objectif acquis d'avance). Calcul dans `ActivityWizard.review`.
 - [x] **Appareil « à ajouter par l'élève » posé dans le corrigé** (15 novembre 2026) — case « ➕ À ajouter par l'élève » sur la fiche d'un appareil, vue Corrigé : il reste dans le corrigé (câbles, réglages, tests rejoués depuis lui) et il est retiré du réseau de départ de l'élève, de la vue Essai et de l'énoncé. « Figer le départ » et « Réinitialiser » sont supprimés (ils laissaient croire qu'ils définissaient le départ de l'élève).
-- [ ] **Scénarios fournis et assistant : passer à la case « à ajouter par l'élève »** — `reseau-college`, `reseau-lycee` et les modèles « Construction » décrivent encore le poste à ajouter par son seul objectif (poste absent du réseau) : 4 et 8 objectifs y restent « à vérifier en Essai ». Les y poser avec la case rendrait leur corrigé vérifiable en entier ; les tests de `sim-tests.js` (`applySolution`) sont à adapter.
-- [ ] **Onglet Évaluation : aperçu des objectifs à commande** — l'aperçu d'un ping ou d'un nslookup y dit encore « pas encore validé dans votre essai » ; il pourrait reprendre le résultat du contrôle du corrigé (`ActivityWizard.review`).
+- [ ] **Scénarios fournis et assistant : passer à la case « à ajouter par l'élève »** — `reseau-college`, `reseau-lycee` et les modèles « Construction » décrivent encore le poste à ajouter par son seul objectif (poste absent du réseau) : 4 et 8 objectifs y restent « à vérifier en Test ». Les y poser avec la case rendrait leur corrigé vérifiable en entier ; les tests de `sim-tests.js` (`applySolution`) sont à adapter.
+- [ ] **Bandeau Évaluation : aperçu des objectifs à commande** — l'aperçu d'un ping ou d'un nslookup y dit encore « pas encore validé dans votre test » ; il pourrait reprendre le résultat du contrôle du corrigé (`ActivityWizard.review`).
 
 - [ ] **Assistant « Nouvelle activité » : d'autres modèles** — un lycée à deux salles, une construction où l'élève configure le routeur, d'autres thèmes (médiathèque, hôpital…). Chaque modèle passe automatiquement les règles des scénarios dans `sim-tests.js`.
 
 - [ ] **Variante « une panne de plus » sur une Box** — elle vise un poste à adresse fixe, ou à défaut un terminal WiFi d'une box protégée (mot de passe faux) : Maison en bénéficie. Restent le DHCP coupé et le SSID faux sur la Box elle-même.
 
-- [ ] **Aperçu élève côte à côte** — le bouton « Tester comme élève » ouvre déjà l'activité dans un onglet, l'onglet Évaluation signale les objectifs acquis au départ, et les vues Départ élève et Essai montrent le réseau de l'élève sur le schéma. Reste un aperçu en direct, **à côté** du schéma du corrigé (deux schémas visibles en même temps), mis à jour à chaque modification.
+- [ ] **Aperçu élève côte à côte** — le bouton « Aperçu élève » ouvre déjà l'activité dans un onglet, le bandeau Évaluation signale les objectifs acquis au départ, et les vues Départ élève et Test montrent le réseau de l'élève sur le schéma. Reste un aperçu en direct, **à côté** du schéma du corrigé (deux schémas visibles en même temps), mis à jour à chaque modification.
 
-- [ ] **Bibliothèque de scénarios en ligne** — dépôt partagé (GitHub Pages) où les profs publient et récupèrent des scénarios JSON. Bouton « Parcourir la bibliothèque » dans l'onglet 3.
+- [ ] **Bibliothèque de scénarios en ligne** — dépôt partagé (GitHub Pages) où les profs publient et récupèrent des scénarios JSON. Bouton « Parcourir la bibliothèque » dans le menu ☰.
 
 ---
 

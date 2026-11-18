@@ -2438,7 +2438,7 @@ test.describe('Contrôle du corrigé dans le bandeau', () => {
     await page.locator('#hdr-score').click();
     const panel = page.locator('#score-details');
     await expect(panel).toHaveClass(/open/);
-    await expect(panel).toContainText('votre essai');
+    await expect(panel).toContainText('votre test');
     await expect(panel).not.toContainText('corrigé');
     await expect(panel).not.toContainText('barre orange');
     await expect(panel).not.toContainText('Pannes');

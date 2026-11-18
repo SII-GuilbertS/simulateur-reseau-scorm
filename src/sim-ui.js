@@ -565,7 +565,6 @@ function selLink(id){
 ───────────────────────────────────────────────────── */
 function setTool(t){
   S.tool=t;S.cableFrom=null;hidePrev();
-  ['select','link','delete','clear'].forEach(function(x){var b=document.getElementById('t-'+x);if(b)b.classList.toggle('active',x===t);});
   ['sel','link','del'].forEach(function(x){var b=document.getElementById('pi-'+x);if(b)b.classList.toggle('active',x==='sel'?t==='select':x==='link'?t==='link':t==='delete');});
   var cw=document.getElementById('cw');
   if(cw){cw.style.cursor='';cw.classList.toggle('tool-link',t==='link');}
@@ -617,7 +616,7 @@ function palLock(on){
     var el=document.getElementById('pi-'+t);
     if(el){el.classList.toggle('disabled',on);if(el.hasAttribute('draggable'))el.draggable=!on;}
   });
-  ['t-link','t-delete','t-clear'].forEach(function(id){
+  ['t-clear'].forEach(function(id){
     var b=document.getElementById(id);if(b)b.classList.toggle('disabled',on);
   });
   if(on&&S.tool!=='select')setTool('select');
