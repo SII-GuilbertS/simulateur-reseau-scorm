@@ -3,7 +3,7 @@
   "createdAt": "2026-06-18T00:00:00.000Z",
   "teacherPwd": "prof",
   "network": {
-    "nid": 11,
+    "nid": 13,
     "devs": {
       "d1": {
         "id": "d1",
@@ -144,7 +144,8 @@
           "htmlMode": false
         },
         "dns": {"on": false, "records": {}}
-      }
+      },
+      "d11": { "id": "d11", "type": "pc", "kind": "desktop", "name": "PC-Salle3", "x": 760, "y": 540, "mac": "AA:BB:CC:10:00:0B", "ifaces": [{ "name": "eth0", "ip": "192.168.1.20", "mask": "255.255.255.0", "gateway": "192.168.1.1", "dns": "192.168.1.50" }], "staticRoutes": [], "toAdd": true }
     },
     "links": {
       "l1": {"id": "l1", "from": "d1",  "to": "d2"},
@@ -155,7 +156,8 @@
       "l6": {"id": "l6", "from": "d3",  "to": "d7"},
       "l7": {"id": "l7", "from": "d4",  "to": "d9"},
       "l8": {"id": "l8", "from": "d4",  "to": "d10"},
-      "l9": {"id": "l9", "from": "d8",  "to": "d7", "type": "wifi"}
+      "l9": {"id": "l9", "from": "d8",  "to": "d7", "type": "wifi"},
+      "l12": { "id": "l12", "from": "d3", "to": "d11" }
     },
     "frames": {},
     "texts": {}

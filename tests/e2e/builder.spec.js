@@ -83,6 +83,21 @@ async function openBuilderWith(page, scenario) {
   await expect(page.locator('#hdr-score')).toBeVisible();
 }
 
+/* Ancienne forme d'un scénario « Construction » : le poste à ajouter est absent du réseau (sans la case
+   « À ajouter par l'élève »), et l'objectif seul le décrit. Reste prise en charge par le builder. */
+async function openBuilderPosteAbsent(page, scenario) {
+  const data = readScenario(scenario);
+  const gone = Object.keys(data.network.devs).filter((k) => data.network.devs[k].toAdd);
+  gone.forEach((k) => delete data.network.devs[k]);
+  Object.keys(data.network.links).forEach((k) => {
+    const l = data.network.links[k];
+    if (gone.includes(l.from) || gone.includes(l.to)) delete data.network.links[k];
+  });
+  await page.goto(BUILDER_URL);
+  await importScenarioFile(page, { name: scenario + '.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
+  await expect(page.locator('#hdr-score')).toBeVisible();
+}
+
 /* Bandeau du bas, onglet « 🎯 Évaluation » (vue Corrigé) : objectifs, pannes, informations de l'activité. */
 async function openEval(page) {
   if (!(await page.locator('#bt-eval').isVisible())) await page.locator('#btn-cfg').click();
@@ -744,7 +759,7 @@ test.describe('Builder', () => {
   });
 
   test('plan d\'adressage : à compléter dans l\'énoncé, rempli dans le corrigé, désactivable', async ({ page, context }, info) => {
-    await openBuilderWith(page, 'reseau-college');
+    await openBuilderPosteAbsent(page, 'reseau-college');
     await openEval(page);
     const card = page.locator('[data-objid="7"]');
     await card.locator('.obj-card-hdr').click();
@@ -844,7 +859,7 @@ test.describe('Builder', () => {
   });
 
   test('ping depuis un poste à ajouter : proposé dans la liste, alerte si placé avant, validé chez l\'élève', async ({ page }, info) => {
-    await openBuilderWith(page, 'reseau-college');
+    await openBuilderPosteAbsent(page, 'reseau-college');
     await openEval(page);
     await page.locator('button[onclick="EvalModule.addObjective()"]').click();
     const card = page.locator('#ev-list .obj-card[data-objid]').last();
@@ -2264,7 +2279,7 @@ test.describe('Bandeau Évaluation', () => {
     expect(canvasOpen).toBeGreaterThan(250);
     await expect(page.locator('#layer-badges g').first()).toBeVisible();
     // un clic sur une pastille de panne ouvre la carte de la panne
-    await page.locator('#layer-badges g').first().click();
+    await page.locator('#layer-badges g:not([data-toadd])').first().click();
     await expect(page.locator('[data-fltid] .obj-card-body.open')).toHaveCount(1);
 
     await page.keyboard.press('Control+1');
@@ -2521,12 +2536,30 @@ test.describe('En-tête élève', () => {
 
 test.describe('Pastille du corrigé : vérifiés, à vérifier, non atteignables', () => {
   test("un corrigé qui laisse des objectifs à construire n'est pas « complet » : il compte vérifiés et à vérifier en Test", async ({ page }) => {
-    await openBuilderWith(page, 'reseau-college');
+    await openBuilderPosteAbsent(page, 'reseau-college');
     const pill = page.locator('#hdr-score');
     await expect(pill).toHaveText(/^🧪 \d+ vérifiés? · 4 à vérifier en Test$/);
     await expect(pill).not.toContainText('complet');
     // Un corrigé entièrement vérifié reste « complet »
     await openBuilderWith(page, 'reseau-entreprise');
+    await expect(pill).toHaveText('✅ Corrigé complet');
+  });
+
+  test('poste à ajouter posé dans le corrigé (scénarios fournis, assistant Construction) : le contrôle les rejoue', async ({ page }) => {
+    const pill = page.locator('#hdr-score');
+    await openBuilderWith(page, 'reseau-college');
+    await expect(pill).toHaveText('✅ Corrigé complet');
+    await expect(page.locator('#layer-badges g[data-toadd]')).toHaveCount(1);
+    await openBuilderWith(page, 'reseau-lycee');
+    await expect(pill).toHaveText(/^🧪 \d+ vérifiés? · 2 à vérifier en Test$/);   // l'enregistrement DNS reste à construire
+    // Assistant : Construction · Maison · 2 : poste et Tablette cochés, corrigé complet
+    await menu(page, 'btn-wizard');
+    await page.locator('.wz-card[data-group="type"][data-id="construction"]').click();
+    await page.locator('.wz-card[data-group="theme"][data-id="maison"]').click();
+    await page.locator('.wz-card[data-group="level"][data-id="d2"]').click();
+    await page.locator('#wz-create').click();
+    await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
+    await expect(page.locator('#layer-badges g[data-toadd]')).toHaveCount(2);
     await expect(pill).toHaveText('✅ Corrigé complet');
   });
 });

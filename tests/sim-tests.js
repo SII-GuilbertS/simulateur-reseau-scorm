@@ -3230,6 +3230,33 @@ AW.TYPES.forEach(function(t) {
   });
 });
 
+suite('Assistant « Nouvelle activité » — Construction : postes à ajouter posés dans le corrigé');
+
+AW.THEMES.forEach(function(th) {
+  AW.LEVELS.forEach(function(lv) {
+    test('Construction · ' + th.label + ' · ' + lv.label + ' : corrigé vérifiable (poste coché « à ajouter »)', function() {
+      var sc = AW.build({type: 'construction', theme: th.id, level: lv.id});
+      var adds = Object.values(sc.network.devs).filter(function(d) { return d.toAdd; }).map(function(d) { return d.name; });
+      ok(adds.indexOf(sc.activity.objectives[0].params.newdev) >= 0, 'le poste nommé par le premier objectif est à ajouter');
+      var r = AW.review(JSON.parse(JSON.stringify(sc)));
+      eq(r.ko, 0, 'aucun objectif non réalisé dans le corrigé');
+      // Seuls les enregistrements DNS d'un serveur restent à construire (le DNS n'a pas de case « à ajouter »)
+      eq(r.later, lv.id === 'd3' && th.id === 'entreprise' ? 2 : 0, 'objectifs restant à vérifier en Test');
+    });
+  });
+});
+
+test('scénarios fournis : le poste à ajouter est coché dans le corrigé, qui se vérifie (hors enregistrement DNS)', function() {
+  [['reseau-college.json', 'B210-P3', 0], ['reseau-lycee.json', 'PC-Salle3', 2]].forEach(function(c) {
+    var data = readScenario(c[0]);
+    var dev = Object.values(data.network.devs).filter(function(d) { return d.name === c[1]; })[0];
+    ok(dev && dev.toAdd, c[1] + ' coché « à ajouter »');
+    var r = AW.review(data);
+    eq(r.ko, 0, c[0] + ' : aucun objectif non réalisé dans le corrigé');
+    eq(r.later, c[2], c[0] + ' : objectifs à vérifier en Test');
+  });
+});
+
 suite('Assistant « Nouvelle activité » — niveau, tirage, consignes');
 
 test('l\'exigence suit le niveau : adresse exacte, plage, puis libre et contrainte masquée', function() {

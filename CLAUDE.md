@@ -68,8 +68,10 @@ l'ouverture par `removeToAdd()` (`src/net-core.js`), appelé avant `applyFaults`
 builder, vue Corrigé, `START_DEV_IDS` reste vide et une surcharge de `startDevIds` renvoie les appareils affichés
 hors « à ajouter ». L'énoncé de l'élève ne le montre pas, le corrigé imprimable si. Les boutons « Figer le
 départ » et « Réinitialiser » (`freezeStart`, `resetToStart`, `START_SNAP`) sont supprimés : ils ne définissaient
-pas ce que reçoit l'élève. Les scénarios fournis et l'assistant gardent l'ancienne forme (poste absent du réseau,
-objectif « à vérifier en Essai »).
+pas ce que reçoit l'élève. Les modèles « Construction » de l'assistant (poste, et Tablette en WiFi) et les scénarios `reseau-college` et
+`reseau-lycee` posent ce poste avec la case : leur corrigé se vérifie en entier, sauf l'enregistrement DNS d'un
+serveur (pas de case pour un enregistrement : il reste « à vérifier en Test »). L'ancienne forme (poste absent du réseau,
+objectif « à vérifier en Test ») reste prise en charge par le moteur et le builder.
 
 **Ouverture et fermeture** — le builder s'ouvre toujours vierge (plus de reprise automatique ; l'ancienne
 clé `sim_reseau_v2_builder` du navigateur est effacée) : le travail se reprend par « 📂 Ouvrir ». Un
@@ -135,9 +137,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 412/412
+## Tests : `node tests/sim-tests.js` → doit afficher 422/422
 
-Suite de 412 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 422 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -173,7 +175,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 73 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 74 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -293,7 +295,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Étape 5 faite** : en-tête élève sur le modèle de la vue Test du builder : menu « ☰ Menu » (`#stu-menu-btn`, `stuMenuToggle` / `stuMenuRun` dans `src/template-extra.js` ; entrées « ↺ Repartir de zéro » `#t-clear`, 💾 `#t-save`, 📤 `#t-export`, 📂 `#t-import`, « Masquer / Afficher le panneau Propriétés » `#t-toggleprops`, ⤢ `#btn-fs`), ↩ ↪, pastille de score, 🏁 Terminer. Les outils 🖱 🔗 🗑 de l'en-tête sont supprimés (la palette a `#pi-sel`, `#pi-link`, `#pi-del`). **Mode professeur supprimé de la page élève** (commit séparé) : plus de bouton 🎓, de barre orange, de mot de passe (`TEACHER_PWD`), de `toggleTeacherMode`, `generateScorm`, `clearStarterAndGenerate`, ni de bibliothèque JSZip dans le template (il fonctionne hors ligne). Le builder n'a plus de champ « Mot de passe professeur » (Options d'export) et n'écrit plus `teacherPwd` dans ses scénarios ; les anciens fichiers qui le contiennent s'importent toujours (clé ignorée). `tools/build_site.py` n'injecte plus de mot de passe. `README.md` et `docs/` en parlent encore : à mettre à jour à la prochaine version stable.
 
-**Étape 6 faite** : nettoyage. Retirés du builder : 33 règles CSS sans usage (restes de l'ancienne page Générer et d'anciennes fenêtres) et leurs `@media`, la fonction `ctlScoreNote` ; du squelette élève : les styles `.hdr-mode` / `.mbtn` ; du moteur : les identifiants `t-link` / `t-delete` des outils d'en-tête (`setTool`, `palLock`). Vocabulaire des messages harmonisé (« votre test », « vue Test », « bandeau Évaluation » à la place de « onglet 2 »). Reste volontairement : `#teacher-bar` n'existe plus nulle part ; `TEACHER_CTL.startScore` est calculé mais n'est plus affiché. État final : 412 tests unitaires, 72 tests navigateur. La documentation (`docs/`, `README.md`, `site/`) n'a pas été régénérée : elle décrit encore l'ancienne interface (onglets, barre orange, mode professeur, « Essai ») et sera refaite à la prochaine version stable.
+**Étape 6 faite** : nettoyage. Retirés du builder : 33 règles CSS sans usage (restes de l'ancienne page Générer et d'anciennes fenêtres) et leurs `@media`, la fonction `ctlScoreNote` ; du squelette élève : les styles `.hdr-mode` / `.mbtn` ; du moteur : les identifiants `t-link` / `t-delete` des outils d'en-tête (`setTool`, `palLock`). Vocabulaire des messages harmonisé (« votre test », « vue Test », « bandeau Évaluation » à la place de « onglet 2 »). Reste volontairement : `#teacher-bar` n'existe plus nulle part ; `TEACHER_CTL.startScore` est calculé mais n'est plus affiché. État final : 422 tests unitaires, 72 tests navigateur. La documentation (`docs/`, `README.md`, `site/`) n'a pas été régénérée : elle décrit encore l'ancienne interface (onglets, barre orange, mode professeur, « Essai ») et sera refaite à la prochaine version stable.
 
 **Pastille du corrigé** (`ctlPill`) : « ✅ Corrigé complet » seulement si tous les objectifs sont vérifiés dans le corrigé ; sinon elle compte « N vérifiés · M à vérifier en Test » (🧪, quand l'élève doit encore construire), « ⚠️ Corrigé non conforme · K non atteignables · N vérifiés… » si des objectifs échouent dans le corrigé, ou « ⚠️ Corrigé : N pannes à revoir ».
 
@@ -302,7 +304,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
   HTML et énoncé ne comptent pas comme un enregistrement (alerte à la fermeture, voir plus haut).
 - **Hook de commit partagé** : `.git/hooks/pre-commit` (un seul pour tous les dossiers de travail) exige
-  exactement 412/412 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
+  exactement 422/422 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic dans le menu ☰ avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
@@ -314,7 +316,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
   libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
-- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios
@@ -355,7 +357,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 412/412
+node tests/sim-tests.js    # → 422/422
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -403,6 +405,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS (tout le script du builder, modules après `STUDENT_TEMPLATE` compris), résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 412 tests Node.js |
+| `tests/sim-tests.js` | Suite de 422 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

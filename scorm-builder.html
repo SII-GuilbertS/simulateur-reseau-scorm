@@ -6517,8 +6517,23 @@ var ActivityWizard=(function(){
   }
   function F(items,fault){items.push({f:fault});}
 
+  /* Postes que l'élève ajoute : posés dans le corrigé, avec leurs liaisons et leurs réglages, et cochés
+     « à ajouter par l'élève » (retirés du réseau qu'il reçoit). Le contrôle du corrigé les rejoue. */
+  function addToAddHosts(ctx){
+    var c=ctx,L=c.lans[0],ip=L.prefix+'20',nb=c.hosts.length;
+    var d=addDev(c.net,'pc',c.newdev,500+nb*180,500,[eth(ip,L.gw,c.dnsIP)],{kind:'desktop',toAdd:true});
+    addLink(c.net,devNamed(c.net,L.sw),d);
+    if(c.theme==='maison'&&c.level!=='d1'){
+      var box=devNamed(c.net,c.router);
+      var t=addDev(c.net,'pc','Tablette',120,80,
+        [{name:'eth0',ip:'',mask:'255.255.255.0',gateway:'',dns:'',dhcpMode:true}],
+        {kind:'tablet',wifi:{ssid:box.ssid,pass:box.wifiPass},toAdd:true});
+      addLink(c.net,t,box,true);
+    }
+  }
   function constructionItems(ctx){
     var c=ctx,L=c.lans[0],n=c.newdev,ip=L.prefix+'20',it=[],sh=shown(c);
+    addToAddHosts(c);
     O(it,'device_added',{newdev:n,type:'pc',ip:ipSpec(c,ip,20,49),mask:'255.255.255.0'},
       'Le poste '+n+' est ajouté avec '+ipText(c,ip,20,49),
       'Ajoutez un PC, nommez-le '+n+', puis saisissez son adresse IP et son masque dans sa fiche',3,sh);
@@ -7133,7 +7148,7 @@ var ActivityWizard=(function(){
     var faulted={};(a.faults||[]).forEach(function(g){devNames(fp(g)).forEach(function(n){faulted[n]=1;});});
     var cands=Object.keys(net.devs).map(function(k){return net.devs[k];}).filter(function(d){
       var fi=d.ifaces&&d.ifaces[0];
-      if(d.name===oldName||d.type!==oldDev.type||(faulted[d.name]&&d.name!==opt.ignore)||!fi)return false;
+      if(d.name===oldName||d.toAdd||d.type!==oldDev.type||(faulted[d.name]&&d.name!==opt.ignore)||!fi)return false;
       if(opt.only&&d.name!==opt.only)return false;
       if(wifi){if(wifiBoxName(net,d.name)!==oldBox)return false;}
       else if(fi.dhcpMode||!fi.ip)return false;
@@ -7194,7 +7209,7 @@ var ActivityWizard=(function(){
     (a.faults||[]).forEach(function(g){devNames(fp(g)).forEach(function(n){faulted[n]=1;});});
     var hosts=Object.keys(net.devs).map(function(k){return net.devs[k];}).filter(function(d){
       var fi=d.ifaces&&d.ifaces[0];
-      return d.type==='pc'&&!faulted[d.name]&&fi&&!fi.dhcpMode&&fi.ip&&fi.gateway&&linkedSwitch(net,d.name,true);
+      return d.type==='pc'&&!d.toAdd&&!faulted[d.name]&&fi&&!fi.dhcpMode&&fi.ip&&fi.gateway&&linkedSwitch(net,d.name,true);
     });
     var free=hosts.filter(function(d){return !(a.objectives||[]).some(function(o){return mentions(o,d.name);});});
     hosts=rotate(free,seed).concat(rotate(hosts.filter(function(d){return free.indexOf(d)<0;}),seed));
@@ -7226,7 +7241,7 @@ var ActivityWizard=(function(){
     withNetwork(net,[],function(){
       Object.keys(S.devs).forEach(function(k){
         var t=S.devs[k],b=wifiBoxOf(t);
-        if(!b||!b.wifiPass||faulted[t.name]||(t.type!=='pc'&&t.type!=='server')||!wifiLinkUp(wifiLinkOf(t)))return;
+        if(!b||!b.wifiPass||t.toAdd||faulted[t.name]||(t.type!=='pc'&&t.type!=='server')||!wifiLinkUp(wifiLinkOf(t)))return;
         var lanIf=(b.ifaces||[])[1]||{};
         wcands.push({name:t.name,box:b.name,gw:lanIf.ip||'',dhcp:!!(t.ifaces[0]&&t.ifaces[0].dhcpMode)});
       });
