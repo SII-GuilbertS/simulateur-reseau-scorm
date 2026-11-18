@@ -626,6 +626,7 @@ test.describe('Builder', () => {
       await studentScore(page, score);
 
       // « Recommencer » doit redonner exactement le même état de départ.
+      await page.locator('#stu-menu-btn').click();
       await page.locator('#t-clear').click();
       await expect.poll(() => page.dialogs.at(-1)).toContain('Recommencer');
       await studentScore(page, score);
@@ -938,7 +939,7 @@ test.describe('Builder', () => {
     // Côté élève : mêmes comportements
     const file = await exportFile(page, 'html', info.outputPath('maison-clavier.html'));
     await page.goto(pathToFileURL(file).href);
-    await page.locator('#t-link').click();
+    await page.locator('#pi-link').click();
     expect(await canvasCursor()).toContain('url(');
     await page.keyboard.press('Escape');
     expect(await page.evaluate(() => S.tool)).toBe('select');
@@ -2484,5 +2485,32 @@ test.describe('Vues Conception · Départ élève · Test', () => {
 
     await page.locator('#btn-cfg').click();
     await expect(page.locator('body')).toHaveAttribute('data-view', 'corrige');
+  });
+});
+
+test.describe('En-tête élève', () => {
+  test("une seule barre : menu ☰, annuler/rétablir, score, Terminer ; plus d'outils en double", async ({ page }, info) => {
+    await openBuilderWith(page, 'reseau-maison');
+    const file = await exportFile(page, 'html', info.outputPath('maison-entete.html'));
+    await page.goto(pathToFileURL(file).href);
+    for (const id of ['#stu-menu-btn', '#btn-undo', '#btn-redo', '#hdr-score']) await expect(page.locator(id)).toBeVisible();
+    await expect(page.locator('.hdr .fbtn')).toBeVisible();
+    // Les outils de la palette ne sont plus répétés dans l'en-tête
+    for (const id of ['#t-select', '#t-link', '#t-delete']) await expect(page.locator(id)).toHaveCount(0);
+    for (const id of ['#pi-sel', '#pi-link', '#pi-del']) await expect(page.locator(id)).toBeVisible();
+    // Le menu contient les actions rares et se ferme avec Échap
+    await expect(page.locator('#stu-menu')).toBeHidden();
+    await page.locator('#stu-menu-btn').click();
+    for (const id of ['#t-clear', '#t-save', '#t-export', '#t-import', '#t-toggleprops', '#btn-fs']) await expect(page.locator(id)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#stu-menu')).toBeHidden();
+    // Afficher / masquer le panneau Propriétés depuis le menu
+    await page.locator('#stu-menu-btn').click();
+    await page.locator('#t-toggleprops').click();
+    await expect(page.locator('.props')).toBeHidden();
+    await page.locator('#stu-menu-btn').click();
+    await expect(page.locator('#t-toggleprops')).toContainText('Afficher');
+    await page.locator('#t-toggleprops').click();
+    await expect(page.locator('.props')).toBeVisible();
   });
 });

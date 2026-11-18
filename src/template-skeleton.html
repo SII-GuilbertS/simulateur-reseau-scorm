@@ -30,6 +30,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .wbtn:hover{background:rgba(255,255,255,.28)}
 .fbtn{background:#48bb78;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:.78em;font-weight:700;white-space:nowrap}
 .fbtn:hover{background:#38a169}
+.hdr{position:relative;z-index:1900}
+.hdr-menu-wrap{position:relative;flex-shrink:0}
+.hdr-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;min-width:270px;background:#fff;color:#2d3748;border-radius:9px;
+  box-shadow:0 10px 34px rgba(0,0,0,.35);padding:6px;z-index:2100;font-size:.85em}
+.hdr-menu.open{display:block}
+.hdr-menu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:none;border-radius:6px;
+  padding:7px 10px;cursor:pointer;color:inherit;font:inherit}
+.hdr-menu button:hover,.hdr-menu button:focus-visible{background:#ebf4ff;outline:none}
+.hdr-menu .mi-sep{height:1px;background:#e2e8f0;margin:5px 4px}
 
 /* ─── WORKSPACE ──────────────────────────────────────── */
 .workspace{display:grid;grid-template-columns:82px 1fr 275px;flex:1;min-height:0}
@@ -210,26 +219,30 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 
 <!-- ══ HEADER ══════════════════════════════════════════ -->
 <div class="hdr">
+  <div class="hdr-menu-wrap">
+    <button type="button" class="wbtn" id="stu-menu-btn" aria-haspopup="true" aria-expanded="false" onclick="stuMenuToggle(event)" title="Réseau : repartir de zéro, sauvegarder, exporter, importer">☰ Menu</button>
+    <div class="hdr-menu" id="stu-menu" role="menu">
+      <button type="button" role="menuitem" id="t-clear" onclick="stuMenuRun(clearAll)" title="Recharge le réseau de départ et remet le score à zéro">↺ Repartir de zéro</button>
+      <div class="mi-sep"></div>
+      <button type="button" role="menuitem" id="t-save" onclick="stuMenuRun(manualSave)" title="Sauvegarder dans la session (reprise possible)">💾 Sauvegarder</button>
+      <button type="button" role="menuitem" id="t-export" onclick="stuMenuRun(saveTopology)" title="Exporter le réseau en fichier JSON">📤 Exporter le réseau</button>
+      <button type="button" role="menuitem" id="t-import" onclick="stuMenuRun(function(){document.getElementById('load-inp').click();})" title="Importer un réseau depuis un fichier JSON">📂 Importer un réseau…</button>
+      <div class="mi-sep"></div>
+      <button type="button" role="menuitem" id="t-toggleprops" onclick="stuMenuRun(toggleProps)" title="Afficher ou masquer le panneau de configuration">📋 Masquer le panneau Propriétés</button>
+      <button type="button" role="menuitem" id="btn-fs" onclick="stuMenuRun(toggleFullscreen)" title="Plein écran">⤢ Plein écran</button>
+    </div>
+  </div>
   <div class="hdr-title">🖥️ Simulateur Réseau IPv4</div>
 
   <div class="hdr-tools" id="hdr-tools">
-    <button class="tbtn icon-only active" id="t-select" onclick="setTool('select')" title="Outil Sélection">🖱</button>
-    <button class="tbtn icon-only"        id="t-link"   onclick="setTool('link')"   title="Outil Liaison">🔗</button>
-    <button class="tbtn icon-only"        id="t-delete" onclick="setTool('delete')" title="Outil Suppression">🗑</button>
     <button class="tbtn icon-only" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled>↩</button>
     <button class="tbtn icon-only" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled>↪</button>
-    <button class="tbtn icon-only"        id="t-clear"  onclick="clearAll()"        title="Reset — Recharger le réseau de départ">♻</button>
-    <button class="tbtn icon-only" id="t-save" onclick="manualSave()"               title="Sauvegarder dans la session (reprise possible)">💾</button>
-    <button class="tbtn icon-only" onclick="saveTopology()"                         title="Exporter le réseau en fichier JSON">📤</button>
-    <button class="tbtn icon-only" onclick="document.getElementById('load-inp').click()" title="Importer un réseau depuis un fichier JSON">📂</button>
-    <button class="tbtn icon-only active" id="t-toggleprops" onclick="toggleProps()" title="Afficher / Masquer le panneau de configuration">📋</button>
     <input type="file" id="load-inp" accept=".json" style="display:none" onchange="loadTopology(event)"/>
   </div>
 
   <div class="hdr-r">
     <div class="score-badge" id="hdr-score" onclick="toggleScoreDetails()" title="Voir le détail des objectifs">📊 Score : 0 / 100</div>
     <div id="score-details"></div>
-    <button class="wbtn icon-only" id="btn-fs" onclick="toggleFullscreen()" title="Plein écran">⤢</button>
     <button class="fbtn" onclick="finishActivity()">🏁 Terminer</button>
     <button class="wbtn" onclick="toggleTeacherMode()" title="Mode Professeur" style="background:rgba(192,86,33,.5);border-color:rgba(192,86,33,.8)">🎓</button>
   </div>

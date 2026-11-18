@@ -168,16 +168,29 @@ function toggleProps(){
   if(_propsVisible){
     props.style.display='';
     ws.style.gridTemplateColumns='82px 1fr '+_propsSavedW+'px';
-    btn.classList.add('active');
-    btn.textContent='📋 Config.';
   }else{
     _propsSavedW=props.offsetWidth||275;
     props.style.display='none';
     ws.style.gridTemplateColumns='82px 1fr';
-    btn.classList.remove('active');
-    btn.textContent='📋 ▶';
   }
+  if(btn)btn.textContent=_propsVisible?'\ud83d\udccb Masquer le panneau Propri\u00e9t\u00e9s':'\ud83d\udccb Afficher le panneau Propri\u00e9t\u00e9s';
 }
+
+/* Menu \u2630 de l\'en-t\u00eate : actions sur le r\u00e9seau (repartir de z\u00e9ro, sauvegarder, exporter, importer, plein \u00e9cran). */
+function stuMenuOpen(){var m=document.getElementById('stu-menu');return !!m&&m.classList.contains('open');}
+function stuMenuSet(on){
+  var m=document.getElementById('stu-menu'),b=document.getElementById('stu-menu-btn');
+  if(m)m.classList.toggle('open',on);
+  if(b)b.setAttribute('aria-expanded',on?'true':'false');
+}
+function stuMenuToggle(e){if(e)e.stopPropagation();stuMenuSet(!stuMenuOpen());}
+function stuMenuRun(fn){stuMenuSet(false);fn();}
+document.addEventListener('mousedown',function(e){
+  if(stuMenuOpen()&&!e.target.closest('.hdr-menu-wrap'))stuMenuSet(false);
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&stuMenuOpen()){stuMenuSet(false);var b=document.getElementById('stu-menu-btn');if(b)b.focus();}
+});
 
 function clearAll(){
   if(STARTER_NETWORK&&STARTER_NETWORK.devs&&Object.keys(STARTER_NETWORK.devs).length>0){
