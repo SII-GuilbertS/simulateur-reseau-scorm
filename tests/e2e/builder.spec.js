@@ -97,7 +97,8 @@ async function closeEval(page) {
 
 const builderScore = (page) => page.locator('#hdr-score');
 /* Vue Corrigé : pas de score, mais l'état du corrigé ; le départ de l'élève est dans le bandeau. */
-const corrigeComplet = (page) => expect(builderScore(page)).toHaveText(/^✅ Corrigé complet/);
+/* Corrigé sans objectif non atteignable : « ✅ Corrigé complet », ou « 🧪 N vérifiés · M à vérifier en Test » quand l'élève doit encore construire. */
+const corrigeComplet = (page) => expect(builderScore(page)).toHaveText(/^(✅ Corrigé complet|🧪 \d+ vérifiés? · \d+ à vérifier en Test)$/);
 const departZero = (page) => expect(page.locator('#ctl-banner')).toContainText('Départ élève : 0 / 100');
 
 async function download(page, action, file) {
@@ -551,7 +552,7 @@ test.describe('Builder', () => {
     // Le professeur arrête le DNS dans le corrigé : la pastille le signale, le tableau dit pourquoi
     const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
     await dns.locator('[data-act="toggle"]').click();
-    await expect(builderScore(page)).toHaveText('⚠️ Corrigé : 4 objectifs non réalisés');
+    await expect(builderScore(page)).toHaveText('⚠️ Corrigé non conforme · 4 non atteignables · 3 vérifiés');
     await dns.locator('.dw-x').click();
     await builderScore(page).click();
     await expect(panel.locator('tr', { hasText: 'Le service DNS du Serveur est actif' }).locator('td').nth(1))
@@ -2412,7 +2413,7 @@ test.describe('Contrôle du corrigé dans le bandeau', () => {
     await page.keyboard.press('Control+3');
     const dns = await openDeskApp(page, 'Serveur', 'Serveur DNS');
     await dns.locator('[data-act="toggle"]').click();
-    await expect(page.locator('#hdr-score')).toHaveText('⚠️ Corrigé : 4 objectifs non réalisés');
+    await expect(page.locator('#hdr-score')).toHaveText('⚠️ Corrigé non conforme · 4 non atteignables · 3 vérifiés');
     await expect(page.locator('#ctl-body tr', { hasText: 'Le service DNS du Serveur est actif' }).locator('td').nth(1)).toContainText('non réalisé dans le corrigé');
   });
 
@@ -2515,5 +2516,17 @@ test.describe('En-tête élève', () => {
     await expect(page.locator('#t-toggleprops')).toContainText('Afficher');
     await page.locator('#t-toggleprops').click();
     await expect(page.locator('.props')).toBeVisible();
+  });
+});
+
+test.describe('Pastille du corrigé : vérifiés, à vérifier, non atteignables', () => {
+  test("un corrigé qui laisse des objectifs à construire n'est pas « complet » : il compte vérifiés et à vérifier en Test", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-college');
+    const pill = page.locator('#hdr-score');
+    await expect(pill).toHaveText(/^🧪 \d+ vérifiés? · 4 à vérifier en Test$/);
+    await expect(pill).not.toContainText('complet');
+    // Un corrigé entièrement vérifié reste « complet »
+    await openBuilderWith(page, 'reseau-entreprise');
+    await expect(pill).toHaveText('✅ Corrigé complet');
   });
 });

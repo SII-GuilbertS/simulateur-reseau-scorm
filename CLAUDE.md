@@ -173,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 72 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 73 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -295,6 +295,8 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Étape 6 faite** : nettoyage. Retirés du builder : 33 règles CSS sans usage (restes de l'ancienne page Générer et d'anciennes fenêtres) et leurs `@media`, la fonction `ctlScoreNote` ; du squelette élève : les styles `.hdr-mode` / `.mbtn` ; du moteur : les identifiants `t-link` / `t-delete` des outils d'en-tête (`setTool`, `palLock`). Vocabulaire des messages harmonisé (« votre test », « vue Test », « bandeau Évaluation » à la place de « onglet 2 »). Reste volontairement : `#teacher-bar` n'existe plus nulle part ; `TEACHER_CTL.startScore` est calculé mais n'est plus affiché. État final : 412 tests unitaires, 72 tests navigateur. La documentation (`docs/`, `README.md`, `site/`) n'a pas été régénérée : elle décrit encore l'ancienne interface (onglets, barre orange, mode professeur, « Essai ») et sera refaite à la prochaine version stable.
 
+**Pastille du corrigé** (`ctlPill`) : « ✅ Corrigé complet » seulement si tous les objectifs sont vérifiés dans le corrigé ; sinon elle compte « N vérifiés · M à vérifier en Test » (🧪, quand l'élève doit encore construire), « ⚠️ Corrigé non conforme · K non atteignables · N vérifiés… » si des objectifs échouent dans le corrigé, ou « ⚠️ Corrigé : N pannes à revoir ».
+
 ## Pour reprendre le travail
 
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
@@ -312,7 +314,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
   libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
-- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 72.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios

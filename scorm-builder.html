@@ -4225,10 +4225,20 @@ function ctlReview(){
 function ctlPill(rv){
   var el=document.getElementById('hdr-score');if(!el)return;
   var pl=function(n,one,many){return n+' '+(n>1?many:one);};
-  el.textContent=!rv?'📋 Corrigé : aucun objectif'
-    :rv.ko?'⚠️ Corrigé : '+pl(rv.ko,'objectif non réalisé','objectifs non réalisés')
+  if(!rv){el.textContent='📋 Corrigé : aucun objectif';return;}
+  // Objectifs vérifiés dans le corrigé, à vérifier en Test (ils portent sur ce que l'élève doit construire), non atteignables
+  var okN=rv.rows.filter(function(r){return r.corrige==='ok';}).length;
+  var parts=[];
+  if(rv.ko)parts.push(pl(rv.ko,'non atteignable','non atteignables'));
+  parts.push(pl(okN,'vérifié','vérifiés'));
+  if(rv.later)parts.push(rv.later+' à vérifier en Test');
+  el.textContent=rv.ko?'⚠️ Corrigé non conforme · '+parts.join(' · ')
     :rv.faultKo?'⚠️ Corrigé : '+pl(rv.faultKo,'panne à revoir','pannes à revoir')
-    :'✅ Corrigé complet'+(rv.later?' · '+rv.later+' à vérifier en Test':'');
+    :rv.later?'🧪 '+parts.join(' · ')
+    :'✅ Corrigé complet';
+  el.title=rv.ko?'Corrigé non conforme : des objectifs ne sont pas réalisés dans le réseau corrigé, l\'élève ne pourra pas les atteindre. Cliquer pour le détail (Ctrl+3).'
+    :rv.later&&!rv.faultKo?'Les objectifs « à vérifier en Test » portent sur ce que l\'élève doit construire : ils ne se vérifient que dans la vue Test. Cliquer pour le détail (Ctrl+3).'
+    :'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Test. Cliquer pour le détail (Ctrl+3).';
 }
 function ctlReviewHTML(rv){
   var ICON={ok:'✅',ko:'❌',later:'➖',todo:'✅',acquired:'⚠️',open:'ℹ️','':''};
