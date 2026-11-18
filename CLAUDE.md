@@ -289,6 +289,8 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Étape 4 faite** : les vues s'appellent **Conception** (ex-Corrigé), **Départ élève** et **Test** (ex-Essai) ; les identifiants et valeurs internes restent `btn-cfg` / `btn-depart` / `btn-sim` et `'corrige'` / `'depart'` / `'essai'`. « Recommencer l'essai » devient « ↺ Repartir de zéro » dans la barre verte (`restartEssai` : réseau remis au départ de l'élève et score à 0, confirmation seulement si des points seraient perdus). Le bouton « Retour au corrigé » des barres de vue est supprimé (les onglets de vue suffisent), la barre bleue garde « Passer au test ». Le schéma est cadré aux couleurs de la vue (`body[data-view]`, contour bleu ou vert sur `.cw`). La pastille de l'en-tête dit toujours « Corrigé » (c'est l'état du réseau corrigé). Correction au passage : `ActivityWizard.review` / `withNetwork` ne désélectionnent plus l'appareil du schéma (`sel` dans `STATE_KEYS`).
 
+**Vocabulaire « Liaison »** : l'outil de la palette et du bandeau élève s'appelle « Liaison » (et non plus « Câble ») : il crée un câble ou une liaison WiFi selon les appareils (`linkCheck` choisit le type), donc un seul bouton. La fiche d'une liaison dit « Liaison WiFi » ou « Câble réseau » selon son type ; les décomptes (« N liaisons ») et les indices proposés (« Outil Liaison : reliez… ») suivent. « Câble » reste employé là où la liaison est forcément filaire (« a déjà un câble », « Câble débranché », « Câble posé », PC fixe « câble uniquement »). Les identifiants (`link`, `cable_exists`, `missing_cable`) ne changent pas.
+
 ## Pour reprendre le travail
 
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,

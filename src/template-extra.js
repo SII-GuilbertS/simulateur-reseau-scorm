@@ -263,7 +263,7 @@ function loadTopology(ev){
         try{render();noSel();}catch(e2){}
         throw ex;
       }
-      notif('📂 Réseau chargé : '+Object.keys(S.devs).length+' appareils, '+Object.keys(S.links).length+' câbles','ok');
+      notif('📂 Réseau chargé : '+Object.keys(S.devs).length+' appareils, '+Object.keys(S.links).length+' liaisons','ok');
       addLog('Topologie chargée depuis fichier','info');
     }catch(ex){notif('❌ Chargement impossible : '+ex.message+' — le réseau en cours est conservé','err');}
   };
@@ -320,7 +320,7 @@ window.addEventListener('load',function(){
     if(e.key==='F11'){e.preventDefault();toggleFullscreen();}
   });
   window.addEventListener('beforeunload',function(){saveToSession();if(_api&&_apiOk){sSet('cmi.core.score.raw',String(S.score));sCom();}});
-  addLog('Bienvenue ! Ajoutez des appareils depuis la palette, reliez-les avec des câbles et réglez leurs adresses.','info');
+  addLog('Bienvenue ! Ajoutez des appareils depuis la palette, reliez-les avec l\'outil Liaison et réglez leurs adresses.','info');
   addLog('Double-cliquez sur un appareil pour ouvrir son bureau : invite de commandes, navigateur, services.','info');
   if(window.opener)addLog('↗ Fenêtre séparée — SCORM actif via la fenêtre parente.','info');
 

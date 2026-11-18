@@ -480,7 +480,7 @@ function svgPt(e){var r=document.getElementById('canvas').getBoundingClientRect(
 function readOnly(){return deskView()==='depart';}
 function roNotice(){notif('👁️ Vue « Départ élève » en lecture seule : passez en « Test » pour agir','info');}
 
-/* Appui sur un appareil. Outils Supprimer et Câble : l'action de l'outil. Sinon : sélection, fiche,
+/* Appui sur un appareil. Outils Supprimer et Liaison : l'action de l'outil. Sinon : sélection, fiche,
    début d'un glisser ; un second appui rapproché ouvre son
    bureau (deskDblCheck) et ne commence pas de glisser. */
 function devMD(e,id){
@@ -555,10 +555,10 @@ function selLink(id){
   var l=S.links[id];if(!l){noSel();return;}
   var a=S.devs[l.from],b=S.devs[l.to];
   document.getElementById('props-body').innerHTML=
-    '<div class="psection">Câble réseau</div>'+
+    '<div class="psection">'+(l.type==='wifi'?'Liaison WiFi':'Câble réseau')+'</div>'+
     '<div class="pr"><label>De</label><div class="mono">'+esc(a?a.name:'?')+'</div></div>'+
     '<div class="pr"><label>Vers</label><div class="mono">'+esc(b?b.name:'?')+'</div></div>'+
-    '<button class="pb pb-red" onclick="snapHistory();delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer ce câble</button>';
+    '<button class="pb pb-red" onclick="snapHistory();delete S.links[\''+id+'\'];S.sel=null;render();noSel()">🗑️ Supprimer '+(l.type==='wifi'?'cette liaison':'ce câble')+'</button>';
   propsLock();
 }
 
@@ -663,7 +663,7 @@ function showProps(id){
   if(typeof setToAdd==='function'&&deskView()==='corrige')
     h+='<div class="pr ck"><input type="checkbox" id="toadd" '+(d.toAdd?'checked':'')+
       ' onchange="setToAdd(\''+id+'\',this.checked)"/>'+
-      '<label for="toadd" title="L\'appareil reste dans le corrigé, avec ses câbles et ses réglages, mais il est retiré du réseau que reçoit l\'élève.">'+
+      '<label for="toadd" title="L\'appareil reste dans le corrigé, avec ses liaisons et ses réglages, mais il est retiré du réseau que reçoit l\'élève.">'+
       '➕ À ajouter par l\'élève <span style="color:#718096">(retiré du réseau de départ)</span></label></div>';
 
   // Interfaces réseau

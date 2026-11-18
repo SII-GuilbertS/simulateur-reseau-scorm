@@ -214,7 +214,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 
   <div class="hdr-tools" id="hdr-tools">
     <button class="tbtn icon-only active" id="t-select" onclick="setTool('select')" title="Outil Sélection">🖱</button>
-    <button class="tbtn icon-only"        id="t-link"   onclick="setTool('link')"   title="Outil Câble">🔗</button>
+    <button class="tbtn icon-only"        id="t-link"   onclick="setTool('link')"   title="Outil Liaison">🔗</button>
     <button class="tbtn icon-only"        id="t-delete" onclick="setTool('delete')" title="Outil Suppression">🗑</button>
     <button class="tbtn icon-only" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled>↩</button>
     <button class="tbtn icon-only" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled>↪</button>
@@ -252,7 +252,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
   <!-- ── Palette ──────────────────────────────────── -->
   <div class="pal" id="palette">
     <div class="psep">Appareils</div>
-    <div class="pi" id="pi-link"   onclick="setTool('link')"   title="Câble">           <div class="pi-icon">🔗</div><span>Câble</span></div>
+    <div class="pi" id="pi-link"   onclick="setTool('link')"   title="Liaison : câble Ethernet, ou WiFi vers une box (le type se choisit tout seul)">           <div class="pi-icon">🔗</div><span>Liaison</span></div>
     <div class="pi" id="pi-pc-desktop" draggable="true" ondragstart="palDS(event,'pc:desktop')" title="PC fixe — câble uniquement"><div class="pi-icon">🖥️</div><span>PC fixe</span></div>
     <div class="pi" id="pi-pc-laptop"  draggable="true" ondragstart="palDS(event,'pc:laptop')"  title="PC portable — câble ou WiFi"><div class="pi-icon">💻</div><span>Portable</span></div>
     <div class="pi" id="pi-pc-phone"   draggable="true" ondragstart="palDS(event,'pc:phone')"   title="Téléphone — WiFi uniquement"><div class="pi-icon">📱</div><span>Téléphone</span></div>

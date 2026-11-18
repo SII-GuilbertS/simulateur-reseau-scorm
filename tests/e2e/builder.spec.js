@@ -1448,7 +1448,7 @@ test.describe('Builder', () => {
     await card.locator('.bld-row', { hasText: 'Type de vérification' }).locator('select').selectOption('cable_exists');
     await card.locator('.bld-row', { hasText: 'Appareil A' }).locator('select').selectOption('PC-Bureau');
     await card.locator('.bld-row', { hasText: 'Appareil B' }).locator('select').selectOption('Switch-Salon');
-    await expect(hint).toHaveValue('Outil Câble : reliez PC-Bureau à Switch-Salon');
+    await expect(hint).toHaveValue('Outil Liaison : reliez PC-Bureau à Switch-Salon');
 
     // Une panne « câble débranché » sur ce câble : l'indice proposé devient un indice de dépannage
     await page.locator('button[onclick="EvalModule.addFault()"]').click();
