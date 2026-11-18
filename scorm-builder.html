@@ -229,7 +229,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .bld-menu .mi-sep{height:1px;background:#e2e8f0;margin:5px 4px}
 .bld-menu .mi-grp{font-size:.74em;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:.5px;padding:5px 10px 2px}
 /* ── Bandeau « Évaluation » (vue Corrigé) : dans le bandeau du bas ── */
-.ev-pane{flex:1;min-height:0;display:grid;grid-template-columns:300px 1fr;gap:14px;padding:10px 14px;background:#f0f4f8;color:#2d3748;
+.ev-pane{flex:1;min-height:0;display:grid;grid-template-columns:var(--ev-side-w,40%) 8px minmax(0,1fr);gap:6px;padding:10px 14px;background:#f0f4f8;color:#2d3748;
   font-family:'Segoe UI',Arial,sans-serif;overflow:hidden}
 .ev-side,.ev-main{min-height:0;overflow-y:auto;padding-right:4px}
 .ev-pane .bld-card{padding:12px 14px;margin-bottom:10px}
@@ -245,7 +245,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .ev-add-menu.open{display:block}
 .ev-add-menu button{display:block;width:100%;text-align:left;background:none;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit;font-size:.82em;color:#2d3748}
 .ev-add-menu button:hover{background:#f0fff4}
-@media(max-width:900px){.ev-pane{grid-template-columns:1fr;overflow-y:auto}.ev-side,.ev-main{overflow:visible}}
+.ev-rsz{cursor:ew-resize;border-radius:4px;background:transparent;position:relative;transition:background .15s}
+.ev-rsz::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:36px;background:#cbd5e0;border-radius:2px}
+.ev-rsz:hover,.ev-rsz.dragging{background:#bee3f8}
+@media(max-width:900px){.ev-pane{grid-template-columns:1fr;overflow-y:auto}.ev-side,.ev-main{overflow:visible}.ev-rsz{display:none}}
 /* ── Fenêtre « Options d'export » ── */
 .exp-box{width:min(480px,96vw)}
 .exp-body{padding:16px 20px 20px;overflow-y:auto;background:#f0f4f8}
@@ -629,6 +632,7 @@ body{padding-top:0}/* nav is flex child */
           </div>
         </div>
       </div>
+      <div class="ev-rsz" id="rsz-ev" title="Glisser pour élargir ou réduire la colonne de gauche (double-clic : taille d'origine)"></div>
       <div class="ev-main">
         <div class="obj-list-hdr">
           <h3>📋 Objectifs et pannes</h3>
@@ -7758,6 +7762,26 @@ window.addEventListener('load', function() {
   render();
   
   setBot(false);   // bandeau du bas (Journal, Paquets) replié à l'ouverture
+
+  // Largeur de la colonne « Activité » du bandeau Évaluation : glisser la poignée, double-clic pour revenir à 40 %
+  (function(){
+    var h=document.getElementById('rsz-ev'),pane=document.querySelector('.ev-pane');
+    if(!h||!pane)return;
+    var drag=false,x0=0,w0=0;
+    h.addEventListener('mousedown',function(e){
+      drag=true;x0=e.clientX;w0=pane.querySelector('.ev-side').getBoundingClientRect().width;
+      h.classList.add('dragging');document.body.style.cursor='ew-resize';e.preventDefault();
+    });
+    document.addEventListener('mousemove',function(e){
+      if(!drag)return;
+      var max=Math.round(pane.getBoundingClientRect().width*0.75);
+      pane.style.setProperty('--ev-side-w',Math.max(220,Math.min(max,w0+e.clientX-x0))+'px');
+    });
+    document.addEventListener('mouseup',function(){
+      if(!drag)return;drag=false;h.classList.remove('dragging');document.body.style.cursor='';
+    });
+    h.addEventListener('dblclick',function(){pane.style.removeProperty('--ev-side-w');});
+  })();
 
   // Le bandeau est visible en même temps que le schéma : tout réglage de l'évaluation (saisie, ajout, suppression,
   // ordre) ou clic dans le bandeau remet à jour le contrôle du corrigé (pastilles, état), sans attendre un changement d'onglet.

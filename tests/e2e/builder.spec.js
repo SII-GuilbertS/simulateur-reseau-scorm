@@ -2325,4 +2325,30 @@ test.describe('Bandeau Évaluation', () => {
     await page.locator('#btn-depart').click();
     expect(await page.evaluate((i) => !!S.devs[i], id2)).toBe(false);
   });
+
+  test("la colonne Activité du bandeau est large, et s'élargit ou se réduit à la souris (double-clic : taille d'origine)", async ({ page }) => {
+    await openBuilderWith(page, 'reseau-lycee');
+    await openEval(page);
+    const side = page.locator('.ev-side');
+    const paneW = (await page.locator('.ev-pane').boundingBox()).width;
+    const w0 = (await side.boundingBox()).width;
+    expect(w0).toBeGreaterThan(paneW * 0.35);                    // la colonne de gauche prend une vraie place
+
+    const hb = await page.locator('#rsz-ev').boundingBox();
+    const y = hb.y + hb.height / 2, x = hb.x + hb.width / 2;
+    await page.mouse.move(x, y); await page.mouse.down();
+    await page.mouse.move(x + 150, y, { steps: 5 }); await page.mouse.up();
+    const w1 = (await side.boundingBox()).width;
+    expect(w1).toBeGreaterThan(w0 + 120);
+
+    const hb2 = await page.locator('#rsz-ev').boundingBox();
+    await page.mouse.move(hb2.x + 3, hb2.y + 40); await page.mouse.down();
+    await page.mouse.move(hb2.x - 2000, hb2.y + 40, { steps: 5 }); await page.mouse.up();
+    const w2 = (await side.boundingBox()).width;
+    expect(w2).toBeLessThan(w0 - 100);
+    expect(w2).toBeGreaterThanOrEqual(215);                      // plancher : les champs restent lisibles
+
+    await page.locator('#rsz-ev').dblclick();
+    expect(Math.abs((await side.boundingBox()).width - w0)).toBeLessThan(3);
+  });
 });

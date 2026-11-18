@@ -173,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 64 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 65 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -281,6 +281,7 @@ Ctrl+2 ouvre l'évaluation, Ctrl+1 replie le bandeau. Tout clic ou saisie dans l
 pastilles et la pastille d'état suivent en direct. Bouton « + Appareil à ajouter » (`BldEval.addDev`) : crée un poste
 `toAdd` sur un emplacement libre du schéma visible, sélectionné, annulable (Ctrl+Z). Correction au passage :
 `studentStartResults` ne désélectionne plus l'appareil du schéma. Tests navigateur : helpers `openEval(page)` / `closeEval(page)`.
+La colonne « Activité » du bandeau prend 40 % de la largeur (`--ev-side-w`) et se redimensionne à la souris par la poignée `#rsz-ev` (plancher 220 px, plafond 75 %, double-clic : retour à 40 %).
 
 ## Pour reprendre le travail
 
