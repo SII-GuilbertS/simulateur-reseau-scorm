@@ -720,7 +720,7 @@ function showProps(id){
     h+='<div class="psection">Table de routage</div>';
     var ar=(d.autoRouteEnabled!==false); // true par défaut
     h+='<div class="pr ck" style="margin-bottom:8px"><input type="checkbox" id="aro" '+(ar?'checked':'')+
-      ' onchange="S.devs[\''+id+'\'].autoRouteEnabled=this.checked;if(this.checked)autoRoute();else{S.devs[\''+id+'\'].staticRoutes=[];render();}showProps(\''+id+'\')"/>'+
+      ' onchange="setAutoRoute(\''+id+'\',this.checked)"/>'+
       '<label for="aro" style="font-weight:600">Calculer les routes automatiquement (RIP)</label></div>';
     var rt=getRoutingTable(id);
     h+='<table style="width:100%;font-size:.71em;border-collapse:collapse;margin-bottom:6px">';
@@ -801,7 +801,7 @@ function setIface(devId,idx,field,val){
   S.devs[devId].ifaces[idx][field]=v;
   // Recalcul automatique si c'est un routeur avec la case cochée
   if(isRouter(S.devs[devId])&&S.devs[devId].autoRouteEnabled!==false){
-    autoRoute();
+    autoRoute(true);
     if(S.sel===devId)showProps(devId);
   }
   render();checkAllObjectives();
@@ -1413,12 +1413,48 @@ var DESK_FORMS={
     deskDhcpWire(d,body);
   },
   routes:function(d,body){
-    var rt=getRoutingTable(d.id),ar=d.autoRouteEnabled!==false;
-    var h='<h4>Table de routage</h4><div class="dnote">'+(ar?'Routes calculées automatiquement (RIP).':'Routes statiques : le calcul automatique est décoché dans la fiche de l\'appareil.')+'</div>';
-    h+='<table class="dtab"><tr><th>Réseau</th><th>Masque</th><th>Passerelle</th><th>Interface</th></tr>'+
-      (rt.length?rt.map(function(r){return '<tr><td class="m">'+esc(r.dest)+'</td><td class="m">'+esc(r.mask)+'</td><td class="m">'+esc(r.gw||'direct')+'</td><td>'+esc(r.iface)+'</td></tr>';}).join('')
-        :'<tr><td colspan="4">Aucune route.</td></tr>')+'</table>';
+    var id=d.id,rt=getRoutingTable(id),ar=d.autoRouteEnabled!==false;
+    var h='<h4>Table de routage</h4>'+deskSwitch(ar,'Routage automatique (RIP)')+
+      '<div class="dnote">'+(ar?'Les routes vers les autres réseaux sont apprises des routeurs voisins. Une route statique ajoutée ici reste prioritaire.'
+        :'Le calcul automatique est désactivé : les routes vers les autres réseaux sont à ajouter à la main.')+'</div>';
+    h+='<table class="dtab"><tr><th>Réseau</th><th>Masque</th><th>Passerelle</th><th>Interface</th><th></th></tr>'+
+      (rt.length?rt.map(function(r,i){
+        var st=r.type!=='direct'&&r.type!=='rip';
+        return '<tr><td class="m">'+esc(r.dest)+'</td><td class="m">'+esc(r.mask)+'</td><td class="m">'+esc(r.gw||'direct')+'</td><td>'+esc(r.iface)+
+          (r.type==='rip'?' <span class="m">RIP</span>':'')+'</td><td>'+(st?'<button type="button" class="dbtn red" data-del="'+i+'" title="Supprimer cette route">✖</button>':'')+'</td></tr>';
+      }).join(''):'<tr><td colspan="5">Aucune route.</td></tr>')+'</table>';
+    h+='<h4>Ajouter une route statique</h4>'+deskField('rdest','Réseau de destination','','192.168.2.0')+
+      deskField('rmask','Masque','255.255.255.0','255.255.255.0')+deskField('rgw','Routeur suivant (passerelle)','','10.0.0.2')+
+      '<div class="dacts"><button type="button" class="dbtn" data-act="addroute">Ajouter la route</button><span class="dmsg"></span></div>';
     body.innerHTML=h;
+    body.querySelector('[data-act="toggle"]').onclick=function(){
+      deskApply(id,function(){
+        d.autoRouteEnabled=!ar;
+        if(d.autoRouteEnabled)computeRoutes(true);
+        else d.staticRoutes=(d.staticRoutes||[]).filter(function(r){return r.type!=='rip';});
+        addLog('Routage automatique '+(d.autoRouteEnabled?'activé':'désactivé')+' sur '+d.name,d.autoRouteEnabled?'ok':'warn');
+      });
+    };
+    body.querySelectorAll('[data-del]').forEach(function(x){x.onclick=function(){
+      var r=rt[+x.getAttribute('data-del')];
+      deskApply(id,function(){d.staticRoutes=(d.staticRoutes||[]).filter(function(q){return q!==r;});});
+    };});
+    body.querySelector('[data-act="addroute"]').onclick=function(){
+      var dest=deskVal(body,'rdest'),mask=deskVal(body,'rmask'),gw=deskVal(body,'rgw');
+      if(!dest||!isValidUserIP(dest)){deskMsg(body,'Réseau de destination invalide : '+dest,false);return;}
+      if(!mask||!isValidUserMask(mask)){deskMsg(body,'Masque invalide : '+mask,false);return;}
+      if(!gw||!isValidUserIP(gw)){deskMsg(body,'Routeur suivant invalide : '+gw,false);return;}
+      var net=netAddr(dest,mask);
+      if(net!==dest){deskMsg(body,dest+' n\'est pas une adresse de réseau pour ce masque (essayez '+net+').',false);return;}
+      var fi=d.ifaces.find(function(f){return f.ip&&f.mask&&sameNet(f.ip,f.mask,gw);});
+      if(!fi){deskMsg(body,'Le routeur suivant '+gw+' doit être dans un réseau où ce routeur est directement relié.',false);return;}
+      if(rt.some(function(r){return r.type==='direct'&&r.dest===net&&r.mask===mask;})){deskMsg(body,'Ce réseau est déjà directement relié.',false);return;}
+      deskApply(id,function(){
+        d.staticRoutes=(d.staticRoutes||[]).filter(function(r){return !(r.type!=='rip'&&r.dest===net&&r.mask===mask);});
+        d.staticRoutes.push({dest:net,mask:mask,gw:gw,iface:fi.name,type:'static'});
+        addLog('Route '+net+'/'+mask+' via '+gw+' ajoutée sur '+d.name,'info');
+      });
+    };
   }
 };
 
@@ -1695,8 +1731,16 @@ function doRoute(devId){
    ROUTAGE AUTOMATIQUE (RIP simplifié)
 ───────────────────────────────────────────────────── */
 
-function autoRoute(){
-  var added=computeRoutes();
+/* Case « Calculer les routes automatiquement » de la fiche : décochée, seules les routes RIP disparaissent. */
+function setAutoRoute(id,on){
+  var d=S.devs[id];if(!d)return;
+  d.autoRouteEnabled=on;
+  if(on)autoRoute(true);
+  else{d.staticRoutes=(d.staticRoutes||[]).filter(function(r){return r.type!=='rip';});render();}
+  showProps(id);
+}
+function autoRoute(onlyAuto){
+  var added=computeRoutes(!!onlyAuto);
   notif('⚡ RIP : '+added+' route(s) calculée(s) automatiquement','ok');
   addLog('RIP auto : '+added+' route(s) ajoutée(s)','ok');
   render();

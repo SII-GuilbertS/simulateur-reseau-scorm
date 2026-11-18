@@ -2563,3 +2563,81 @@ test.describe('Pastille du corrigé : vérifiés, à vérifier, non atteignables
     await expect(pill).toHaveText('✅ Corrigé complet');
   });
 });
+
+test.describe('Routage : routes statiques et pannes de routage', () => {
+  /* PC-A ─ R1 ─ R2 ─ PC-B, routes statiques ; panne « route manquante » sur R1, réparation notée 50 + test noté 50. */
+  const twoSites = () => {
+    const rt = (dest, gw, iface) => [{ dest, mask: '255.255.255.0', gw, iface, type: 'static' }];
+    const pc = (id, name, ip, gw, x) => ({ id, type: 'pc', kind: 'desktop', name, x, y: 200, mac: 'AA:BB:CC:00:00:0' + id.slice(1),
+      ifaces: [{ name: 'eth0', ip, mask: '255.255.255.0', gateway: gw, dns: '' }], staticRoutes: [] });
+    const router = (id, name, x, a, b, routes) => ({ id, type: 'router', name, x, y: 200, mac: 'AA:BB:CC:00:00:0' + id.slice(1),
+      ifaces: [{ name: 'eth0', ip: a, mask: '255.255.255.0' }, { name: 'eth1', ip: b, mask: '255.255.255.0' }],
+      staticRoutes: routes, autoRouteEnabled: false });
+    return {
+      version: 1,
+      network: {
+        nid: 20,
+        devs: {
+          d1: pc('d1', 'PC-A', '192.168.1.10', '192.168.1.1', 200),
+          d2: router('d2', 'R1', 400, '192.168.1.1', '10.0.0.1', rt('192.168.2.0', '10.0.0.2', 'eth1')),
+          d3: router('d3', 'R2', 600, '10.0.0.2', '192.168.2.1', rt('192.168.1.0', '10.0.0.1', 'eth0')),
+          d4: pc('d4', 'PC-B', '192.168.2.10', '192.168.2.1', 1000),
+        },
+        links: { l1: { id: 'l1', from: 'd1', to: 'd2' }, l2: { id: 'l2', from: 'd2', to: 'd3' }, l3: { id: 'l3', from: 'd3', to: 'd4' } },
+        frames: {}, texts: {},
+      },
+      activity: {
+        title: 'Deux sites', instructions: 'Reliez les deux sites.', masteryscore: 60, displayMode: 'full',
+        objectives: [{ id: 1, check: 'ping_success', params: { from: 'PC-A', to: '{PC-B}' }, label: 'Test : PC-A joint PC-B', points: 50 }],
+        faults: [{ id: 1, type: 'route_missing', dev: 'R1', dest: '192.168.2.0', points: 50 }],
+        evalOrder: ['f:1', 'o:1'],
+      },
+    };
+  };
+
+  test('route manquante : corrigé complet, panne vue au départ, route ajoutée dans le bureau du routeur, 100 points', async ({ page }) => {
+    await page.goto(BUILDER_URL);
+    await importScenarioFile(page, { name: 'deux-sites.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(twoSites())) });
+    await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
+    // La réparation est mesurée sur la route du corrigé, routeur suivant compris
+    const goal = await page.evaluate(() => EvalModule.getConfig().faults[0].goal);
+    expect(goal.check).toBe('route_exists');
+    expect(goal.params).toMatchObject({ dev: 'R1', dest: '192.168.2.0', gw: '10.0.0.2' });
+
+    await page.locator('#btn-sim').click();
+    expect(await page.evaluate(() => S.score)).toBe(0);
+    const ping = () => page.evaluate(() => simPing(devByName('PC-A').id, '192.168.2.10').ok);
+    expect(await ping()).toBe(false);
+
+    // Route statique ajoutée dans l'application Routage de R1 : adresse de réseau et routeur suivant contrôlés
+    const win = await openDeskApp(page, 'R1', 'Routage');
+    await win.locator('[data-f="rdest"]').fill('192.168.2.0');
+    await win.locator('[data-f="rgw"]').fill('10.9.9.9');
+    await win.locator('[data-act="addroute"]').click();
+    await expect(win.locator('.dmsg')).toContainText('directement relié');
+    await win.locator('[data-f="rgw"]').fill('10.0.0.2');
+    await win.locator('[data-act="addroute"]').click();
+    await expect(win.locator('.dtab')).toContainText('10.0.0.2');
+    expect(await ping()).toBe(true);
+    await deskTerminal(page, 'PC-A', 'ping 192.168.2.10');
+    expect(await page.evaluate(() => S.score)).toBe(100);
+
+    // Retirée par la croix de sa ligne : de nouveau injoignable
+    const back = await openDeskApp(page, 'R1', 'Routage');   // la fenêtre de R1 a été réduite par celle de PC-A
+    await back.locator('[data-del]').click();
+    expect(await ping()).toBe(false);
+  });
+
+  test('bad_route : réparation mesurée sur le routeur suivant du corrigé ; valeur de panne identique signalée', async ({ page }) => {
+    const sc = twoSites();
+    sc.activity.faults = [{ id: 1, type: 'bad_route', dev: 'R1', dest: '192.168.2.0', badValue: '10.0.0.9', points: 50 }];
+    await page.goto(BUILDER_URL);
+    await importScenarioFile(page, { name: 'deux-sites.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(sc)) });
+    await expect(page.locator('#hdr-score')).toHaveText('✅ Corrigé complet');
+    expect(await page.evaluate(() => EvalModule.getConfig().faults[0].goal.params.gw)).toBe('10.0.0.2');
+    // Panne sans effet : la valeur de panne est celle du corrigé
+    sc.activity.faults = [{ id: 1, type: 'bad_route', dev: 'R1', dest: '192.168.2.0', badValue: '10.0.0.2', points: 50 }];
+    await importScenarioFile(page, { name: 'deux-sites.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(sc)) });
+    await expect(page.locator('#hdr-score')).toContainText('panne');
+  });
+});

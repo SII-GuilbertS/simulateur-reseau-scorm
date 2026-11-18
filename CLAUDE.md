@@ -137,9 +137,9 @@ template décodé, vérifie leur syntaxe (`node --check`), l'absence de résidus
 fonctionnalités (ex. système de badges retiré), et la présence de fonctions critiques attendues
 dans chaque partie.
 
-## Tests : `node tests/sim-tests.js` → doit afficher 422/422
+## Tests : `node tests/sim-tests.js` → doit afficher 428/428
 
-Suite de 422 tests Node.js, exécutée sans navigateur via un sandbox
+Suite de 428 tests Node.js, exécutée sans navigateur via un sandbox
 `vm.createContext()` qui extrait le JS directement de `scorm-builder.html` (pas de
 `src/` directement — donc **toujours rebuild avant de tester** un changement du moteur).
 
@@ -175,7 +175,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 74 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 76 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -299,12 +299,27 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
 
 **Pastille du corrigé** (`ctlPill`) : « ✅ Corrigé complet » seulement si tous les objectifs sont vérifiés dans le corrigé ; sinon elle compte « N vérifiés · M à vérifier en Test » (🧪, quand l'élève doit encore construire), « ⚠️ Corrigé non conforme · K non atteignables · N vérifiés… » si des objectifs échouent dans le corrigé, ou « ⚠️ Corrigé : N pannes à revoir ».
 
+## Routage statique et pannes de routage
+
+Le bureau d'un routeur ou d'une box (application Routage, `DESK_FORMS.routes` dans `src/sim-ui.js`) permet d'activer ou non
+le calcul automatique (RIP), d'ajouter une route statique (réseau, masque, routeur suivant : adresse de réseau et voisin
+direct contrôlés) et de supprimer les routes statiques ; la fiche garde la case RIP (`setAutoRoute` : décochée, seules les
+routes RIP disparaissent). `autoRoute(true)` (recalcul déclenché par un changement d'interface) laisse de côté les routeurs
+dont le calcul automatique est décoché ; le bouton « Calculer maintenant » calcule pour tous.
+
+Trois pannes dans `injectFaults` (`src/net-core.js`) : `route_missing` {dev, dest} (route statique retirée), `bad_route`
+{dev, dest, badValue} (mauvais routeur suivant) et `routing_off` {dev} (calcul automatique désactivé, routes RIP perdues).
+Une route apprise par RIP revient d'elle-même : seule une route statique peut manquer ou être fausse (`faultProblem` du bloc
+WIZARD rejoue `computeRoutes(true)` après l'injection et signale la panne sans effet). `route_exists` accepte `gw` (routeur
+suivant, adresse ou `{appareil}`). Le builder les connaît (`FAULT_TYPES`, `repairSpec` : réparation mesurée par `route_exists`
+sur la route du corrigé ; `FAULT_REPAIR_CHECKS`, `FAULT_FIXES`), l'assistant aussi (`REPAIR`, `FAULT_LABEL`, `NO_EFFECT`).
+
 ## Pour reprendre le travail
 
 - **Le builder s'ouvre vierge** : on reprend un travail par « 📂 Ouvrir » (scénario `.json`). Les exports SCORM,
   HTML et énoncé ne comptent pas comme un enregistrement (alerte à la fermeture, voir plus haut).
 - **Hook de commit partagé** : `.git/hooks/pre-commit` (un seul pour tous les dossiers de travail) exige
-  exactement 422/422 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
+  exactement 428/428 tests unitaires. Une branche plus ancienne qui n'a pas les tests récents sera refusée
   au commit tant qu'elle n'est pas remise à jour sur `master`.
 - **Tests navigateur** : `importScenarioFile` (dans `builder.spec.js`) attend la fin réelle d'un import ; un
   clic dans le menu ☰ avant la fin est annulé par l'import (cause d'expirations intermittentes d'une minute).
@@ -316,7 +331,7 @@ Un objectif ou une panne ajouté arrive ouvert et défile dans le bandeau (`scro
   libellés corrigés). Pour les relire : `pymupdf` est installé (`import fitz`), convertir chaque page en PNG
   (`page.get_pixmap(dpi=105).save(...)`) puis lire les images ; la police des PDF ne rend ni les émojis ni
   ↶ ↷ (carrés noirs) : écrire le nom du bouton en toutes lettres dans `tools/gen_docs.py`.
-- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74.
+- **Résultat de la dernière session** : version 2.0 (tag `v2.0`), 412 tests unitaires et 56 tests navigateur. Après la refonte de l'interface : 412 et 73 ; après l'assistant (difficulté 1-3, postes à ajouter) : 422 et 74 ; après le routage (étape 3) : 428 et 76.
   Point connu : `reseau-lycee` affiche « P7 sans points » dans l'onglet Contrôle (panne sans objectif de réparation).
 
 ## Scénarios
@@ -357,7 +372,7 @@ de créer une version stable/release, par exemple :
 Workflow release :
 ```bash
 # 1. S'assurer que les tests passent
-node tests/sim-tests.js    # → 422/422
+node tests/sim-tests.js    # → 428/428
 
 # 2. Mettre à jour tools/gen_docs.py si de nouvelles fonctionnalités méritent d'être documentées
 # 3. Régénérer les PDFs
@@ -405,6 +420,6 @@ Code sous PolyForm Noncommercial 1.0.0 (`LICENSE`), contenus sous CC BY-NC-SA 4.
 | `tools/build_site.py` | Met à jour le dossier `site/` : copie builder, docs et scénarios, génère les démos élèves |
 | `tools/validate.py` | Check pré-commit : syntaxe JS (tout le script du builder, modules après `STUDENT_TEMPLATE` compris), résidus, fonctions critiques présentes |
 | `tools/push.sh` | Raccourci : ajoute une liste de fichiers, commite et pousse |
-| `tests/sim-tests.js` | Suite de 422 tests Node.js |
+| `tests/sim-tests.js` | Suite de 428 tests Node.js |
 | `tests/e2e/` | Suite Playwright : builder et exports dans Chrome |
 | `tools/gen_docs.py` | Génère `docs/doc-prof.pdf` et `docs/doc-eleve.pdf` via reportlab. Appelé par `python3 tools/build.py --docs` |

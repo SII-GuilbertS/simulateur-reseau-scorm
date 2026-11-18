@@ -2684,7 +2684,7 @@ const SCENARIOS_DIR = path.join(__dirname, '..', 'scenarios');
 const OBJECTIVE_TYPES = ['cable_exists','ip_configured','gateway_configured','dns_configured',
   'service_active','device_added','wifi_link','route_exists','dns_record','ssid_configured',
   'ping_success','dns_success','http_success','dhcp_success'];
-const FAULT_TYPES = ['bad_ip','bad_mask','bad_gateway','bad_dns','service_down','missing_cable','ssid_wrong','wifi_pass_wrong'];
+const FAULT_TYPES = ['bad_ip','bad_mask','bad_gateway','bad_dns','service_down','missing_cable','ssid_wrong','wifi_pass_wrong','route_missing','bad_route','routing_off'];
 const IPV4 = /^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+$/;
 
 function readScenario(file) {
@@ -3936,6 +3936,88 @@ test('chaque scénario est chargé, évalué, mis en panne et parcouru par le c�
     c.computeRoutes(true);
     exercise();
   });
+});
+
+suite('Pannes de routage : route manquante, mauvais routeur suivant, routage automatique désactivé');
+
+/* PC-A ─ R1 ─ R2 ─ PC-B : deux réseaux reliés par 10.0.0.0/24, routes statiques ou RIP. */
+function twoSites(rip) {
+  resetNet();
+  var a = mkPC('192.168.1.10', '255.255.255.0', '192.168.1.1', '', 'PC-A');
+  var b = mkPC('192.168.2.10', '255.255.255.0', '192.168.2.1', '', 'PC-B');
+  var r1 = mkRouter('192.168.1.1', '255.255.255.0', '10.0.0.1', '255.255.255.0');
+  var r2 = mkRouter('192.168.2.1', '255.255.255.0', '10.0.0.2', '255.255.255.0');
+  S.devs[r1].name = 'R1'; S.devs[r2].name = 'R2';
+  link(a, r1); link(r1, r2); link(r2, b);
+  S.devs[r1].autoRouteEnabled = S.devs[r2].autoRouteEnabled = !!rip;
+  if(rip) sandbox.computeRoutes(true);
+  else {
+    S.devs[r1].staticRoutes = [{dest: '192.168.2.0', mask: '255.255.255.0', gw: '10.0.0.2', iface: 'eth1', type: 'static'}];
+    S.devs[r2].staticRoutes = [{dest: '192.168.1.0', mask: '255.255.255.0', gw: '10.0.0.1', iface: 'eth1', type: 'static'}];
+  }
+  return {a: a, b: b, r1: r1, r2: r2};
+}
+function pingAB(n) { return sandbox.simPing(n.a, '192.168.2.10'); }
+function routeObj(dev, gw) {
+  return {id: 1, check: 'route_exists', params: {dev: dev, dest: '192.168.2.0', mask: '255.255.255.0', gw: gw}};
+}
+
+test('route_exists : le routeur suivant est vérifié quand il est demandé (adresse ou {appareil})', function() {
+  twoSites(false);
+  ok(sandbox.checkObjectiveStatic(routeObj('R1')), 'sans routeur suivant imposé');
+  ok(sandbox.checkObjectiveStatic(routeObj('R1', '10.0.0.2')), 'adresse du routeur suivant');
+  ok(sandbox.checkObjectiveStatic(routeObj('R1', '{R2}')), 'référence {appareil}');
+  notOk(sandbox.checkObjectiveStatic(routeObj('R1', '10.0.0.9')), 'autre routeur suivant');
+});
+
+test('route_missing : la route statique disparaît, le ping échoue, la route rétablie le répare', function() {
+  var n = twoSites(false);
+  ok(pingAB(n).ok, 'ping avant la panne');
+  sandbox.applyFaults([{type: 'route_missing', dev: 'R1', dest: '192.168.2.0'}]);
+  eq(S.devs[n.r1].staticRoutes.length, 0);
+  notOk(pingAB(n).ok, 'ping après la panne');
+  notOk(sandbox.checkObjectiveStatic(routeObj('R1')));
+  S.devs[n.r1].staticRoutes.push({dest: '192.168.2.0', mask: '255.255.255.0', gw: '10.0.0.2', iface: 'eth1', type: 'static'});
+  ok(pingAB(n).ok, 'ping une fois la route rétablie');
+});
+
+test('route_missing : une route apprise par RIP revient seule (panne sans effet)', function() {
+  var n = twoSites(true);
+  sandbox.applyFaults([{type: 'route_missing', dev: 'R1', dest: '192.168.2.0'}]);
+  ok(pingAB(n).ok, 'RIP a remis la route');
+});
+
+test('bad_route : le routeur suivant est faux, le ping échoue, la bonne passerelle le répare', function() {
+  var n = twoSites(false);
+  sandbox.applyFaults([{type: 'bad_route', dev: 'R1', dest: '192.168.2.0', badValue: '10.0.0.9'}]);
+  eq(S.devs[n.r1].staticRoutes[0].gw, '10.0.0.9');
+  notOk(pingAB(n).ok, 'ping après la panne');
+  notOk(sandbox.checkObjectiveStatic(routeObj('R1', '10.0.0.2')));
+  S.devs[n.r1].staticRoutes[0].gw = '10.0.0.2';
+  ok(pingAB(n).ok);
+});
+
+test('routing_off : RIP désactivé, routes apprises perdues ; le réactiver les rapporte', function() {
+  var n = twoSites(true);
+  ok(pingAB(n).ok, 'ping avant la panne');
+  sandbox.applyFaults([{type: 'routing_off', dev: 'R1'}]);
+  eq(S.devs[n.r1].autoRouteEnabled, false);
+  ok(!S.devs[n.r1].staticRoutes.some(function(r) { return r.type === 'rip'; }), 'plus de route RIP sur R1');
+  notOk(pingAB(n).ok, 'ping après la panne');
+  // Un recalcul déclenché ailleurs ne répare pas un routeur dont le calcul automatique est décoché
+  sandbox.autoRoute(true);
+  notOk(pingAB(n).ok, 'autoRoute(true) laisse R1 de côté');
+  S.devs[n.r1].autoRouteEnabled = true;
+  sandbox.autoRoute(true);
+  ok(pingAB(n).ok, 'ping une fois RIP réactivé');
+});
+
+test('pannes de routage : format imbriqué {params} accepté, routeur inconnu ou non routeur ignoré', function() {
+  var n = twoSites(false);
+  sandbox.applyFaults([{type: 'route_missing', params: {dev: 'R1', dest: '192.168.2.0'}},
+    {type: 'route_missing', dev: 'PC-A', dest: '192.168.2.0'}, {type: 'routing_off', dev: 'Absent'}]);
+  eq(S.devs[n.r1].staticRoutes.length, 0);
+  eq(S.devs[n.a].staticRoutes.length, 0);
 });
 
 /* ─────────────────────────────────────────────────────

@@ -378,6 +378,7 @@ function checkObjectiveStatic(obj){
       return !!rt.find(function(r){
         if(p.dest&&r.dest!==p.dest)return false;
         if(p.mask&&r.mask!==p.mask)return false;
+        if(p.gw&&!valueMatchesRef(r.gw,p.gw))return false;
         return true;
       });}
     case 'dns_record':{
@@ -1152,6 +1153,7 @@ function injectFaults(faults){
     var fservice = f.service  != null ? f.service  : p.service;
     var fdevA    = f.devA     != null ? f.devA     : p.devA;
     var fdevB    = f.devB     != null ? f.devB     : p.devB;
+    var fdest    = f.dest     != null ? f.dest     : p.dest;
     var d,fi;
     switch(f.type){
       case 'bad_ip':
@@ -1177,6 +1179,22 @@ function injectFaults(faults){
             delete S.links[lid];
         });
         break;}
+      /* Routage : une route statique retirée ou renvoyée vers un mauvais routeur suivant, ou le calcul
+         automatique (RIP) désactivé, sans les routes qu'il avait apprises. Les routes RIP ne sont jamais
+         touchées par les deux premières : elles reviendraient au prochain calcul. */
+      case 'route_missing':
+        d=devByName(fdev);if(!d||!isRouter(d)||!d.staticRoutes)return;
+        d.staticRoutes=d.staticRoutes.filter(function(r){return r.type==='rip'||r.dest!==fdest;});
+        break;
+      case 'bad_route':
+        d=devByName(fdev);if(!d||!isRouter(d)||!d.staticRoutes)return;
+        d.staticRoutes.forEach(function(r){if(r.type!=='rip'&&r.dest===fdest)r.gw=fbadVal||'';});
+        break;
+      case 'routing_off':
+        d=devByName(fdev);if(!d||!isRouter(d))return;
+        d.autoRouteEnabled=false;
+        d.staticRoutes=(d.staticRoutes||[]).filter(function(r){return r.type!=='rip';});
+        break;
       case 'ssid_wrong':
         d=devByName(fdev);if(!d||d.type!=='wifi_router')return;
         d.ssid=fbadVal||'';break;
