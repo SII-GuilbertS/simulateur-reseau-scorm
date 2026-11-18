@@ -69,7 +69,7 @@ const test = base.extend({
 
 /* ── Builder ─────────────────────────────────────────────────────────── */
 
-/* Importe un scénario et attend la fin réelle de l'import (lecture du fichier, puis retour à l'onglet 1) :
+/* Importe un scénario et attend la fin réelle de l'import (lecture du fichier, puis réévaluation) :
    cliquer sur un autre onglet avant cette fin serait annulé par l'import. */
 async function importScenarioFile(page, file) {
   await page.evaluate(() => document.querySelectorAll('.bld-notif').forEach((n) => n.remove()));
@@ -80,7 +80,19 @@ async function importScenarioFile(page, file) {
 async function openBuilderWith(page, scenario) {
   await page.goto(BUILDER_URL);
   await importScenarioFile(page, scenarioPath(scenario));
-  await expect(page.locator('.bld-tab[data-tab="1"]')).toHaveClass(/active/);
+  await expect(page.locator('#hdr-score')).toBeVisible();
+}
+
+/* Bandeau du bas, onglet « 🎯 Évaluation » (vue Corrigé) : objectifs, pannes, informations de l'activité. */
+async function openEval(page) {
+  if (!(await page.locator('#bt-eval').isVisible())) await page.locator('#btn-cfg').click();
+  if (await page.locator('.bot.closed').count() || !(await page.locator('#bt-eval.active').count())) await page.locator('#bt-eval').click();
+  await expect(page.locator('#tp-eval')).toBeVisible();
+}
+/* Replie le bandeau pour rendre tout le schéma (ce que faisait le retour à l'onglet Réseau). */
+async function closeEval(page) {
+  if (!(await page.locator('.bot.closed').count())) await page.locator('#bot-toggle').click();
+  await expect(page.locator('.bot')).toHaveClass(/closed/);
 }
 
 const builderScore = (page) => page.locator('#hdr-score');
@@ -476,8 +488,8 @@ test.describe('Builder', () => {
     await expect(win.locator('.dwin-ip')).toHaveText(/^192\.168\.1\.\d+$/);
     await expect(win.locator('.dnote')).toHaveCount(0);                      // en Essai, tout compte
     await expect(builderScore(page)).toHaveText(before);
-    // Le bandeau du bas n'a plus que le journal et les paquets, dans toutes les vues
-    await expect(page.locator('.bot .bt')).toHaveText(['📋 Journal', '🔍 Paquets']);
+    // Le bandeau du bas n'a plus que le journal et les paquets hors du corrigé (l'évaluation ne se règle que dans le corrigé)
+    await expect(page.locator('.bot .bt:visible')).toHaveText(['📋 Journal', '🔍 Paquets']);
     await expect(page.locator('#tinput, #td-sel, #burl, #tout')).toHaveCount(0);
   });
 
@@ -655,7 +667,7 @@ test.describe('Builder', () => {
 
   test('adresse en plage : contrainte générée, rédigée à la main, puis affichée à l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-college');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     const card = page.locator('[data-objid="7"]');
     await card.locator('.obj-card-hdr').click();
     const chk = card.locator('.obj-cons input[type="checkbox"]');
@@ -696,7 +708,7 @@ test.describe('Builder', () => {
 
   test('ping vers une adresse au choix : alerte, puis cible désignée par l\'appareil', async ({ page }) => {
     await openBuilderWith(page, 'reseau-college');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     const ipCard = page.locator('[data-objid="7"]');
     await ipCard.locator('.obj-card-hdr').click();
     await ipCard.locator('.ipf select').selectOption('range');
@@ -731,7 +743,7 @@ test.describe('Builder', () => {
 
   test('plan d\'adressage : à compléter dans l\'énoncé, rempli dans le corrigé, désactivable', async ({ page, context }, info) => {
     await openBuilderWith(page, 'reseau-college');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     const card = page.locator('[data-objid="7"]');
     await card.locator('.obj-card-hdr').click();
     await card.locator('.ipf select').selectOption('range');
@@ -779,7 +791,7 @@ test.describe('Builder', () => {
   test('objectifs et pannes dans une seule liste : ordre libre, conservé à l\'export et chez l\'élève', async ({ page }, info) => {
     const { activity } = readScenario('reseau-lycee');
     await openBuilderWith(page, 'reseau-lycee');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     const cards = page.locator('#ev-list .obj-card');
     const keys = () => cards.evaluateAll((els) => els.map((e) => e.dataset.key));
     await expect(cards).toHaveCount(activity.objectives.length + activity.faults.length);
@@ -820,7 +832,7 @@ test.describe('Builder', () => {
     expect(String(exported.activity.objectives[0].id)).toBe(String(last.id));
     await page.goto(BUILDER_URL);
     await importScenarioFile(page, file);
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     expect(await keys()).toEqual(order);
 
     // L'élève voit les objectifs dans cet ordre
@@ -831,7 +843,7 @@ test.describe('Builder', () => {
 
   test('ping depuis un poste à ajouter : proposé dans la liste, alerte si placé avant, validé chez l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-college');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     await page.locator('button[onclick="EvalModule.addObjective()"]').click();
     const card = page.locator('#ev-list .obj-card[data-objid]').last();
     const id = await card.getAttribute('data-objid');
@@ -1043,14 +1055,14 @@ test.describe('Builder', () => {
     await expect(page.locator('#score-details')).not.toContainText('Pannes sans points');
 
     // Onglet Évaluation : état par rapport au corrigé et au départ élève
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     const dnsCard = page.locator('#ev-list .obj-card', { hasText: 'Le service DNS du Serveur est actif' });
     await expect(dnsCard.locator('.obj-preview')).toContainText('Vrai dans le corrigé');
     await expect(dnsCard.locator('.obj-preview')).toContainText('faux au départ élève (panne P1)');
 
     // Sans aucun objectif, les pannes restent visibles (score et bandeau) et le bandeau prévient qu'elles ne rapportent rien
     await page.evaluate(() => { window.__objs = EvalModule.getConfig().objectives.splice(0); });
-    await page.locator('.bld-tab[data-tab="1"]').click();
+    await closeEval(page);
     await expect(banner).toContainText('2 pannes sans points');
     await page.locator('#hdr-score').click();
     await expect(page.locator('#score-details')).toContainText('le score se calcule à partir des objectifs');
@@ -1058,12 +1070,12 @@ test.describe('Builder', () => {
     await expect(page.locator('#score-details')).toContainText('ne rapporte aucun point');
     await page.locator('#hdr-score').click();
     await page.evaluate(() => { EvalModule.getConfig().objectives.push(...window.__objs); });
-    await page.locator('.bld-tab[data-tab="2"]').click();
-    await page.locator('.bld-tab[data-tab="1"]').click();
+    await openEval(page);
+    await closeEval(page);
 
     // Sans panne, l'élève aurait des points d'office : le bandeau prévient
     await page.evaluate(() => { EvalModule.getConfig().faults.length = 0; });
-    await page.locator('.bld-tab[data-tab="1"]').click();
+    await closeEval(page);
     await expect(banner).toContainText('⚠️ Départ élève : 40 / 100');
     await expect(page.locator('#layer-badges g')).toHaveCount(0);
 
@@ -1216,12 +1228,12 @@ test.describe('Builder', () => {
     await exportFile(page, 'scenario', info.outputPath('enregistre.json'));
     await page.waitForTimeout(1200);
     expect(await warns()).toBe(false);
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     await page.locator('#ev-title').fill('Autre titre');
     expect(await warns()).toBe(true);
 
     // Une activité créée par l'assistant n'est pas enregistrée : alerte
-    await page.locator('.bld-tab[data-tab="1"]').click();
+    await closeEval(page);
     await expect(page.locator('#menu-btn')).toBeVisible();                   // Ouvrir, Enregistrer et l'assistant sont dans le menu ☰ de la barre du haut
     await menu(page, 'btn-wizard');
     await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
@@ -1271,7 +1283,7 @@ test.describe('Builder', () => {
     expect(exported.activity.faults.length).toBe(2);
 
     // Retour au corrigé : rien n'a bougé, score de départ de nouveau 0
-    await page.locator('.bld-tab[data-tab="1"]').click();
+    await closeEval(page);
     expect(await dnsOn()).toBe(true);
     await corrigeComplet(page); await departZero(page);
     await expect(page.locator('#view-bar')).toBeHidden();
@@ -1289,7 +1301,7 @@ test.describe('Builder', () => {
     await expect(page.locator('#ctl-banner')).toContainText('2 pannes sans points');
 
     // Points saisis directement sur chaque panne
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     const cards = page.locator('#ev-list .obj-card.fault');
     await expect(cards).toHaveCount(2);
     await cards.nth(0).locator('.obj-card-hdr').click();
@@ -1308,7 +1320,7 @@ test.describe('Builder', () => {
     expect(cfg.faults[1].goal.params).toMatchObject({ dev: 'PC-Bob', gateway: '192.168.1.1' });
 
     // Le bandeau ne signale plus rien ; l'élève part de 0 et gagne les points en réparant
-    await page.locator('.bld-tab[data-tab="1"]').click();
+    await closeEval(page);
     await expect(page.locator('#ctl-banner')).not.toContainText('sans points');
     await expect(page.locator('#ctl-banner')).toContainText('Départ élève : 0 / 50');
     await page.locator('#btn-sim').click();
@@ -1325,7 +1337,7 @@ test.describe('Builder', () => {
 
     // Si un objectif de réparation existe déjà (scénarios fournis), il fait foi : pas de points sur la panne
     await importScenarioFile(page, scenarioPath('reseau-entreprise'));
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     await page.locator('#ev-list .obj-card.fault').nth(0).locator('.obj-card-hdr').click();
     await expect(page.locator('.fault-repair').nth(0)).toContainText('Réparation déjà mesurée par');
     await expect(page.locator('.fault-repair').nth(0).locator('input[type="number"]')).toHaveCount(0);
@@ -1349,7 +1361,7 @@ test.describe('Builder', () => {
     fs.writeFileSync(scenario, JSON.stringify(data));
     await page.goto(BUILDER_URL);
     await importScenarioFile(page, scenario);
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     await page.getByRole('button', { name: '+ Ajouter une panne' }).click();
     const card = page.locator('#ev-list .obj-card.fault').last();
     await card.locator('select').first().selectOption('service_down');
@@ -1428,7 +1440,7 @@ test.describe('Builder', () => {
 
   test('indice d\'un objectif : proposé selon l\'objectif et la panne, modifiable, affiché à l\'élève', async ({ page }, info) => {
     await openBuilderWith(page, 'reseau-maison');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await openEval(page);
     await page.locator('button[onclick="EvalModule.addObjective()"]').click();
     const card = page.locator('#ev-list .obj-card[data-objid]').last();
     const hint = card.locator('.obj-hint-in');
@@ -1531,7 +1543,7 @@ test.describe('Builder', () => {
     await menu(page, 'btn-variant');
     const card = (id) => page.locator(`.wz-card[data-group="faults"][data-id="${id}"]`);
     await card('move').click();
-    await expect(page.locator('.wz-report')).toContainText('Ajoutez-en un dans l\'onglet Réseau');
+    await expect(page.locator('.wz-report')).toContainText('Ajoutez-en un sur le schéma');
     await expect(page.locator('#wz-create')).toBeDisabled();     // seul poste fixe : rien ne bouge
     await card('add').click();
     await expect(card('move')).toHaveClass(/\bon\b/);
@@ -2163,7 +2175,7 @@ test.describe('Barre du haut et menu ☰', () => {
   test('une seule barre : menu, onglets, vues ; plus de barre « SCORM Builder » ni d\'onglet Générer', async ({ page }) => {
     await page.goto(BUILDER_URL);
     await expect(page.locator('#bld-nav')).toHaveCount(0);
-    await expect(page.locator('.bld-tab')).toHaveCount(2);
+    await expect(page.locator('.bld-tab')).toHaveCount(0);   // plus d'onglets Réseau / Évaluation : l'évaluation est dans le bandeau du bas
     for (const id of ['#menu-btn', '#btn-cfg', '#btn-depart', '#btn-sim', '#btn-undo', '#btn-redo', '#hdr-score']) {
       await expect(page.locator(id)).toBeVisible();
     }
@@ -2210,7 +2222,8 @@ test.describe('Barre du haut et menu ☰', () => {
 
   test('Nouveau : propose d\'abord de garder le travail non enregistré, puis repart d\'un builder vierge', async ({ page }) => {
     await openBuilderWith(page, 'reseau-maison');
-    await page.locator('.bld-tab[data-tab="2"]').click();
+    await page.waitForTimeout(1200);                                           // l'empreinte de référence se stabilise 0,8 s après l'ouverture
+    await openEval(page);
     await page.locator('#ev-title').fill('Autre titre');                        // travail modifié, non enregistré
     page.dialogAction = 'dismiss';
     await menu(page, 'btn-new');
@@ -2222,5 +2235,94 @@ test.describe('Barre du haut et menu ☰', () => {
     await page.waitForLoadState('load');
     await expect.poll(() => page.evaluate(() => Object.keys(S.devs).length)).toBe(0);
     expect(page.dialogs.filter((d) => d.includes('pas enregistré')).length).toBe(2);   // une seule alerte par essai : pas de seconde au rechargement
+  });
+});
+
+/* ── Évaluation dans le bandeau du bas ───────────────────────────────── */
+
+test.describe('Bandeau Évaluation', () => {
+  test('l\'évaluation s\'ouvre sous le schéma, qui reste visible ; Ctrl+2 l\'ouvre, Ctrl+1 le replie', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-lycee');
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+    await expect(page.locator('#tp-eval')).toBeHidden();
+    const canvasBefore = (await page.locator('#cw').boundingBox()).height;
+
+    await page.locator('#bt-eval').click();
+    await expect(page.locator('#tp-eval')).toBeVisible();
+    // titre, niveau, consignes, seuil, mode d'affichage, total, liste : tout est dans le bandeau
+    for (const id of ['#ev-title', '#ev-level', '#ev-instructions', '#ev-mastery', '#ev-displaymode', '#ev-total-pts', '#ev-list']) {
+      await expect(page.locator('#tp-eval ' + id)).toBeVisible();
+    }
+    await expect(page.locator('#ev-title')).toHaveValue('Réseau Lycée — Diagnostic et réparation');
+    await expect(page.locator('#ev-obj-count')).toHaveText('21');
+    await expect(page.locator('#ev-fault-count')).toHaveText('7');
+    // le schéma et ses pastilles de panne restent visibles pendant qu'on règle les pannes
+    const canvasOpen = (await page.locator('#cw').boundingBox()).height;
+    expect(canvasOpen).toBeLessThan(canvasBefore);
+    expect(canvasOpen).toBeGreaterThan(250);
+    await expect(page.locator('#layer-badges g').first()).toBeVisible();
+    // un clic sur une pastille de panne ouvre la carte de la panne
+    await page.locator('#layer-badges g').first().click();
+    await expect(page.locator('[data-fltid] .obj-card-body.open')).toHaveCount(1);
+
+    await page.keyboard.press('Control+1');
+    await expect(page.locator('.bot')).toHaveClass(/closed/);
+    await page.keyboard.press('Control+2');
+    await expect(page.locator('#tp-eval')).toBeVisible();
+    // Journal et Paquets gardent leur hauteur habituelle, l'évaluation la sienne
+    const hEval = (await page.locator('.bot').boundingBox()).height;
+    await page.locator('.bt[data-tab="log"]').click();
+    const hLog = (await page.locator('.bot').boundingBox()).height;
+    expect(hEval).toBeGreaterThan(hLog + 100);
+  });
+
+  test('l\'évaluation ne se règle que dans le corrigé : l\'onglet disparaît dans Départ élève et Essai', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await openEval(page);
+    await page.locator('#btn-depart').click();
+    await expect(page.locator('#bt-eval')).toBeHidden();
+    await expect(page.locator('#tp-eval')).toBeHidden();
+    await expect(page.locator('.bt.active')).toHaveText('📋 Journal');
+    await page.locator('#btn-sim').click();
+    await expect(page.locator('#bt-eval')).toBeHidden();
+    // Ctrl+2 ramène au corrigé et ouvre l'évaluation
+    await page.keyboard.press('Control+2');
+    await expect(page.locator('#btn-cfg')).toHaveClass(/active/);
+    await expect(page.locator('#tp-eval')).toBeVisible();
+  });
+
+  test('un réglage de l\'évaluation met à jour le contrôle sans changer d\'onglet', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await corrigeComplet(page);
+    await openEval(page);
+    await page.locator('#ev-mastery').fill('90');
+    await expect(page.locator('#ctl-banner')).toContainText('seuil 90 %');
+  });
+
+  test('+ Appareil à ajouter : crée un poste marqué « à ajouter », sélectionné, annulable, absent du départ élève', async ({ page }) => {
+    await openBuilderWith(page, 'reseau-maison');
+    await openEval(page);
+    const before = await page.evaluate(() => Object.keys(S.devs));
+    await page.locator('#ev-add-dev').click();
+    await expect(page.locator('#ev-add-menu')).toBeVisible();
+    await page.locator('#ev-add-menu button', { hasText: 'PC fixe' }).click();
+    await expect(page.locator('#ev-add-menu')).toBeHidden();
+
+    const id = await page.evaluate((b) => Object.keys(S.devs).find((k) => !b.includes(k)), before);
+    expect(id).toBeTruthy();
+    const d = await page.evaluate((i) => ({ toAdd: S.devs[i].toAdd, type: S.devs[i].type, kind: S.devs[i].kind, sel: S.sel }), id);
+    expect(d).toEqual({ toAdd: true, type: 'pc', kind: 'desktop', sel: id });
+    await expect(page.locator(`#layer-badges g[data-toadd="${id}"]`)).toBeVisible();     // pastille verte « + »
+    await expect(page.locator('#toadd')).toBeChecked();                                   // case de la fiche
+
+    // Ctrl+Z le retire ; Départ élève ne le montre pas
+    await page.locator('body').press('Control+z');
+    expect(await page.evaluate((i) => !!S.devs[i], id)).toBe(false);
+    await page.locator('#ev-add-dev').click();
+    await page.locator('#ev-add-menu button', { hasText: 'Serveur' }).click();
+    const id2 = await page.evaluate((b) => Object.keys(S.devs).find((k) => !b.includes(k)), before);
+    expect(await page.evaluate((i) => S.devs[i].type, id2)).toBe('server');
+    await page.locator('#btn-depart').click();
+    expect(await page.evaluate((i) => !!S.devs[i], id2)).toBe(false);
   });
 });

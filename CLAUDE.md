@@ -39,7 +39,7 @@ fonctionne ; le professeur y règle tout et peut y tester, terminal et navigateu
 gagne), **Départ élève** (copie du corrigé + pannes, lecture seule, pastilles de panne P1, P2…) et
 **Essai** (même copie, le professeur joue l'élève : terminal, réparations, score réel, règles de l'élève).
 `setBuilderView` met le corrigé de côté dans `VIEW_SNAP` et le rétablit au retour ; `SimModule.getState()`
-renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant les onglets 2 et 3, l'import,
+renvoie toujours le corrigé, et `ensureCorrige()` ramène au corrigé avant l'évaluation, les exports, l'import,
 l'enregistrement et l'assistant : aucun export ne part d'une copie. Le moteur partagé n'a qu'un point
 d'accroche (`deskView` dans `src/sim-ui.js`, qui lit `BUILDER_VIEW` ; chez l'élève il vaut toujours « essai »).
 `readOnly()` en découle (vue Départ élève) : ni glisser, ni dépôt, ni suppression, fiche aux champs figés
@@ -89,13 +89,9 @@ appareil de la panne) fait foi et la panne n'est pas notée en plus (pas de doub
 scénarios fournis et de l'assistant. Les tests de validation (ping…) restent manuels. Un scénario sans `points`
 sur ses pannes se comporte comme avant.
 
-**3 onglets dans l'UI du builder :**
-
-| Onglet | Rôle |
-|---|---|
-| 1 Réseau | Topologie : appareils, câbles, IP, WiFi, services |
-| 2 Évaluation | Objectifs pédagogiques, score, pannes à injecter |
-| 3 Générer | Export SCORM/HTML, énoncé imprimable, import/export scénario JSON |
+**Interface du builder** : une seule barre (menu ☰, vues, pastille d'état), le schéma, et le bandeau du bas dont
+l'onglet « 🎯 Évaluation » (vue Corrigé seulement) porte l'activité, les objectifs et les pannes. Voir « Refonte de
+l'interface » plus bas. L'export est dans le menu ☰ (fenêtre « Options d'export »).
 
 ## Règle critique : ne jamais éditer le bloc SIM-ENGINE à la main
 
@@ -177,7 +173,7 @@ change, mettre à jour le hook en plus de cette documentation.
 
 **À lancer après chaque modification du moteur.**
 
-## Tests navigateur : `npm --prefix tests/e2e test` → 60 tests
+## Tests navigateur : `npm --prefix tests/e2e test` → 64 tests
 
 Suite Playwright dans `tests/e2e/` (`npm --prefix tests/e2e ci` la première fois), avec le Chrome du
 poste. Elle couvre ce que `sim-tests.js` n'exécute pas : import et export depuis l'interface du builder,
@@ -227,7 +223,7 @@ le builder seulement).
 demande DHCP faite depuis la fiche s'écrit dans le terminal de l'appareil et s'annonce par un message (`doDHCP`,
 qui n'est plus surchargé par le builder, pas plus que `showTab`).
 
-**Bandeau du bas** (`.bot`) : Journal, Paquets et, chez l'élève, Activité. Il se replie sur sa barre d'onglets
+**Bandeau du bas** (`.bot`) : Journal, Paquets et, chez l'élève, Activité (dans le builder : Évaluation, voir « Refonte »). Il se replie sur sa barre d'onglets
 (`setBot`, `toggleBot`, bouton `#bot-toggle`, classe `closed`) ; un clic sur un onglet le déplie (`showTab`, qui
 repère les onglets par `data-tab`). Élève : déplié sur Activité s'il y a une activité, replié sinon. Builder :
 replié à l'ouverture, présent dans les trois vues.
@@ -272,10 +268,19 @@ Conception · Départ élève · Test (renommage à l'étape 4).
 
 **Étape 1 faite** : plus de barre « SCORM Builder » ni d'onglet « Générer ». Une seule barre (`.hdr`) : menu ☰ (`BldMenu`,
 entrées `#btn-wizard`, `#btn-new`, `#btn-open`, `#btn-save`, `#btn-variant`, `#mi-scorm`, `#mi-html`, `#mi-enonce`,
-`#mi-corrige`, `#mi-options`, `#mi-preview`, `#btn-fs`), onglets Réseau / Évaluation (provisoires), ↩ ↪, vues, pastille
+`#mi-corrige`, `#mi-options`, `#mi-preview`, `#btn-fs`), ↩ ↪, vues, pastille
 `#hdr-score`. L'ancien onglet 3 est la fenêtre « Options d'export » (`openExportDialog`, `#bld-overlay-gen` : résumé,
 `#gen-pwd`, `#gen-plan`). Les exports et l'enregistrement ramènent au corrigé (`ensureCorrige`). Retirés du builder : ♻, 💾 sans
 effet, 🔄 (reste `resetScore`, appelé par l'import), ⤢, 📤, 📂, Terminer, 🎓 et Ctrl+3. Tests navigateur : helper `menu(page, id)`.
+
+**Étape 2 faite** : plus d'onglets Réseau / Évaluation ni de page plein écran. L'évaluation est le panneau `#tp-eval` du
+bandeau du bas (onglet `#bt-eval`, vue Corrigé seulement ; `bldTab(id)` donne à chaque onglet sa hauteur, 42 % de l'écran
+pour l'évaluation, 215 px pour Journal et Paquets). Mêmes identifiants qu'avant (`#ev-title`, `#ev-level`, `#ev-instructions`,
+`#ev-mastery`, `#ev-displaymode`, `#ev-total-pts`, `#ev-list`…). `openEval()` (ramène au corrigé) remplace `showBuilderTab` ;
+Ctrl+2 ouvre l'évaluation, Ctrl+1 replie le bandeau. Tout clic ou saisie dans le bandeau relance le contrôle (250 ms) : les
+pastilles et la pastille d'état suivent en direct. Bouton « + Appareil à ajouter » (`BldEval.addDev`) : crée un poste
+`toAdd` sur un emplacement libre du schéma visible, sélectionné, annulable (Ctrl+Z). Correction au passage :
+`studentStartResults` ne désélectionne plus l'appareil du schéma. Tests navigateur : helpers `openEval(page)` / `closeEval(page)`.
 
 ## Pour reprendre le travail
 

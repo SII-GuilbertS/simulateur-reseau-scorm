@@ -228,7 +228,24 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf0;color:#2d3748;he
 .bld-menu button:hover,.bld-menu button:focus-visible{background:#ebf4ff;outline:none}
 .bld-menu .mi-sep{height:1px;background:#e2e8f0;margin:5px 4px}
 .bld-menu .mi-grp{font-size:.74em;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:.5px;padding:5px 10px 2px}
-.hdr-tabs .mbtn{padding:4px 13px}
+/* ── Bandeau « Évaluation » (vue Corrigé) : dans le bandeau du bas ── */
+.ev-pane{flex:1;min-height:0;display:grid;grid-template-columns:300px 1fr;gap:14px;padding:10px 14px;background:#f0f4f8;color:#2d3748;
+  font-family:'Segoe UI',Arial,sans-serif;overflow:hidden}
+.ev-side,.ev-main{min-height:0;overflow-y:auto;padding-right:4px}
+.ev-pane .bld-card{padding:12px 14px;margin-bottom:10px}
+.ev-pane .bld-card-title{margin-bottom:8px}
+.ev-pane .bld-row{margin-bottom:8px}
+.ev-pane .obj-list-hdr{margin-bottom:8px}
+.ev-add-wrap{position:relative;flex:1;display:flex}
+.ev-add-wrap>.btn-add-obj{flex:1}
+.btn-add-obj.btn-add-dev{background:#2f855a}
+.btn-add-obj.btn-add-dev:hover{background:#276749}
+.ev-add-menu{display:none;position:absolute;top:calc(100% + 4px);right:0;min-width:190px;background:#fff;border-radius:9px;
+  box-shadow:0 8px 28px rgba(0,0,0,.3);padding:5px;z-index:50}
+.ev-add-menu.open{display:block}
+.ev-add-menu button{display:block;width:100%;text-align:left;background:none;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit;font-size:.82em;color:#2d3748}
+.ev-add-menu button:hover{background:#f0fff4}
+@media(max-width:900px){.ev-pane{grid-template-columns:1fr;overflow-y:auto}.ev-side,.ev-main{overflow:visible}}
 /* ── Fenêtre « Options d'export » ── */
 .exp-box{width:min(480px,96vw)}
 .exp-body{padding:16px 20px 20px;overflow-y:auto;background:#f0f4f8}
@@ -465,11 +482,6 @@ body{padding-top:0}/* nav is flex child */
   </div>
   <div class="hdr-title">🔧 Atelier Réseau</div>
 
-  <div class="hdr-mode hdr-tabs">
-    <button class="mbtn bld-tab active" data-tab="1" onclick="showBuilderTab(1)" title="Le schéma du réseau (Ctrl+1)">Réseau</button>
-    <button class="mbtn bld-tab" data-tab="2" onclick="showBuilderTab(2)" title="Objectifs, points et pannes (Ctrl+2)">Évaluation</button>
-  </div>
-
   <div class="hdr-tools" id="hdr-tools">
     <button class="tbtn icon-only" id="btn-undo" onclick="undo()" title="Annuler (Ctrl+Z)" disabled>↩</button>
     <button class="tbtn icon-only" id="btn-redo" onclick="redo()" title="Rétablir (Ctrl+Y)" disabled>↪</button>
@@ -573,9 +585,78 @@ body{padding-top:0}/* nav is flex child */
 <div class="bot">
   <div class="rsz-h" id="rsz-bot"></div>
   <div class="btabs">
-    <button class="bt active" data-tab="log" onclick="showTab('log')">📋 Journal</button>
-    <button class="bt" data-tab="pkt" onclick="showTab('pkt')">🔍 Paquets</button>
+    <button class="bt" id="bt-eval" data-tab="eval" onclick="bldTab('eval')" title="Objectifs, points et pannes (Ctrl+2)">🎯 Évaluation</button>
+    <button class="bt active" data-tab="log" onclick="bldTab('log')">📋 Journal</button>
+    <button class="bt" data-tab="pkt" onclick="bldTab('pkt')">🔍 Paquets</button>
     <button type="button" class="bot-tg" id="bot-toggle" onclick="toggleBot()" aria-expanded="true" title="Replier ou déplier le bandeau">▾ Replier</button>
+  </div>
+
+  <!-- Évaluation : informations de l'activité, objectifs et pannes (vue Corrigé) -->
+  <div class="tp" id="tp-eval">
+    <div class="ev-pane">
+      <div class="ev-side">
+        <div class="bld-card">
+          <div class="bld-card-title">📝 Activité</div>
+          <div class="bld-row">
+            <label for="ev-title">Titre de l'activité</label>
+            <input id="ev-title" placeholder="Ex : Configuration d'un réseau local" value="Activité réseau IPv4"/>
+          </div>
+          <div class="bld-row">
+            <label for="ev-level">Niveau / Classe</label>
+            <input id="ev-level" placeholder="Ex : 4ème — Cycle 4" value="4ème — Cycle 4"/>
+          </div>
+          <div class="bld-row">
+            <label for="ev-instructions">Consignes affichées à l'élève</label>
+            <textarea id="ev-instructions" placeholder="Décrivez ce que l'élève doit faire…" rows="4"></textarea>
+          </div>
+        </div>
+        <div class="bld-card">
+          <div class="bld-card-title">⚙️ Notation</div>
+          <div class="bld-row">
+            <label for="ev-mastery">Seuil de réussite (%)</label>
+            <input id="ev-mastery" type="number" min="0" max="100" value="60" style="max-width:90px"/>
+          </div>
+          <div class="bld-row">
+            <label for="ev-displaymode">Mode d'affichage dans le simulateur</label>
+            <select id="ev-displaymode">
+              <option value="full">Complet (titre + instructions + objectifs)</option>
+              <option value="objectives">Objectifs seulement</option>
+              <option value="score">Score seulement</option>
+            </select>
+          </div>
+          <div id="ev-total-pts" style="padding:8px 12px;background:#f7fafc;border-radius:7px;font-size:.83em;color:#4a5568;border:1px solid #e2e8f0;">
+            Total : <strong>0 point(s)</strong>
+          </div>
+        </div>
+      </div>
+      <div class="ev-main">
+        <div class="obj-list-hdr">
+          <h3>📋 Objectifs et pannes</h3>
+          <span class="ev-counts"><span class="ev-dot"></span><span id="ev-obj-count">0</span> objectif(s)
+            · <span class="ev-dot fault"></span><span id="ev-fault-count">0</span> panne(s)</span>
+        </div>
+        <div class="ev-add-btns">
+          <button class="btn-add-obj" onclick="EvalModule.addObjective()">+ Ajouter un objectif</button>
+          <button class="btn-add-obj btn-add-fault" onclick="EvalModule.addFault()">+ Ajouter une panne</button>
+          <div class="ev-add-wrap">
+            <button class="btn-add-obj btn-add-dev" id="ev-add-dev" aria-haspopup="true" onclick="BldEval.toggleAddDev(event)" title="Un appareil que l'élève devra ajouter lui-même : il reste dans le corrigé, il est retiré de son réseau de départ">+ Appareil à ajouter</button>
+            <div class="ev-add-menu" id="ev-add-menu" role="menu">
+              <button type="button" role="menuitem" onclick="BldEval.addDev('pc:desktop')">🖥️ PC fixe</button>
+              <button type="button" role="menuitem" onclick="BldEval.addDev('pc:laptop')">💻 Portable</button>
+              <button type="button" role="menuitem" onclick="BldEval.addDev('pc:phone')">📱 Téléphone</button>
+              <button type="button" role="menuitem" onclick="BldEval.addDev('pc:tablet')">📲 Tablette</button>
+              <button type="button" role="menuitem" onclick="BldEval.addDev('server')">🖧 Serveur</button>
+            </div>
+          </div>
+        </div>
+        <div class="ev-help">
+          Les pannes sont injectées au chargement : l'élève diagnostique avec le terminal, puis corrige.
+          Ajoutez des objectifs qui vérifient chaque correction (IP configurée, service actif…).
+          Réordonnez avec ⠿ ou ▲ ▼ : les objectifs sont présentés à l'élève dans cet ordre.
+        </div>
+        <div id="ev-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Log -->
@@ -602,75 +683,11 @@ body{padding-top:0}/* nav is flex child */
 
 
 <!-- ══════════════════════════════════════════════════════════
-     TAB 2 — MODULE ÉVALUATION (overlay fixe)
+     MODULE ÉVALUATION (panneau « 🎯 Évaluation » du bandeau du bas)
      Indépendant du simulateur — interfaces uniquement via
      EvalModule.getConfig() et SimModule.getState()
 ══════════════════════════════════════════════════════════ -->
-<div id="bld-overlay-eval" class="bld-overlay">
-  <div class="bld-page">
-    <div class="bld-page-title">🎯 Configuration de l'évaluation</div>
-    <div class="bld-two-col">
 
-      <!-- ── Colonne gauche : paramètres généraux ── -->
-      <div>
-        <div class="bld-card">
-          <div class="bld-card-title">📝 Informations générales</div>
-          <div class="bld-row">
-            <label>Titre de l'activité</label>
-            <input id="ev-title" placeholder="Ex : Configuration d'un réseau local" value="Activité réseau IPv4"/>
-          </div>
-          <div class="bld-row">
-            <label>Niveau / Classe</label>
-            <input id="ev-level" placeholder="Ex : 4ème — Cycle 4" value="4ème — Cycle 4"/>
-          </div>
-          <div class="bld-row">
-            <label>Consignes affichées à l'élève</label>
-            <textarea id="ev-instructions" placeholder="Décrivez ce que l'élève doit faire…" rows="4"></textarea>
-          </div>
-        </div>
-
-        <div class="bld-card">
-          <div class="bld-card-title">⚙️ Paramètres de notation</div>
-          <div class="bld-row">
-            <label>Seuil de réussite (%)</label>
-            <input id="ev-mastery" type="number" min="0" max="100" value="60" style="max-width:90px"/>
-          </div>
-          <div class="bld-row">
-            <label>Mode d'affichage dans le simulateur</label>
-            <select id="ev-displaymode">
-              <option value="full">Complet (titre + instructions + objectifs)</option>
-              <option value="objectives">Objectifs seulement</option>
-              <option value="score">Score seulement</option>
-            </select>
-          </div>
-          <div id="ev-total-pts" style="margin-top:12px;padding:9px 12px;background:#f7fafc;border-radius:7px;font-size:.83em;color:#4a5568;border:1px solid #e2e8f0;">
-            Total : <strong>0 point(s)</strong>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Colonne droite : objectifs et pannes, dans l'ordre choisi ── -->
-      <div>
-        <div class="obj-list-hdr">
-          <h3>📋 Objectifs et pannes</h3>
-          <span class="ev-counts"><span class="ev-dot"></span><span id="ev-obj-count">0</span> objectif(s)
-            · <span class="ev-dot fault"></span><span id="ev-fault-count">0</span> panne(s)</span>
-        </div>
-        <div class="ev-add-btns">
-          <button class="btn-add-obj" onclick="EvalModule.addObjective()">+ Ajouter un objectif</button>
-          <button class="btn-add-obj btn-add-fault" onclick="EvalModule.addFault()">+ Ajouter une panne</button>
-        </div>
-        <div class="ev-help">
-          Les pannes sont injectées au chargement : l'élève diagnostique avec le terminal, puis corrige.
-          Ajoutez des objectifs qui vérifient chaque correction (IP configurée, service actif…).
-          Réordonnez avec ⠿ ou ▲ ▼ : les objectifs sont présentés à l'élève dans cet ordre.
-        </div>
-        <div id="ev-list"></div>
-      </div>
-
-    </div><!-- /.bld-two-col -->
-  </div><!-- /.bld-page -->
-</div><!-- /#bld-overlay-eval -->
 
 
 <!-- ══════════════════════════════════════════════════════════
@@ -4253,7 +4270,7 @@ function ctlFaultsHTML(cfg){
     if(un.indexOf(n)<0)return;
     var lab=f.label||(EvalModule.faultAutoLabel?EvalModule.faultAutoLabel(f):f.type);
     h+='<div class="sd-obj"><span>🔴</span><span class="sd-label"><strong>'+n+'</strong> — '+esc(lab)+
-      '<br><em style="color:#c05621;font-size:.85em">⚠️ ne rapporte aucun point : donnez-lui des points dans l\'onglet Évaluation</em>'+
+      '<br><em style="color:#c05621;font-size:.85em">⚠️ ne rapporte aucun point : donnez-lui des points dans le bandeau Évaluation</em>'+
       '</span><span class="sd-pts"></span></div>';
   });
   return h;
@@ -4308,7 +4325,7 @@ function ctlRenderBadges(){
   g.innerHTML=h;
 }
 function ctlGoFault(id){
-  showBuilderTab(2);
+  openEval();
   setTimeout(function(){
     var card=document.querySelector('[data-fltid="'+id+'"]');if(!card)return;
     var body=card.querySelector('.obj-card-body');
@@ -4326,9 +4343,9 @@ function ctlRenderBanner(){
   var objs=cfg?scoredObjectives(cfg):[];
   var nF=((cfg&&cfg.faults)||[]).length;
   if(!objs.length){
-    bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans l\'onglet 2</span>'+
+    bn.innerHTML='<span class="ctl-pill">Aucun objectif : à définir dans le bandeau Évaluation</span>'+
       (nF?'<span class="ctl-pill warn">⚠️ '+nF+' panne'+(nF>1?'s':'')+' sans points : rien à gagner</span>':'');
-    bn.title='Donnez des points à chaque panne (onglet Évaluation) : l\'élève les obtient en la réparant.';return;
+    bn.title='Donnez des points à chaque panne (bandeau Évaluation) : l\'élève les obtient en la réparant.';return;
   }
   var au=ActivityWizard.audit({network:SimModule.getState(),activity:cfg});
   var pill=function(c,t){return '<span class="ctl-pill '+c+'">'+t+'</span>';};
@@ -4340,7 +4357,7 @@ function ctlRenderBanner(){
   h+=pill('',(au.faults?au.faults+' panne'+(au.faults>1?'s':''):'aucune panne')+' · seuil '+au.mastery+' %');
   bn.innerHTML=h;
   bn.title=(au.ok?'Aucun problème détecté. ':'')+'Départ élève = ce que l\'élève a en ouvrant l\'activité (réseau corrigé + pannes), sans rien faire.'+
-    (au.problems.length?'\n• '+au.problems.join('\n• '):'')+'\nCliquer pour ouvrir l\'onglet Évaluation.';
+    (au.problems.length?'\n• '+au.problems.join('\n• '):'')+'\nCliquer pour ouvrir le bandeau Évaluation.';
 }
 
 /* ── Contrôle du corrigé (vue Corrigé) ───────────────────────
@@ -4548,6 +4565,15 @@ function _viewUI(){
       :'';
   }
   palLock(v==='depart');   // lecture seule : palette et outils grisés
+  // L'évaluation se règle dans le corrigé : l'onglet disparaît des autres vues (Journal prend le relais s'il était ouvert)
+  var te=document.getElementById('bt-eval');
+  if(te){
+    te.style.display=v==='corrige'?'':'none';
+    if(v!=='corrige'&&te.classList.contains('active')){
+      var bot=document.querySelector('.bot'),closed=bot&&bot.classList.contains('closed');
+      bldTab('log');if(closed)setBot(false);
+    }
+  }
   var hs=document.getElementById('hdr-score');
   if(hs)hs.title=v==='essai'?'Score de votre essai : celui que l\'élève obtiendrait avec les mêmes gestes. Cliquer pour le détail.'
     :v==='depart'?'Score de l\'élève à l\'ouverture de l\'activité. Cliquer pour le détail.'
@@ -4616,7 +4642,7 @@ function checkAllObjectives(){
   // Départ élève et Essai : le réseau est celui de l'élève, la note aussi (aucune exception du corrigé)
   if(BUILDER_VIEW!=='corrige'){evaluateObjectives(objs);updateActivityScore();return;}
   // Corrigé : rien ne s'y gagne, ni par une réparation ni par une commande (voir checkDynamicObjective).
-  // Le score affiché est celui de l'élève à l'ouverture : réseau corrigé, pannes de l'onglet 2 appliquées
+  // Le score affiché est celui de l'élève à l'ouverture : réseau corrigé, pannes de l'Évaluation appliquées
   // (0 pour une activité bien construite). Pour jouer l'élève : vue Essai.
   var atStart=studentStartResults(SimModule.getState(),{faults:cfg.faults||[],objectives:objs},false);
   ACTIVITY_RESULTS={};ACTIVITY_PROOFS={};
@@ -4646,7 +4672,7 @@ function resetScore(){
    par l'élève », puis pannes. corrige=true : dans le corrigé lui-même (ces appareils restent en place).
    Le réseau du builder est remis tel quel ensuite. */
 function studentStartResults(net,cfg,corrige){
-  var keys=['devs','links','nid','frames','texts','activeLinks','animPhase'];
+  var keys=['devs','links','nid','frames','texts','activeLinks','animPhase','sel'];   // sel : retirer un appareil « à ajouter » de la copie ne doit pas désélectionner celui du schéma
   var saved={},savedIds=START_DEV_IDS,res={};
   keys.forEach(function(k){saved[k]=S[k];});
   try{
@@ -5896,7 +5922,7 @@ var GenModule = (function() {
     var score = _studentStartScore(net, cfg);
     var seuil = cfg.masteryscore || 60;
     if(score < seuil) return true;
-    return confirm('⚠️ Au départ, l\'élève aurait déjà '+score+' / 100 pour un seuil de '+seuil+' % : il réussirait sans rien corriger.\n\nVérifiez les objectifs et les pannes de l\'onglet 2.\n\nExporter quand même ?');
+    return confirm('⚠️ Au départ, l\'élève aurait déjà '+score+' / 100 pour un seuil de '+seuil+' % : il réussirait sans rien corriger.\n\nVérifiez les objectifs et les pannes du bandeau Évaluation.\n\nExporter quand même ?');
   }
 
   function generate() {
@@ -6054,7 +6080,7 @@ var GenModule = (function() {
     if(pwdEl && sc.teacherPwd) pwdEl.value = sc.teacherPwd;
     resetScore();
     bldNotif(msg || '📂 Scénario importé : '+Object.keys(sc.network.devs||{}).length+' appareils, '+(sc.activity.objectives||[]).length+' objectifs','ok');
-    showBuilderTab(1);
+    checkAllObjectives();
   }
 
   function importScenario(ev, prearsed) {
@@ -7419,7 +7445,7 @@ var ActivityWizard=(function(){
       });
       if(moved)tags.push('autres pannes');
       else if(a.faults.length)warn.push('Aucune panne ne peut changer d\'appareil : le réseau n\'a pas d\'autre poste du même genre. '+
-        'Ajoutez-en un dans l\'onglet Réseau (un PC fixe relié au switch, un portable en WiFi…), ou combinez avec « Une de plus ».');
+        'Ajoutez-en un sur le schéma (un PC fixe relié au switch, un portable en WiFi…), ou combinez avec « Une de plus ».');
     }
     if(want('remove')){
       if(a.faults.length<2)warn.push('Une seule panne : elle est conservée');
@@ -7531,7 +7557,7 @@ var WizardUI=(function(){
         '<div class="wz-step">2. Thème</div>'+cards('theme',AW.THEMES,st.theme)+
         '<div class="wz-step">3. Niveau</div>'+cards('level',AW.LEVELS,st.level,LEVEL_ICONS)+
         '<p class="wz-note">L\'activité remplace le réseau et l\'évaluation en cours. Tout reste modifiable ensuite '+
-        'dans les onglets Réseau et Évaluation.</p>';
+        'sur le schéma et dans le bandeau Évaluation.</p>';
       reroll=st.type==='depannage'&&JSON.stringify(st.result.activity.faults)!==
         JSON.stringify(AW.build({type:st.type,theme:st.theme,level:st.level,seed:st.seed+1}).activity.faults);
       right=previewHTML(st.result);
@@ -7593,7 +7619,7 @@ var WizardUI=(function(){
     if(st.mode==='new'){
       var busy=Object.keys(S.devs||{}).length||(EvalModule.getConfig().objectives||[]).length;
       if(busy&&!confirm('Remplacer le réseau et l\'évaluation en cours par cette nouvelle activité ?\n\n'+
-        'Exportez d\'abord le scénario actuel (onglet 3) si vous voulez le garder.'))return;
+        'Enregistrez d\'abord le scénario actuel (☰ Menu › Enregistrer) si vous voulez le garder.'))return;
     }
     if(GenModule.applyScenario(sc,(st.mode==='new'?'✨ Activité créée : ':'🔀 Variante créée : ')+sc.activity.title)){
       close();
@@ -7668,22 +7694,59 @@ var BldMenu = (function(){
   };
 })();
 
-function showBuilderTab(n) {
-  if(n===3){ openExportDialog(); return; }   // l'ancien onglet « Générer » est devenu la fenêtre d'export
-  if(n!==1) ensureCorrige();
-  // Update nav buttons
-  document.querySelectorAll('.bld-tab').forEach(function(b){
-    b.classList.toggle('active', parseInt(b.dataset.tab)===n);
-  });
-  // Show/hide overlays
-  var evalOvl = document.getElementById('bld-overlay-eval');
-  if(evalOvl) evalOvl.classList.toggle('active', n===2);
-  // La page Évaluation commence sous l'en-tête
-  var hdr = document.querySelector('.hdr');
-  if(evalOvl && hdr) evalOvl.style.top = hdr.offsetHeight + 'px';
-  // Quitter l'onglet Évaluation → recalculer le score sur le réseau courant
-  if(n!==2) checkAllObjectives();
+/* ── Bandeau du bas : onglets Évaluation, Journal, Paquets ──────────────
+   Chaque onglet garde sa hauteur : Évaluation s'ouvre haut (42 % de l'écran), Journal et Paquets restent à 215 px.
+   showTab (moteur) bascule l'onglet et déplie le bandeau ; bldTab y ajoute la hauteur. */
+var BOT_H = {};
+function bldTab(id) {
+  var bot = document.querySelector('.bot'), cur = document.querySelector('.bt.active');
+  if(bot) {
+    var from = cur ? cur.getAttribute('data-tab') : 'log';
+    if(from !== id && !bot.classList.contains('closed') && bot.style.height) BOT_H[from] = bot.style.height;
+    bot.style.height = BOT_H[id] || (id === 'eval' ? Math.round(window.innerHeight * 0.42) + 'px' : '215px');
+  }
+  showTab(id);
 }
+/* Ouvre l'évaluation (toujours dans le corrigé) : les objectifs et les pannes se règlent sur le réseau qui fonctionne. */
+function openEval() {
+  ensureCorrige();
+  bldTab('eval');
+}
+
+/* Appareil « à ajouter par l'élève » créé depuis le bandeau Évaluation, et menu qui en propose les genres. */
+var BldEval = (function(){
+  function menu(){ return document.getElementById('ev-add-menu'); }
+  function setOpen(on){ var m = menu(); if(m) m.classList.toggle('open', on); }
+  document.addEventListener('mousedown', function(e){
+    var m = menu(); if(m && m.classList.contains('open') && !e.target.closest('.ev-add-wrap')) setOpen(false);
+  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') setOpen(false); });
+  /* Premier emplacement libre du schéma visible, assez loin des autres appareils. */
+  function freeSpot(){
+    var cw = document.getElementById('cw'), ds = Object.values(S.devs);   // zone visible du schéma (le canevas SVG est plus grand)
+    var x0 = cw.scrollLeft + 20, y0 = cw.scrollTop + 20;
+    for(var y = y0; y < cw.scrollTop + cw.clientHeight - DH - 10; y += 20) {
+      for(var x = x0; x < cw.scrollLeft + cw.clientWidth - DW - 10; x += 20) {
+        var ok = ds.every(function(d){ return x + DW + 20 < d.x || x - DW - 20 > d.x || y + DH + 20 < d.y || y - DH - 20 > d.y; });
+        if(ok) return {x: x, y: y};
+      }
+    }
+    return {x: x0, y: y0};
+  }
+  return {
+    toggleAddDev: function(e){ if(e) e.stopPropagation(); var m = menu(); setOpen(!(m && m.classList.contains('open'))); },
+    addDev: function(spec){
+      setOpen(false);
+      ensureCorrige();
+      var p = spec.split(':'), type = p[0], kind = p[1], at = freeSpot();
+      snapHistory();
+      var id = mkDev(type, at.x, at.y, kind);
+      S.devs[id].toAdd = true;
+      S.sel = id; render(); showProps(id); checkAllObjectives();
+      notif('➕ ' + S.devs[id].name + ' : à ajouter par l\'élève. Reliez-le au réseau : il part avec ses câbles et ses réglages, et est retiré du réseau de départ.', 'ok');
+    }
+  };
+})();
 
 /* ── Init Builder ── */
 window.addEventListener('load', function() {
@@ -7696,25 +7759,35 @@ window.addEventListener('load', function() {
   
   setBot(false);   // bandeau du bas (Journal, Paquets) replié à l'ouverture
 
+  // Le bandeau est visible en même temps que le schéma : tout réglage de l'évaluation (saisie, ajout, suppression,
+  // ordre) ou clic dans le bandeau remet à jour le contrôle du corrigé (pastilles, état), sans attendre un changement d'onglet.
+  (function(){
+    var bot=document.querySelector('.bot'),t=null;
+    if(!bot)return;
+    ['input','change','click'].forEach(function(ev){
+      bot.addEventListener(ev,function(){
+        clearTimeout(t);
+        t=setTimeout(function(){try{checkAllObjectives();}catch(e){}},250);
+      });
+    });
+  })();
+
   // Teacher bar always visible in builder (no password)
   _teacherMode = true;
   var tb = document.getElementById('teacher-bar');
   if(tb) {
     tb.style.display = 'flex';
     // Replace teacher bar buttons with builder shortcut
-    tb.innerHTML = '<span class="tbar-title" title="Le schéma ci-dessous est le réseau qui FONCTIONNE ; les pannes sont ajoutées par-dessus dans l\'onglet 2 (pastilles rouges P1, P2…)">🔧 Réseau corrigé</span>'+
+    tb.innerHTML = '<span class="tbar-title" title="Le schéma ci-dessous est le réseau qui FONCTIONNE ; les pannes sont ajoutées par-dessus dans le bandeau Évaluation (pastilles rouges P1, P2…)">🔧 Réseau corrigé</span>'+
       '<span class="ctl-act" id="ctl-act"></span>'+
       '<span class="tbar-sep"></span>'+
-      '<span class="ctl-banner" id="ctl-banner" onclick="showBuilderTab(2)"></span>'+
-      '<button class="wbtn" onclick="showBuilderTab(2)">🎯 Évaluation et pannes →</button>'+
+      '<span class="ctl-banner" id="ctl-banner" onclick="openEval()"></span>'+
+      '<button class="wbtn" onclick="openEval()">🎯 Évaluation et pannes →</button>'+
       '<button class="wbtn" onclick="openExportDialog()">📦 Exporter…</button>'+
-      '<span class="tbar-hint">Dessinez le réseau qui fonctionne ; les pannes se règlent dans l\'onglet 2</span>';
+      '<span class="tbar-hint">Dessinez le réseau qui fonctionne ; les pannes se règlent dans le bandeau Évaluation</span>';
     var hs = document.getElementById('hdr-score');
     if(hs) hs.title = 'Contrôle du corrigé : chaque objectif est-il réalisé dans le réseau corrigé ? Rien ne se gagne ici : pour jouer l\'élève, vue Essai. Cliquer pour le détail.';
   }
-
-  // Set initial tab
-  showBuilderTab(1);
 
   // Fermer ou recharger sans avoir enregistré le travail : le navigateur demande confirmation
   window.addEventListener('beforeunload', function(e){
@@ -7726,9 +7799,9 @@ window.addEventListener('load', function() {
   // Keyboard shortcuts
   window.addEventListener('keydown', function(e){
     if(e.key==='F11'){e.preventDefault();toggleFullscreen();}
-    // Raccourcis : Ctrl+1 (schéma), Ctrl+2 (évaluation)
-    if(e.ctrlKey&&e.key==='1'){showBuilderTab(1);e.preventDefault();}
-    if(e.ctrlKey&&e.key==='2'){showBuilderTab(2);e.preventDefault();}
+    // Raccourcis : Ctrl+1 replie le bandeau (schéma seul), Ctrl+2 ouvre l'évaluation
+    if(e.ctrlKey&&e.key==='1'){setBot(false);e.preventDefault();}
+    if(e.ctrlKey&&e.key==='2'){openEval();e.preventDefault();}
   });
 
   // Panel resize (same as simulator)
@@ -7765,7 +7838,7 @@ window.addEventListener('load', function() {
     if(b)b.textContent=document.fullscreenElement?'⤡ Fenêtre':'⤢ Plein écran';
   });
 
-  addLog('🔧 Atelier Réseau : dessinez le réseau corrigé ici, ajoutez objectifs et pannes (Ctrl+2), puis exportez (☰ Menu). Pour reprendre un travail : ☰ Menu › Ouvrir.','info');
+  addLog('🔧 Atelier Réseau : dessinez le réseau corrigé ici, ajoutez objectifs et pannes (🎯 Évaluation, Ctrl+2), puis exportez (☰ Menu). Pour reprendre un travail : ☰ Menu › Ouvrir.','info');
   markSaved();   // builder vierge : rien à enregistrer tant que rien n'est fait
   ctlRefresh();
 });
