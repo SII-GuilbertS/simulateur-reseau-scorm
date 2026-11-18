@@ -2942,13 +2942,13 @@ test('TTL : 64 sur le même réseau (box comprise), moins 1 par routeur travers�
   eq(sandbox.pingTTL(simPing(pc.id, '192.168.1.1')), 64, 'la box elle-même');
   eq(sandbox.pingTTL(simPing(lap.id, mainIface(pc).ip)), 64, 'pont WiFi ↔ câble de la box');
   eq(sandbox.pingTTL(simPing(pc.id, '8.8.8.8')), 63, 'Internet, derrière la box');
-  var sc = sandbox.ActivityWizard.build({type: 'decouverte', theme: 'entreprise', level: 'bts'});
+  var sc = sandbox.ActivityWizard.build({type: 'decouverte', theme: 'entreprise', level: 'd3'});
   openScenario(sc, false);
   eq(sandbox.pingTTL(simPing(devByName('PC-Accueil').id, '192.168.2.100')), 63, 'serveur derrière le routeur');
 });
 
 test('carte d\'un routeur : ses trois interfaces sont affichées', function() {
-  var sc = sandbox.ActivityWizard.build({type: 'decouverte', theme: 'classe', level: 'bts'});
+  var sc = sandbox.ActivityWizard.build({type: 'decouverte', theme: 'classe', level: 'd3'});
   openScenario(sc, false);
   sandbox.renderDevs();
   var r = devByName('Routeur'), svg = _docElements['layer-devs'].innerHTML;
@@ -3237,26 +3237,26 @@ test('l\'exigence suit le niveau : adresse exacte, plage, puis libre et contrain
     return AW.build({type: 'construction', theme: 'entreprise', level: level}).activity.objectives
       .filter(function(o) { return o.check === 'device_added'; })[0];
   }
-  eq(added('college').params.ip, '192.168.1.20');
-  eq(added('college').showConstraint, true);
-  eq(added('lycee').params.ip, '192.168.1.20-49');
-  eq(added('bts').params.ip, '192.168.1.*');
-  eq(added('bts').showConstraint, false);
-  var gw = AW.build({type: 'construction', theme: 'classe', level: 'lycee'}).activity.objectives
+  eq(added('d1').params.ip, '192.168.1.20');
+  eq(added('d1').showConstraint, true);
+  eq(added('d2').params.ip, '192.168.1.20-49');
+  eq(added('d3').params.ip, '192.168.1.*');
+  eq(added('d3').showConstraint, false);
+  var gw = AW.build({type: 'construction', theme: 'classe', level: 'd2'}).activity.objectives
     .filter(function(o) { return o.check === 'gateway_configured'; })[0];
   eq(gw.params.gateway, '@routeur');
 });
 
 test('un autre tirage met les pannes sur d\'autres postes', function() {
   function targets(seed) {
-    return AW.build({type: 'depannage', theme: 'classe', level: 'lycee', seed: seed}).activity.faults
+    return AW.build({type: 'depannage', theme: 'classe', level: 'd2', seed: seed}).activity.faults
       .map(function(f) { return f.dev || f.devA; }).join(',');
   }
   assert(targets(0) !== targets(1), 'mêmes appareils : ' + targets(0));
 });
 
 test('chaque panne est suivie de sa réparation puis d\'un « Test : »', function() {
-  var a = AW.build({type: 'depannage', theme: 'entreprise', level: 'bts'}).activity;
+  var a = AW.build({type: 'depannage', theme: 'entreprise', level: 'd3'}).activity;
   a.evalOrder.forEach(function(k, i) {
     if(k[0] !== 'f') return;
     var rep = a.objectives.filter(function(o) { return 'o:' + o.id === a.evalOrder[i + 1]; })[0];
@@ -3267,7 +3267,7 @@ test('chaque panne est suivie de sa réparation puis d\'un « Test : »', functi
 });
 
 test('salle de classe : ENT hébergé sur Internet, serveur de données dans l\'établissement', function() {
-  ['college', 'lycee', 'bts'].forEach(function(level) {
+  ['d1', 'd2', 'd3'].forEach(function(level) {
     var net = AW.build({type: 'decouverte', theme: 'classe', level: level}).network;
     var devs = Object.values(net.devs), by = function(n) { return devs.find(function(d) { return d.name === n; }); };
     var ent = by('Serveur-ENT'), inet = by('Internet'), data = by('Serveur-Données');
@@ -3280,15 +3280,15 @@ test('salle de classe : ENT hébergé sur Internet, serveur de données dans l\'
     eq(inet.dns.records['ent.etablissement.fr'], ent.ifaces[0].ip);
     devs.filter(function(d) { return d.type === 'pc'; }).forEach(function(d) { eq(d.ifaces[0].dns, '8.8.8.8'); });
   });
-  var a = AW.build({type: 'depannage', theme: 'classe', level: 'bts'}).activity;
+  var a = AW.build({type: 'depannage', theme: 'classe', level: 'd3'}).activity;
   ok(a.faults.every(function(f) { return f.dev !== 'Serveur-ENT'; }), 'aucune panne sur l\'ENT, hors de l\'établissement');
   ok(/hébergé sur Internet/.test(a.instructions));
 });
 
 test('titre, niveau et consignes renseignés', function() {
-  var a = AW.build({type: 'decouverte', theme: 'maison', level: 'college'}).activity;
+  var a = AW.build({type: 'decouverte', theme: 'maison', level: 'd1'}).activity;
   eq(a.title, 'Réseau de la maison — Découverte');
-  eq(a.level, 'Collège (4e / 3e)');
+  eq(a.level, 'Difficulté 1 / 3');
   ok(/dhcp/i.test(a.instructions), 'la consigne parle du DHCP du Laptop');
 });
 
@@ -3298,12 +3298,12 @@ test('répartition des points : total exact, au moins 1 point chacun', function(
   ok(p.every(function(x) { return x >= 1; }));
   eq(AW.distribute([1, 1, 1], 100).join(','), '34,33,33');
   eq(AW.distribute([3, 2, 2, 3], 100, 5).join(','), '30,20,20,30');
-  ok(AW.build({type: 'construction', theme: 'classe', level: 'bts'}).activity.objectives
+  ok(AW.build({type: 'construction', theme: 'classe', level: 'd3'}).activity.objectives
     .every(function(o) { return o.points % 5 === 0; }), 'barème des modèles par pas de 5');
 });
 
 test('le contrôle signale une activité trop facile', function() {
-  var sc = AW.build({type: 'depannage', theme: 'maison', level: 'college'});
+  var sc = AW.build({type: 'depannage', theme: 'maison', level: 'd1'});
   sc.activity.faults = [];
   var au = AW.audit(sc);
   notOk(au.ok);
@@ -3554,7 +3554,7 @@ test('une panne de plus s\'ajoute dans au moins deux scénarios fournis', functi
 
 test('variantes combinées d\'une activité de l\'assistant (exigeante + une panne de plus)', function() {
   for(var seed = 0; seed < 3; seed++) {
-    var base = AW.build({type: 'depannage', theme: 'classe', level: 'lycee', seed: seed});
+    var base = AW.build({type: 'depannage', theme: 'classe', level: 'd2', seed: seed});
     var r = AW.makeVariant(base, {exigence: 'demanding', faults: 'add', seed: seed});
     ok(r.changed);
     scenarioBattery(r.scenario, 'tirage ' + seed);
@@ -3564,7 +3564,7 @@ test('variantes combinées d\'une activité de l\'assistant (exigeante + une pan
 });
 
 test('autres appareils sur un petit réseau : deux pannes échangent leurs postes', function() {
-  var base = AW.build({type: 'depannage', theme: 'maison', level: 'lycee', seed: 0});
+  var base = AW.build({type: 'depannage', theme: 'maison', level: 'd2', seed: 0});
   var r = AW.makeVariant(base, {exigence: 'same', faults: ['move']});
   ok(r.changed, r.warnings.join(' ; '));
   ok(r.report.some(function(t) { return /échangée/.test(t); }), r.report.join(' ; '));

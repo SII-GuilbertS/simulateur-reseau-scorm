@@ -1012,8 +1012,8 @@ test.describe('Builder', () => {
     const card = (group, id) => page.locator(`.wz-card[data-group="${group}"][data-id="${id}"]`);
     await card('type', 'decouverte').click();
     await card('theme', 'classe').click();
-    await card('level', 'lycee').click();
-    await expect(card('level', 'lycee')).toHaveClass(/on/);
+    await card('level', 'd2').click();
+    await expect(card('level', 'd2')).toHaveClass(/on/);
     await expect(page.locator('.wz-prev-title')).toHaveText('Réseau de la salle de classe — Découverte');
     await expect(page.locator('.wz-audit')).toContainText('Vérifié');
     await expect(page.locator('#wz-reroll')).toHaveCount(0);   // rien à tirer sans panne
@@ -1483,7 +1483,7 @@ test.describe('Builder', () => {
     await menu(page, 'btn-wizard');
     await page.locator('.wz-card[data-group="type"][data-id="depannage"]').click();
     await page.locator('.wz-card[data-group="theme"][data-id="maison"]').click();
-    await page.locator('.wz-card[data-group="level"][data-id="college"]').click();
+    await page.locator('.wz-card[data-group="level"][data-id="d1"]').click();
     await page.locator('#wz-create').click();
     await expect(page.locator('#wz-ovl')).not.toHaveClass(/open/);
     await corrigeComplet(page); await departZero(page);

@@ -6363,11 +6363,11 @@ var ActivityWizard=(function(){
     {id:'classe',label:'Salle de classe',icon:'🏫',desc:'Routeur, postes élèves, serveur de données ; ENT sur Internet'}
   ];
   var LEVELS=[
-    {id:'college',label:'Collège',full:'Collège (4e / 3e)',desc:'Valeurs données à l\'élève, consignes détaillées'},
-    {id:'lycee',label:'Lycée',full:'Lycée (SNT / NSI)',desc:'Adresse à choisir dans une plage, passerelle à trouver'},
-    {id:'bts',label:'BTS / Terminale',full:'Terminale NSI / BTS SIO',desc:'Adresses libres, contraintes masquées, deux réseaux'}
+    {id:'d1',label:'1 · Guidé',full:'Difficulté 1 / 3',desc:'Valeurs données à l\'élève, consignes détaillées, réseau simple'},
+    {id:'d2',label:'2 · Intermédiaire',full:'Difficulté 2 / 3',desc:'Adresse à choisir dans une plage, passerelle à trouver'},
+    {id:'d3',label:'3 · Autonome',full:'Difficulté 3 / 3',desc:'Adresses libres, contraintes masquées, deux réseaux, plus de pannes'}
   ];
-  var MASTERY={college:50,lycee:60,bts:70};
+  var MASTERY={d1:50,d2:60,d3:70};
 
   function clone(x){return JSON.parse(JSON.stringify(x));}
   function pick(list,id){return list.filter(function(t){return t.id===id;})[0]||list[0];}
@@ -6428,10 +6428,10 @@ var ActivityWizard=(function(){
     var ctx=mkCtx(net,'maison',level,'Box','la Box');
     ctx.lans=[{prefix:'192.168.1.',gw:'192.168.1.1',sw:'Switch-Salon'}];
     ctx.dnsIP='8.8.8.8';ctx.site='www.exemple.fr';ctx.newdev='PC-Chambre';ctx.wifiBad='maison321';
-    (level==='college'?['PC-Bureau']:['PC-Bureau','PC-Salon']).forEach(function(n,i){
+    (level==='d1'?['PC-Bureau']:['PC-Bureau','PC-Salon']).forEach(function(n,i){
       addHost(ctx,n,0,10+i,560+i*240,500,'desktop');
     });
-    (level==='bts'?[['Laptop','laptop'],['Smartphone','phone']]:[['Laptop','laptop']]).forEach(function(w,i){
+    (level==='d3'?[['Laptop','laptop'],['Smartphone','phone']]:[['Laptop','laptop']]).forEach(function(w,i){
       var d=addDev(net,'pc',w[0],600+i*260,80,
         [{name:'eth0',ip:'',mask:'255.255.255.0',gateway:'',dns:'',dhcpMode:true}],
         {kind:w[1],wifi:{ssid:'WiFi-Maison',pass:'maison123'}});
@@ -6440,7 +6440,7 @@ var ActivityWizard=(function(){
     return ctx;
   }
   function themeOffice(level,theme){
-    var bts=level==='bts',cls=theme==='classe';
+    var bts=level==='d3',cls=theme==='classe';
     var net=newNet(),inet=addInternet(net);
     var p1=cls?'192.168.10.':'192.168.1.',p2=cls?'192.168.20.':'192.168.2.';
     var ifs=[rif('eth0','10.0.0.2'),rif('eth1',p1+'1')];
@@ -6459,7 +6459,7 @@ var ActivityWizard=(function(){
     // Établissement : l'ENT est hébergé sur Internet, les postes utilisent un DNS public.
     ctx.dnsIP=cls?'8.8.8.8':ctx.lans[srvLan].prefix+'100';
     var names=cls?['Poste-Prof','Poste-1','Poste-2']:['PC-Accueil','PC-Compta'];
-    if(level!=='college')names.push(cls?'Poste-3':'PC-Direction');
+    if(level!=='d1')names.push(cls?'Poste-3':'PC-Direction');
     names.forEach(function(n,i){addHost(ctx,n,0,10+i,500+i*180,500,'desktop');});
     if(cls){
       // ENT chez un hébergeur, derrière Internet : adresse publique, nom résolu par le DNS public.
@@ -6490,26 +6490,26 @@ var ActivityWizard=(function(){
   /* ── Exigence selon le niveau ── */
   function ipSpec(ctx,ip,lo,hi){
     var pre=ip.replace(/\d+$/,'');
-    if(ctx.level==='college')return ip;
-    return ctx.level==='lycee'?pre+lo+'-'+hi:pre+'*';
+    if(ctx.level==='d1')return ip;
+    return ctx.level==='d2'?pre+lo+'-'+hi:pre+'*';
   }
   function ipText(ctx,ip,lo,hi){
     var pre=ip.replace(/\d+$/,'');
-    if(ctx.level==='college')return 'l\'adresse '+ip;
-    if(ctx.level==='lycee')return 'une adresse libre entre '+pre+lo+' et '+pre+hi;
+    if(ctx.level==='d1')return 'l\'adresse '+ip;
+    if(ctx.level==='d2')return 'une adresse libre entre '+pre+lo+' et '+pre+hi;
     return 'une adresse libre du réseau '+pre+'0/24';
   }
-  function gwSpec(ctx,L){return ctx.level==='college'?L.gw:'@routeur';}
+  function gwSpec(ctx,L){return ctx.level==='d1'?L.gw:'@routeur';}
   function gwText(ctx,dev,L){
-    return ctx.level==='college'?'La passerelle de '+dev+' est '+ctx.rname+' ('+L.gw+')'
+    return ctx.level==='d1'?'La passerelle de '+dev+' est '+ctx.rname+' ('+L.gw+')'
       :dev+' utilise le routeur de son réseau comme passerelle';
   }
-  function dnsSpec(ctx){return ctx.level==='college'||!ctx.server?ctx.dnsIP:'{'+ctx.server+'}';}
+  function dnsSpec(ctx){return ctx.level==='d1'||!ctx.server?ctx.dnsIP:'{'+ctx.server+'}';}
   function dnsText(ctx,dev){
-    return ctx.level==='college'||!ctx.server?dev+' utilise le serveur DNS '+ctx.dnsIP
+    return ctx.level==='d1'||!ctx.server?dev+' utilise le serveur DNS '+ctx.dnsIP
       :dev+' utilise le serveur DNS du réseau ('+ctx.server+')';
   }
-  function shown(ctx){return ctx.level!=='bts';}
+  function shown(ctx){return ctx.level!=='d3';}
 
   /* ── Liste ordonnée d'objectifs (o) et de pannes (f) ── */
   function O(items,check,params,label,hint,w,show){
@@ -6526,22 +6526,22 @@ var ActivityWizard=(function(){
     O(it,'ping_success',{from:n,to:L.gw},'Test : '+n+' joint '+c.rname+' (ping '+L.gw+')',
       'Terminal de '+n+' : ping '+L.gw,2);
     O(it,'gateway_configured',{dev:n,gateway:gwSpec(c,L)},gwText(c,n,L),
-      c.level==='college'?'Fiche de '+n+' : passerelle '+L.gw
+      c.level==='d1'?'Fiche de '+n+' : passerelle '+L.gw
         :'Quelle est l\'adresse de '+c.rname+' sur ce réseau ? Regardez ipconfig sur '+c.hosts[0],3,sh);
     O(it,'ping_success',{from:n,to:'8.8.8.8'},'Test : '+n+' accède à Internet (ping 8.8.8.8)',
       'Terminal de '+n+' : ping 8.8.8.8',2);
     O(it,'dns_configured',{dev:n,dns:dnsSpec(c)},dnsText(c,n),
-      c.level==='college'?'Fiche de '+n+' : serveur DNS '+c.dnsIP:'Reprenez le DNS configuré sur '+c.hosts[0]+' (ipconfig)',3);
+      c.level==='d1'?'Fiche de '+n+' : serveur DNS '+c.dnsIP:'Reprenez le DNS configuré sur '+c.hosts[0]+' (ipconfig)',3);
     O(it,'http_success',{from:n,url:c.site},'Test : '+n+' ouvre le site '+c.site,
       'Double-clic sur '+n+', Navigateur : entrez '+c.site,2);
-    if(c.level==='bts'&&c.server){
+    if(c.level==='d3'&&c.server){
       var rec=n.toLowerCase()+'.'+c.domain;
       O(it,'dns_record',{dev:c.server,domain:rec,ip:'{'+n+'}'},'Le DNS associe '+rec+' à '+n,
         'Fiche du '+c.server+' : ajoutez l\'enregistrement '+rec+' avec l\'adresse choisie pour '+n,3);
       O(it,'dns_success',{from:c.hosts[0],domain:rec},'Test : '+c.hosts[0]+' résout '+rec+' (nslookup)',
         'Terminal de '+c.hosts[0]+' : nslookup '+rec,2);
     }
-    if(c.theme==='maison'&&c.level!=='college'){
+    if(c.theme==='maison'&&c.level!=='d1'){
       O(it,'device_added',{newdev:'Tablette',type:'pc'},'La Tablette est ajoutée au réseau',
         'Ajoutez une tablette et nommez-la Tablette',2);
       O(it,'wifi_link',{devA:'Tablette',devB:c.router},'La Tablette est connectée en WiFi à la Box',
@@ -6623,8 +6623,8 @@ var ActivityWizard=(function(){
   function faultPlan(ctx){
     var h=rotate(lanHosts(ctx,0),ctx.seed),b=lanHosts(ctx,1),m=ctx.theme==='maison';
     function at(i){return h[i%h.length];}
-    if(ctx.level==='college')return m?[['cable',at(0)],['wifipass',null]]:[['cable',at(0)],['gateway',at(1)]];
-    if(ctx.level==='lycee')return m?[['ip',at(0)],['wifipass',null],['dns',at(1)]]
+    if(ctx.level==='d1')return m?[['cable',at(0)],['wifipass',null]]:[['cable',at(0)],['gateway',at(1)]];
+    if(ctx.level==='d2')return m?[['ip',at(0)],['wifipass',null],['dns',at(1)]]
       :[['ip',at(0)],['gateway',at(1)],ctx.server?['srv_dns',at(2)]:['dns',at(2)]];
     return m?[['ip',at(0)],['gateway',at(1)],['dhcp',null],['dns',at(1)]]
       :[['ip',at(0)],['gateway',b.length?rotate(b,ctx.seed)[0]:at(1)],
@@ -6637,7 +6637,7 @@ var ActivityWizard=(function(){
   }
 
   function decouverteItems(ctx){
-    var c=ctx,it=[],h=lanHosts(c,0),L=c.lans[0],lyc=c.level!=='college';
+    var c=ctx,it=[],h=lanHosts(c,0),L=c.lans[0],lyc=c.level!=='d1';
     function ping(from,to,label,w){O(it,'ping_success',{from:from,to:to},label,'Terminal de '+from+' : ping '+
       (/^\{/.test(to)?'(adresse de '+to.slice(1,-1)+', voir ipconfig)':to),w||2);}
     if(c.theme==='maison'){
@@ -6653,7 +6653,7 @@ var ActivityWizard=(function(){
           'Terminal de '+h[0]+' : nslookup '+c.site,2);
         ping(h[1],'{'+h[0]+'}',h[1]+' joint '+h[0]+' (ping)');
       }
-      if(c.level==='bts'){
+      if(c.level==='d3'){
         var ph=c.dhcpHosts[1];
         O(it,'dhcp_success',{from:ph},'Le '+ph+' obtient une adresse par DHCP',
           'Fiche du '+ph+' : bouton « Demander une adresse (DHCP) »',2);
@@ -6671,7 +6671,7 @@ var ActivityWizard=(function(){
         'Terminal de '+h[1]+' : nslookup '+c.site,2);
       ping(h[2],'{'+c.lanServer+'}',h[2]+' joint le '+c.lanServer+' (ping)');
     }
-    if(c.level==='bts'){
+    if(c.level==='d3'){
       var b=lanHosts(c,1);
       if(b.length){
         ping(h[0],'{'+b[0]+'}',h[0]+' joint '+b[0]+', dans l\'autre salle (ping)');
@@ -6726,7 +6726,7 @@ var ActivityWizard=(function(){
       'Dans l\'établissement, le '+ctx.lanServer+' garde les profils des élèves.';
   }
   function instructionsText(type,ctx,nFaults){
-    var c=ctx,L=c.lans[0],t=PLACE[c.theme],lyc=c.level!=='college';
+    var c=ctx,L=c.lans[0],t=PLACE[c.theme],lyc=c.level!=='d1';
     if(type==='construction'){
       var s='Un nouveau poste, '+c.newdev+', doit rejoindre le réseau'+t+'.\n\n🔍 Votre mission :\n'+
         '1. Ajoutez un PC nommé '+c.newdev+' et reliez-le au '+L.sw+'.\n'+
@@ -6735,7 +6735,7 @@ var ActivityWizard=(function(){
         '3. Double-cliquez sur le poste pour ouvrir son bureau et testez : ping vers '+c.rname+', ping 8.8.8.8, puis le site '+c.site+
         ' dans son navigateur.';
       var k=4;
-      if(c.level==='bts'&&c.server)s+='\n'+(k++)+'. Ajoutez sur le '+c.server+' l\'enregistrement DNS de '+c.newdev+
+      if(c.level==='d3'&&c.server)s+='\n'+(k++)+'. Ajoutez sur le '+c.server+' l\'enregistrement DNS de '+c.newdev+
         ', puis vérifiez-le avec nslookup depuis '+c.hosts[0]+'.';
       if(c.theme==='maison'&&lyc)s+='\n'+(k++)+'. Ajoutez une tablette nommée Tablette, connectez-la en WiFi à la Box '+
         '(mot de passe : dans la fiche de la Box) '+
@@ -6744,7 +6744,7 @@ var ActivityWizard=(function(){
     }
     if(type==='depannage'){
       return 'Le réseau'+t+' ne fonctionne plus correctement'+
-        (c.level==='bts'?' : plusieurs pannes sont à trouver.':' : '+nFaults+' panne'+(nFaults>1?'s sont':' est')+' à trouver.')+
+        (c.level==='d3'?' : plusieurs pannes sont à trouver.':' : '+nFaults+' panne'+(nFaults>1?'s sont':' est')+' à trouver.')+
         '\n\n🔍 Votre mission :\n'+
         '1. Double-cliquez sur un appareil pour ouvrir son bureau et testez : ping'+(lyc?', nslookup':'')+', navigateur.\n'+
         '2. Utilisez ipconfig pour comparer les réglages des appareils qui fonctionnent et de ceux qui ne fonctionnent pas.\n'+
@@ -7203,7 +7203,7 @@ var ActivityWizard=(function(){
       var d=hosts[h],fi=d.ifaces[0],gwDev=null;
       withNetwork(net,[],function(){gwDev=devByIP(fi.gateway);});
       if(!gwDev)continue;
-      var ctx={level:'college',theme:'',rname:(gwDev.type==='wifi_router'?'la ':'le ')+gwDev.name,
+      var ctx={level:'d1',theme:'',rname:(gwDev.type==='wifi_router'?'la ':'le ')+gwDev.name,
         lans:[{prefix:fi.ip.replace(/\d+$/,''),gw:fi.gateway,sw:linkedSwitch(net,d.name,true)}],
         lanOf:{},ip:{},hosts:[d.name],server:null};
       ctx.lanOf[d.name]=0;ctx.ip[d.name]=fi.ip;
@@ -7390,7 +7390,7 @@ var ActivityWizard=(function(){
 var WizardUI=(function(){
   'use strict';
   var AW=ActivityWizard;
-  var LEVEL_ICONS={college:'🌱',lycee:'📘',bts:'🚀'};
+  var LEVEL_ICONS={d1:'●○○',d2:'●●○',d3:'●●●'};
   var EXIGENCES=[
     {id:'same',icon:'＝',label:'Identique',desc:'Mêmes adresses, contraintes et indices'},
     {id:'guided',icon:'🤝',label:'Plus guidée',desc:'Contraintes affichées, seuil abaissé de 10 points'},
@@ -7402,7 +7402,7 @@ var WizardUI=(function(){
     {id:'remove',icon:'➖',label:'Une de moins',desc:'Retire la dernière panne, sa réparation et ses tests'},
     {id:'add',icon:'➕',label:'Une de plus',desc:'Ajoute une panne sur un poste, avec sa réparation et son test'}
   ];
-  var st={mode:'new',type:'depannage',theme:'maison',level:'college',seed:0,exigence:'same',faults:[],source:null,result:null};
+  var st={mode:'new',type:'depannage',theme:'maison',level:'d1',seed:0,exigence:'same',faults:[],source:null,result:null};
 
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function ovl(){return document.getElementById('wz-ovl');}
@@ -7449,7 +7449,7 @@ var WizardUI=(function(){
       title.textContent='✨ Nouvelle activité';
       left='<div class="wz-step">1. Type d\'activité</div>'+cards('type',AW.TYPES,st.type)+
         '<div class="wz-step">2. Thème</div>'+cards('theme',AW.THEMES,st.theme)+
-        '<div class="wz-step">3. Niveau</div>'+cards('level',AW.LEVELS,st.level,LEVEL_ICONS)+
+        '<div class="wz-step">3. Difficulté</div>'+cards('level',AW.LEVELS,st.level,LEVEL_ICONS)+
         '<p class="wz-note">L\'activité remplace le réseau et l\'évaluation en cours. Tout reste modifiable ensuite '+
         'sur le schéma et dans le bandeau Évaluation.</p>';
       reroll=st.type==='depannage'&&JSON.stringify(st.result.activity.faults)!==
